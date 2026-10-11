@@ -448,8 +448,9 @@ function openItemDialog({ node = null, parentId = null }) {
   const upd = () => {
     clearTimeout(pt);
     pt = setTimeout(() => {
-      const url = normalizeUrl(E.addr.value) || 'https://example.com';
-      prev.replaceChildren(T.renderThumbFrom(url, st));
+      const addr = normalizeUrl(E.addr.value);
+      const custom = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
+      prev.replaceChildren(addr || custom ? T.renderThumbFrom(addr || 'https://example.com', st) : T.placeholderThumb());
     }, 150);
   };
   const ak = $('#ak', dlg);

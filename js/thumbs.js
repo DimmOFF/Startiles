@@ -111,6 +111,22 @@ export function renderThumbFrom(pageUrl, t) {
   showCover(src, t.fit === 'contain' ? 'cov contain' : 'cov', () => { logo(); upgradeLogo(); });
   return box;
 }
+// Vector placeholder for an empty thumbnail (no address yet): a browser window with a globe, crisp at any size.
+export function placeholderThumb() {
+  const box = document.createElement('div');
+  box.className = 'thumb empty';
+  box.innerHTML = `<svg viewBox="0 0 120 98" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="16" y="14" width="88" height="70" rx="9"/>
+    <path d="M16 31h88"/>
+    <circle cx="27" cy="22.5" r="1.9" fill="currentColor" stroke="none"/>
+    <circle cx="34.5" cy="22.5" r="1.9" fill="currentColor" stroke="none"/>
+    <circle cx="42" cy="22.5" r="1.9" fill="currentColor" stroke="none"/>
+    <circle cx="60" cy="58" r="16"/>
+    <ellipse cx="60" cy="58" rx="6.5" ry="16"/>
+    <path d="M44 58h32M47 49.5h26M47 66.5h26"/>
+  </svg>`;
+  return box;
+}
 export const renderThumb = (url) => renderThumbFrom(url, getT(url));
 
 export async function fileToDataUrl(file, max = 640) {
