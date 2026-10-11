@@ -5,6 +5,7 @@ import * as M from './model.js';
 import * as SettingsUI from './settings-ui.js';
 import * as Icons from './icons.js';
 import * as Suggest from './suggest.js';
+import { shatter } from './shatter.js';
 
 const ENGINES = {
   google:     ['Google',      'https://www.google.com/search?q=%s',       'https://www.google.com'],
@@ -53,7 +54,7 @@ function renderGroups() {
   gs.forEach((g) => {
     const b = el('button', 'group' + (g.id === act?.id ? ' active' : ''));
     b.textContent = g.title;
-    b.onclick = () => { S.set({ activeGroup: g.id }); renderGroups(); renderGrid(); };
+    b.onclick = () => switchGroup(g);
     b.ondblclick = () => renameGroup(g);
     b.oncontextmenu = (e) => {
       e.preventDefault();
@@ -103,6 +104,28 @@ function renderGroups() {
     scheduleRefresh();
   };
   nav.append(add);
+}
+// swipe all tiles away / in: towards the left when the target group is to the right, and vice versa
+let switchTok = 0;
+async function switchGroup(g) {
+  const gs = root.children.filter((c) => !c.url), cur = activeGroup();
+  if (!cur || g.id === cur.id) return;
+  const dir = gs.indexOf(g) > gs.indexOf(cur) ? 1 : -1;      // +1: the new group is on the right
+  const tok = ++switchTok;
+  gridEl.getAnimations().forEach((a) => a.cancel());
+  S.set({ activeGroup: g.id });
+  renderGroups();
+  if (!S.get().animGroups) { renderGrid(); return; }
+  const ms = S.get().animMs, dist = Math.min(innerWidth * 0.12, 140);
+  try {
+    await gridEl.animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-dir * dist}px)`, opacity: 0 }],
+      { duration: ms * 0.5, easing: 'cubic-bezier(.5,0,.9,.6)', fill: 'forwards' }).finished;
+  } catch { return; }                                        // interrupted by a newer switch
+  if (tok !== switchTok) return;
+  renderGrid();
+  gridEl.getAnimations().forEach((a) => a.cancel());
+  gridEl.animate([{ transform: `translateX(${dir * dist}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+    { duration: ms * 0.9, easing: 'cubic-bezier(.22,1,.36,1)' });
 }
 async function renameGroup(g) {
   const name = await promptText('Rename group', g.title);
@@ -254,6 +277,11 @@ document.addEventListener('dragend', cleanDrag);
 
 async function deleteNode(n) {
   if (!n.url && n.children?.length && !confirm(`Delete folder "${n.title}" with ${n.children.length} item(s)?`)) return;
+  const tile = document.querySelector(`.tile[data-id="${n.id}"]`);
+  if (tile && S.get().animDelete) {
+    shatter(tile);                                       // shards fly while the bookmark is removed
+    await new Promise((r) => setTimeout(r, 380));
+  }
   await M.remove(n);
   scheduleRefresh();
 }
@@ -270,7 +298,7 @@ function openFolder(id, tileEl_) {
     <div class="grid fgrid" data-merge="1"></div></section>`;
   bindGrid($('.fgrid', layer), true);
   renderFolderGrid();
-  animateOpen(tileEl_.querySelector('.thumb') || tileEl_);
+  if (S.get().animFolders) animateOpen(tileEl_.querySelector('.thumb') || tileEl_);
 }
 // nested folders: slide "deeper" / back with a zoom transition
 function enterFolder(id) {
@@ -283,6 +311,7 @@ function goBack() {
   navigate(navStack.pop(), -1);
 }
 async function navigate(toId, dir) {
+  if (!S.get().animFolders) { curId = toId; renderFolderGrid(); return; }
   navBusy = true;
   const grid = $('.fgrid', layer), ms = S.get().animMs;
   try {
@@ -318,6 +347,7 @@ function hideFolderNow() {
 }
 async function closeFolder(animated) {
   if (!openId || closing) return;
+  if (!S.get().animFolders) { hideFolderNow(); return; }
   closing = true;
   const panel = $('.fpanel', layer), back = $('.fback', layer), ms = S.get().animMs;
   const src = gridEl.querySelector(`.tile[data-id="${openId}"] .thumb`);

@@ -38,6 +38,9 @@ const DEF = {
   showTitles: sw('Speed Dial Title'),
   showDelete: sw('Show Delete Button'),
   showLongTitle: sw('Show long title caption'),
+  animDelete: sw('Tile deletion (shatter)'),
+  animGroups: sw('Group switching (swipe)'),
+  animFolders: sw('Folder transitions'),
   groupsMaxPx: rng('Group Bar Max Width', 300, 3000, 'px', 10),
   groupsMaxPct: rng('Group Bar Max Width (% of window)', 30, 100, '%'),
   source: { type: 'select', label: 'Source', options: [['speeddial', 'Speed Dial'], ['bookmarks', 'Bookmarks']], after: () => hooks.onSource?.() },
@@ -191,9 +194,10 @@ export function init({ engines, onEngine, onRefreshIcons, onSource }) {
     section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'gapX', 'gapY', 'thumbBg', 'hiResIcons', 'refreshIcons']),
   );
   col2.append(
-    section('Folder Window', ['folderSize', 'animMs']),
+    section('Folder Window', ['folderSize', 'animMs']),    
     section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle']),
     section('Layout Offsets', ['groupsTop', 'searchTop', 'gridTop', 'addAnchor', 'addOffset']),
+    section('Animation', ['animDelete', 'animGroups', 'animFolders']),
   );
   adv.append(col1, col2);
   syncBg();
