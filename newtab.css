@@ -256,3 +256,18 @@ html{overflow-x:hidden}
 .sg-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sg-t b{font-weight:600}
 .sg-item small{margin-left:auto;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%;font-size:12px}
+
+/* Add / Edit polish */
+.dform input.err{border-color:#e5646b}
+.dform input.err::placeholder{color:#e58a8f}
+.opts .pane .note{margin:0}
+.err-note{color:#ff8a8a}
+.filepick{display:flex;align-items:center;gap:8px;min-width:0}
+.filepick .pill{flex:none}
+.fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.thumbsec.dragover .prev .thumb{outline:2px dashed var(--accent);outline-offset:3px}
+
+/* Add / Edit: stable layout (space for the preview and the icon picker is reserved) */
+.prev{aspect-ratio:var(--ratio,1.22);width:100%}
+.prev .thumb{height:100%}
+.thumbsec .icons{min-height:98px;max-height:98px;overflow-y:auto;align-content:start}

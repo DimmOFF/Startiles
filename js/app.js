@@ -288,14 +288,29 @@ async function deleteNode(n) {
   scheduleRefresh();
 }
 
+/* ---------- browser "Back" while a folder is open ---------- */
+// A history entry is pushed while a folder is open, so the browser's Back (mouse side button, Alt+Left, swipe)
+// raises 'popstate' inside the page instead of leaving it; we then step back inside the folder.
+let sentinel = false, popping = false;
+const pushSentinel = () => { if (!sentinel) { history.pushState({ msdFolder: 1 }, ''); sentinel = true; } };
+const dropSentinel = () => { if (sentinel) { sentinel = false; popping = true; history.back(); } };
+window.addEventListener('popstate', () => {
+  if (popping) { popping = false; return; }                  // our own cleanup, not the user's Back
+  if (!sentinel) return;
+  sentinel = false;                                          // the browser has consumed the entry
+  if (!openId) return;
+  if (navStack.length) { goBack(); pushSentinel(); } else closeFolder(true);
+});
+
 /* ---------- folder modal ---------- */
 function openFolder(id, tileEl_) {
   if (openId) return;
   openId = id; curId = id; navStack = [];
+  pushSentinel();
   document.body.style.overflow = 'hidden';
   layer.hidden = false;
   layer.innerHTML = `<div class="fback"></div><section class="fpanel">
-    <header><div class="fl"><button class="icon-btn" id="f-back" title="Back (Backspace)" hidden>${svg(ICON.back, 20)}</button><h2></h2></div><div class="fbtns"><button class="pill sm" id="f-add">+ Shortcut</button>
+    <header><div class="fl"><button class="icon-btn" id="f-back" title="Back (Backspace / mouse Back button)" hidden>${svg(ICON.back, 20)}</button><h2></h2></div><div class="fbtns"><button class="pill sm" id="f-add">+ Shortcut</button>
     <button class="icon-btn" id="f-close" title="Close">&times;</button></div></header>
     <div class="grid fgrid" data-merge="1"></div></section>`;
   bindGrid($('.fgrid', layer), true);
@@ -346,6 +361,7 @@ function hideFolderNow() {
   layer.getAnimations().forEach((a) => a.cancel());
   layer.hidden = true; layer.innerHTML = ''; openId = null; curId = null; navStack = []; navBusy = false; closing = false;
   document.body.style.overflow = '';
+  dropSentinel();
 }
 async function closeFolder(animated) {
   if (!openId || closing) return;
@@ -416,12 +432,12 @@ function openItemDialog({ node = null, parentId = null }) {
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
-  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || 'cover', auto: t0.auto || 'logo', icon: t0.icon || '' };
+  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || 'cover', auto: t0.auto || 'logo', icon: t0.icon || '', fname: '' };
   dlg.innerHTML = `<form class="dform">
     <h3>${isNew ? 'Add' : 'Edit'}</h3>
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
-    <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com"><div class="ac" hidden></div></label>
-    <label class="f"><span>Title</span><input name="ttl"></label>
+    <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com" autocomplete="off" spellcheck="false"><div class="ac" hidden></div></label>
+    <label class="f"><span>Title</span><input name="ttl" autocomplete="off"></label>
     <section class="tcat" data-only="link">
       <h4>Thumbnail</h4>
       <div class="thumbsec">
@@ -434,9 +450,14 @@ function openItemDialog({ node = null, parentId = null }) {
           </div>
           <div class="pane" data-modes="auto">
             <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
+            <p class="note" id="aknote" hidden>Uses the site's preview image, or a screenshot taken when you visit the page.</p>
           </div>
-          <div class="pane" data-modes="url"><input name="imgurl" placeholder="https://…/image.png"></div>
-          <div class="pane" data-modes="file"><input type="file" name="file" accept="image/*"></div>
+          <div class="pane" data-modes="url"><input name="imgurl" placeholder="https://…/image.png" autocomplete="off" spellcheck="false"><p class="note err-note" id="imgerr" hidden>This image could not be loaded.</p></div>
+          <div class="pane" data-modes="file">
+            <input type="file" name="file" accept="image/*" hidden>
+            <div class="filepick"><button type="button" class="pill sm" id="pickfile">Choose image…</button><button type="button" class="pill sm" id="clearfile" hidden>Remove</button><span class="note fname" id="fname"></span></div>
+            <p class="note">You can also drop or paste an image.</p>
+          </div>
           <div class="pane" data-modes="url file">
             <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option></select></label>
           </div>
@@ -454,15 +475,25 @@ function openItemDialog({ node = null, parentId = null }) {
   f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === st.mode));
 
   const showKind = () => f.querySelectorAll('[data-only=link]').forEach((x) => (x.hidden = kind !== 'link'));
-  let pt;
-  const upd = () => {
-    clearTimeout(pt);
-    pt = setTimeout(() => {
-      const addr = normalizeUrl(E.addr.value);
-      const custom = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
-      prev.replaceChildren(addr || custom ? T.renderThumbFrom(addr || 'https://example.com', st) : T.placeholderThumb());
-    }, 150);
+  let pt, updTok = 0;
+  const NOTES = {
+    found: "Uses the site's preview image, or a screenshot taken when you visit the page.",
+    loading: 'Looking for a preview image…',
+    none: 'No preview image found for this site. A screenshot will be taken after you visit it.',
+    off: 'Turn on “Fetch hi-res icons & previews” in Advanced Settings to look up preview images.',
   };
+  const setNote = (s) => { $('#aknote', dlg).textContent = NOTES[s] || NOTES.found; };
+  const renderPrev = () => {
+    const tok = ++updTok;
+    const addr = normalizeUrl(E.addr.value);
+    const custom = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
+    setNote('found');
+    prev.replaceChildren(addr || custom
+      ? T.renderThumbFrom(addr || 'https://example.com', st, (s) => { if (tok === updTok) setNote(s); })
+      : T.placeholderThumb());
+  };
+  // now = true: draw immediately (used for the first render, so the window never changes height after opening)
+  const upd = (now) => { clearTimeout(pt); if (now) renderPrev(); else pt = setTimeout(renderPrev, 150); };
   const ak = $('#ak', dlg);
   // icon picker: shown when the site offers several icon variants
   const icp = $('#icopick', dlg);
@@ -470,8 +501,10 @@ function openItemDialog({ node = null, parentId = null }) {
   const shown = new Set();
   const syncAk = () => {
     f.querySelectorAll('.pane').forEach((p) => (p.hidden = !p.dataset.modes.split(' ').includes(st.mode)));
+    $('#aknote', dlg).hidden = !(st.mode === 'auto' && st.auto === 'pageview');
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
-    icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && (cands.length >= 2 || st.icon || searching));
+    // the picker area stays put (icons, skeleton or a note) as long as it is relevant, so the window height never jumps
+    icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && E.addr.value.trim() && (lastUrl !== null || st.icon));
   };
   const renderIcons = () => {
     icp.replaceChildren();
@@ -495,11 +528,13 @@ function openItemDialog({ node = null, parentId = null }) {
     if (searching) {
       for (let i = 0; i < 2; i++) icp.append(el('div', 'ic sk'));
       icp.append(el('small', 'sk-note', 'Searching icons…'));
+    } else if (cands.length < 2 && !st.icon) {
+      icp.replaceChildren(el('small', 'sk-note', 'No other icons found for this site.'));
     }
   };
   const loadCands = (delay = 250) => {
     clearTimeout(ct);
-    ct = setTimeout(() => {
+    const run = () => {
       const url = normalizeUrl(E.addr.value);
       if (!S.get().hiResIcons || !/^https?:/i.test(url) || url === lastUrl) return;
       if (lastUrl !== null) { st.icon = ''; upd(); }
@@ -507,7 +542,8 @@ function openItemDialog({ node = null, parentId = null }) {
       renderIcons(); syncAk();
       Icons.candidates(url, (list) => { if (lastUrl === url) { cands = list; renderIcons(); syncAk(); } })
         .then((list) => { if (lastUrl === url) { cands = list; searching = false; renderIcons(); syncAk(); } });
-    }, delay);
+    };
+    if (delay) ct = setTimeout(run, delay); else run();   // delay 0: run now, before the window is shown
   };
   ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; syncAk(); upd(); }));
   const setMode = (m) => { st.mode = m; syncAk(); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
@@ -518,6 +554,46 @@ function openItemDialog({ node = null, parentId = null }) {
     showKind();
   }));
   f.querySelectorAll('input[name=mode]').forEach((r) => (r.onchange = () => setMode(r.value)));
+  // the Title field shows the site name that will be used when it is left empty
+  const titlePh = () => { E.ttl.placeholder = hostOf(normalizeUrl(E.addr.value)) || 'Title'; };
+  titlePh();
+  // local image: choose / drop / paste
+  const fname = $('#fname', dlg), clearBtn = $('#clearfile', dlg);
+  const syncFile = () => {
+    fname.textContent = st.dataUrl ? (st.fname || 'Current image') : 'No image selected';
+    clearBtn.hidden = !st.dataUrl;
+  };
+  const setFile = async (file) => {
+    if (!file || !/^image\//.test(file.type)) return;
+    st.dataUrl = await T.fileToDataUrl(file);
+    st.fname = file.name || 'Pasted image';
+    syncFile(); setMode('file');
+  };
+  syncFile();
+  $('#pickfile', dlg).onclick = () => E.file.click();
+  clearBtn.onclick = () => { st.dataUrl = ''; st.fname = ''; E.file.value = ''; syncFile(); upd(); };
+  const drop = $('.thumbsec', dlg);
+  drop.addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); drop.classList.add('dragover'); } });
+  drop.addEventListener('dragleave', (e) => { if (!drop.contains(e.relatedTarget)) drop.classList.remove('dragover'); });
+  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('dragover'); setFile(e.dataTransfer.files[0]); });
+  f.addEventListener('paste', (e) => {
+    const it = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+    if (it) { e.preventDefault(); setFile(it.getAsFile()); }
+  });
+  // Image URL: tell the user when the link does not give an image
+  const imgerr = $('#imgerr', dlg);
+  let imgT, imgTok = 0;
+  const checkImg = () => {
+    clearTimeout(imgT);
+    imgerr.hidden = true;
+    if (!st.url) return;
+    const tok = ++imgTok;
+    imgT = setTimeout(() => {
+      const im = new Image();
+      im.onerror = () => { if (tok === imgTok) imgerr.hidden = false; };
+      im.src = st.url;
+    }, 400);
+  };
   // address autocomplete
   const ac = $('.ac', dlg);
   let items = [], sel = -1, acT;
@@ -541,15 +617,16 @@ function openItemDialog({ node = null, parentId = null }) {
     if (!s) return;
     E.addr.value = s.url;
     if (!E.ttl.value.trim()) E.ttl.value = s.title;
-    closeAc(); upd(); loadCands(0);
+    closeAc(); upd(); loadCands(0); titlePh(); E.addr.classList.remove('err');
   };
   E.addr.oninput = () => {
-    upd(); loadCands();
+    E.addr.classList.remove('err');
+    titlePh(); upd(); loadCands();
     clearTimeout(acT);
     acT = setTimeout(async () => {
       const q = E.addr.value;
       const r = await Suggest.suggest(q);
-      if (E.addr.value !== q) return;
+      if (E.addr.value !== q || document.activeElement !== E.addr) return;   // stale result or the field lost focus
       items = r; sel = -1; renderAc();
     }, 90);
   };
@@ -563,14 +640,9 @@ function openItemDialog({ node = null, parentId = null }) {
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeAc(); }
   };
   E.addr.onblur = closeAc;
-  E.imgurl.oninput = () => { st.url = E.imgurl.value.trim(); upd(); };   // the mode is chosen with the radio buttons
+  E.imgurl.oninput = () => { st.url = E.imgurl.value.trim(); checkImg(); upd(); };   // the mode is chosen with the radio buttons
   E.fit.onchange = () => { st.fit = E.fit.value; upd(); };
-  E.file.onchange = async () => {
-    const file = E.file.files[0];
-    if (!file) return;
-    st.dataUrl = await T.fileToDataUrl(file);
-    setMode('file');
-  };
+  E.file.onchange = () => { setFile(E.file.files[0]); E.file.value = ''; };
   $('#d-cancel', dlg).onclick = () => dlg.close();
   const del = $('#d-del', dlg);
   if (del) del.onclick = async () => { dlg.close(); await deleteNode(node); };
@@ -583,7 +655,12 @@ function openItemDialog({ node = null, parentId = null }) {
       else await M.update(node.id, { title: title || node.title });
     } else {
       const url = normalizeUrl(E.addr.value);
-      if (!url) { E.addr.focus(); return; }
+      if (!url) {
+        E.addr.classList.add('err');
+        E.addr.placeholder = 'Enter a website address';
+        E.addr.focus();
+        return;
+      }
       const ttl = title || hostOf(url);
       if (isNew) await M.addLink(parentId || activeGroup()?.id, url, ttl);
       else {
@@ -596,7 +673,7 @@ function openItemDialog({ node = null, parentId = null }) {
     dlg.close();
     scheduleRefresh();
   };
-  showKind(); renderIcons(); syncAk(); upd(); loadCands(0);
+  showKind(); renderIcons(); syncAk(); upd(true); loadCands(0);
   dlg.showModal();
   (isNew ? E.addr : E.ttl).focus();
 }
@@ -750,6 +827,17 @@ async function pickRoot() {
   await reinit();
   return true;
 }
+// Mouse "Back" side button: one step back inside an open folder, or close the folder from its top level.
+// Only handled while a folder is open (and no dialog is shown); otherwise the browser keeps its default behaviour.
+const mouseBackActive = (e) => e.button === 3 && openId && !dlg.open;
+['mousedown', 'pointerdown', 'auxclick'].forEach((t) =>
+  window.addEventListener(t, (e) => { if (mouseBackActive(e)) e.preventDefault(); }, true));
+window.addEventListener('mouseup', (e) => {
+  if (!mouseBackActive(e)) return;
+  e.preventDefault();                                        // stops the browser from navigating back
+  if (navStack.length) goBack(); else closeFolder(true);
+}, true);
+
 // switching Speed Dial <-> Bookmarks
 async function changeSource() {
   if (S.get().source === 'bookmarks') {
@@ -801,6 +889,7 @@ document.addEventListener('scroll', hideTip, true);
   await M.ensureRoot(S.get());
   await refresh();
   updateStorageUI();
+  T.onChange(scheduleRefresh);                 // e.g. a Pageview screenshot has just been captured
   const bm = chrome.bookmarks;
   [bm.onCreated, bm.onRemoved, bm.onChanged, bm.onMoved, bm.onChildrenReordered, bm.onImportEnded]
     .forEach((ev) => ev.addListener(scheduleRefresh));

@@ -191,21 +191,33 @@ export async function preview(pageUrl) {
   await load();
   const pk = 'p:' + pageUrl, c = cache[pk];
   if (c && Date.now() - c.ts < (c.src ? TTL_OK : TTL_FAIL)) return c.src;
+  let transient = false;                                     // the page itself could not be loaded: do not remember the failure
   const src = await schedule(async () => {
     const page = await fetchHead(pageUrl);
-    if (!page) return null;
+    if (!page) { transient = true; return null; }
     const metas = tags(page.text, 'meta');
-    let href = null;
-    for (const m of ['og:image', 'og:image:url', 'twitter:image', 'twitter:image:src']) {
-      const e = metas.find((x) => ((x.property || '').toLowerCase() === m || (x.name || '').toLowerCase() === m) && x.content);
-      if (e) { href = e.content; break; }
+    const pick = (keys, attr) => {
+      for (const k of keys) {
+        const e = metas.find((x) => (x[attr] || '').toLowerCase() === k && x.content);
+        if (e) return e.content;
+      }
+      return null;
+    };
+    const cands = [
+      pick(['og:image', 'og:image:url', 'og:image:secure_url'], 'property') || pick(['og:image', 'og:image:url', 'og:image:secure_url'], 'name'),
+      pick(['twitter:image', 'twitter:image:src'], 'name') || pick(['twitter:image', 'twitter:image:src'], 'property'),
+      pick(['image'], 'itemprop'),
+      tags(page.text, 'link').find((l) => /(^|\s)image_src(\s|$)/i.test(l.rel || '') && l.href)?.href,
+    ].filter(Boolean);
+    for (const href of cands) {                              // first candidate that really loads as a large enough image
+      let abs;
+      try { abs = new URL(href, page.url).href; } catch { continue; }
+      const w = await loadImg(abs, 6000);
+      if (w && w >= 160) return abs;
     }
-    if (!href) return null;
-    let abs;
-    try { abs = new URL(href, page.url).href; } catch { return null; }
-    const w = await loadImg(abs, 6000);
-    return w && w >= 200 ? abs : null;
+    return null;
   });
+  if (transient) return null;
   cache[pk] = { src: src || null, w: 0, ts: Date.now() };
   save();
   return src || null;

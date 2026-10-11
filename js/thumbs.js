@@ -15,7 +15,9 @@ export async function load() {
   thumbs = r.thumbs || {};
   shots = r.shots || {};
 }
-chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.shots) shots = ch.shots.newValue || {}; });
+chrome.storage.onChanged.addListener((ch, area) => {
+  if (area === 'local' && ch.shots) { shots = ch.shots.newValue || {}; listeners.forEach((f) => f()); }   // a new page screenshot: redraw tiles
+});
 
 export const all = () => thumbs;
 export const getT = (url) => thumbs[url] || { mode: 'auto', auto: 'logo' };
@@ -55,7 +57,8 @@ export function setSiteIcon(img, pageUrl, size = 32) {
   img.src = srcs[0];
 }
 
-export function renderThumbFrom(pageUrl, t) {
+// onState (optional) reports the Pageview lookup: 'loading' | 'found' | 'none' | 'off'
+export function renderThumbFrom(pageUrl, t, onState) {
   const box = document.createElement('div');
   box.className = 'thumb';
   const web = /^https?:/i.test(pageUrl);
@@ -99,10 +102,14 @@ export function renderThumbFrom(pageUrl, t) {
     logo();
     if (t.auto === 'pageview') {
       const shot = shots[pageUrl]?.dataUrl;
-      if (shot) showCover(shot, 'cov top', upgradeLogo);
+      if (shot) { onState?.('found'); showCover(shot, 'cov top', upgradeLogo); }
       else if (S.get().hiResIcons && web) {
-        Icons.preview(pageUrl).then((src) => (src ? showCover(src, 'cov', upgradeLogo) : upgradeLogo()));
-      } else upgradeLogo();
+        onState?.('loading');
+        Icons.preview(pageUrl).then((src) => {
+          onState?.(src ? 'found' : 'none');
+          if (src) showCover(src, 'cov', upgradeLogo); else upgradeLogo();
+        });
+      } else { onState?.('off'); upgradeLogo(); }
     } else if (!t.icon) upgradeLogo();
     return box;
   }
