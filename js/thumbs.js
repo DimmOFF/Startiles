@@ -1,21 +1,28 @@
 // Thumbnail metadata lives in chrome.storage.local, keyed by bookmark URL:
-//   { mode: 'url'|'file', url?, dataUrl?, fit: 'cover'|'contain', ts }
-// 'auto' = no entry (site icon on a coloured background).
+//   { mode: 'url'|'file', url?, dataUrl?, fit, ts }      custom image
+//   { mode: 'auto', auto: 'pageview', ts }               automatic: page preview (default 'logo' = no entry)
+// Page screenshots captured by background.js live in storage 'shots' (local only, not synced).
 import { hostOf } from './util.js';
 import * as Icons from './icons.js';
 import * as S from './settings.js';
 
-let thumbs = {};
+let thumbs = {}, shots = {};
 const listeners = [];
 
-export async function load() { thumbs = (await chrome.storage.local.get('thumbs')).thumbs || {}; }
+export async function load() {
+  const r = await chrome.storage.local.get(['thumbs', 'shots']);
+  thumbs = r.thumbs || {};
+  shots = r.shots || {};
+}
+chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.shots) shots = ch.shots.newValue || {}; });
+
 export const all = () => thumbs;
-export const getT = (url) => thumbs[url] || { mode: 'auto' };
+export const getT = (url) => thumbs[url] || { mode: 'auto', auto: 'logo' };
 export const onChange = (f) => listeners.push(f);
 const persist = () => chrome.storage.local.set({ thumbs });
 
 export async function setT(url, t) {
-  if (!t || t.mode === 'auto') delete thumbs[url];
+  if (!t || (t.mode === 'auto' && t.auto !== 'pageview')) delete thumbs[url];
   else thumbs[url] = { ...t, ts: Date.now() };
   await persist();
   listeners.forEach((f) => f());
@@ -35,7 +42,9 @@ export const faviconUrl = (pageUrl, size = 64) =>
 export function renderThumbFrom(pageUrl, t) {
   const box = document.createElement('div');
   box.className = 'thumb';
-  const auto = () => {
+  const web = /^https?:/i.test(pageUrl);
+
+  const logo = () => {
     box.replaceChildren();
     const img = new Image();
     img.className = 'fav'; img.draggable = false; img.alt = '';
@@ -47,25 +56,43 @@ export function renderThumbFrom(pageUrl, t) {
       img.replaceWith(l);
     };
     box.append(img);
-    if (S.get().hiResIcons && /^https?:/i.test(pageUrl)) {
-      Icons.resolve(pageUrl).then((hi) => {
-        if (!hi) return;
-        const big = new Image();
-        big.onload = () => {
-          big.className = 'fav'; big.draggable = false; big.alt = '';
-          box.firstElementChild?.replaceWith(big);
-        };
-        big.src = hi;
-      });
-    }
   };
-  const src = t.mode === 'file' ? t.dataUrl : t.mode === 'url' ? t.url : null;
-  if (!src) { auto(); return box; }
-  const img = new Image();
-  img.className = t.fit === 'contain' ? 'cov contain' : 'cov';
-  img.draggable = false; img.alt = ''; img.src = src;
-  img.onerror = auto;
-  box.append(img);
+  const upgradeLogo = () => {
+    if (!S.get().hiResIcons || !web) return;
+    Icons.resolve(pageUrl).then((hi) => {
+      if (!hi) return;
+      const big = new Image();
+      big.onload = () => {
+        const first = box.firstElementChild;
+        if (first && first.classList.contains('cov')) return;
+        big.className = 'fav'; big.draggable = false; big.alt = '';
+        first ? first.replaceWith(big) : box.append(big);
+      };
+      big.src = hi;
+    });
+  };
+  const showCover = (src, cls, onFail) => {
+    const im = new Image();
+    im.className = cls; im.draggable = false; im.alt = '';
+    im.onload = () => box.replaceChildren(im);
+    im.onerror = onFail || (() => {});
+    im.src = src;
+  };
+
+  if (t.mode === 'auto') {
+    logo();
+    if (t.auto === 'pageview') {
+      const shot = shots[pageUrl]?.dataUrl;
+      if (shot) showCover(shot, 'cov top', upgradeLogo);
+      else if (S.get().hiResIcons && web) {
+        Icons.preview(pageUrl).then((src) => (src ? showCover(src, 'cov', upgradeLogo) : upgradeLogo()));
+      } else upgradeLogo();
+    } else upgradeLogo();
+    return box;
+  }
+  const src = t.mode === 'file' ? t.dataUrl : t.url;
+  if (!src) { logo(); upgradeLogo(); return box; }
+  showCover(src, t.fit === 'contain' ? 'cov contain' : 'cov', () => { logo(); upgradeLogo(); });
   return box;
 }
 export const renderThumb = (url) => renderThumbFrom(url, getT(url));

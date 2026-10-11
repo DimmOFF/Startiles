@@ -1,5 +1,5 @@
 export const DEFAULTS = {
-  tileWidth: 220, gapX: 28, gapY: 28,
+  tileWidth: 220, iconSize: 36, gapX: 28, gapY: 28,
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
   engine: 'google', hiResIcons: true, thumbBg: '#ffffff', pageBg: '#2b2b30',
   groupsTop: 12, searchTop: 60, folderSize: 90, animMs: 420,
@@ -21,6 +21,7 @@ export async function set(patch) {
 export function applyCss() {
   const s = cache, st = document.documentElement.style;
   st.setProperty('--tile-w', s.tileWidth + 'px');
+  st.setProperty('--icon-size', s.iconSize + '%');
   st.setProperty('--gap-x', s.gapX + 'px');
   st.setProperty('--gap-y', s.gapY + 'px');
   st.setProperty('--thumb-bg', s.thumbBg);

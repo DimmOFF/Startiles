@@ -4,6 +4,7 @@ import * as T from './thumbs.js';
 import * as M from './model.js';
 import * as D from './drive.js';
 import * as Icons from './icons.js';
+import * as Suggest from './suggest.js';
 
 const ENGINES = {
   google:     ['Google',      'https://www.google.com/search?q=%s',       'https://www.google.com'],
@@ -311,16 +312,17 @@ function openItemDialog({ node = null, parentId = null }) {
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
-  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || 'cover' };
+  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || 'cover', auto: t0.auto || 'logo' };
   dlg.innerHTML = `<form class="dform">
     <h3>${isNew ? 'Add' : 'Edit'}</h3>
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
-    <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com"></label>
+    <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com"><div class="ac" hidden></div></label>
     <label class="f"><span>Title</span><input name="ttl"></label>
     <div class="thumbsec" data-only="link">
       <div class="prev"></div>
       <div class="opts">
-        <label class="r"><input type="radio" name="mode" value="auto"> Automatic (site icon)</label>
+        <label class="r"><input type="radio" name="mode" value="auto"> Automatic</label>
+        <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
         <label class="r"><input type="radio" name="mode" value="url"> Image URL</label>
         <input name="imgurl" placeholder="https://…/image.png">
         <label class="r"><input type="radio" name="mode" value="file"> Local file</label>
@@ -347,7 +349,13 @@ function openItemDialog({ node = null, parentId = null }) {
       prev.replaceChildren(T.renderThumbFrom(url, st));
     }, 150);
   };
-  const setMode = (m) => { st.mode = m; f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
+  const ak = $('#ak', dlg);
+  const syncAk = () => {
+    ak.hidden = st.mode !== 'auto';
+    ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
+  };
+  ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; syncAk(); upd(); }));
+  const setMode = (m) => { st.mode = m; syncAk(); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
 
   f.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => {
     kind = b.dataset.kind;
@@ -355,7 +363,51 @@ function openItemDialog({ node = null, parentId = null }) {
     showKind();
   }));
   f.querySelectorAll('input[name=mode]').forEach((r) => (r.onchange = () => setMode(r.value)));
-  E.addr.oninput = upd;
+  // address autocomplete
+  const ac = $('.ac', dlg);
+  let items = [], sel = -1, acT;
+  const closeAc = () => { ac.hidden = true; items = []; sel = -1; };
+  const renderAc = () => {
+    ac.replaceChildren();
+    items.forEach((s, i) => {
+      const b = el('button', i === sel ? 'on' : '');
+      b.type = 'button';
+      const im = new Image(); im.src = T.faviconUrl(s.url, 32); im.draggable = false; im.alt = '';
+      const t = el('b'); t.textContent = s.title;
+      const h = el('small'); h.textContent = s.url.replace(/^https?:\/\//, '');
+      b.append(im, t, h);
+      b.onmousedown = (e) => { e.preventDefault(); pick(i); };
+      ac.append(b);
+    });
+    ac.hidden = !items.length;
+  };
+  const pick = (i) => {
+    const s = items[i];
+    if (!s) return;
+    E.addr.value = s.url;
+    if (!E.ttl.value.trim()) E.ttl.value = s.title;
+    closeAc(); upd();
+  };
+  E.addr.oninput = () => {
+    upd();
+    clearTimeout(acT);
+    acT = setTimeout(async () => {
+      const q = E.addr.value;
+      const r = await Suggest.suggest(q);
+      if (E.addr.value !== q) return;
+      items = r; sel = -1; renderAc();
+    }, 90);
+  };
+  E.addr.onkeydown = (e) => {
+    if (ac.hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      renderAc();
+    } else if (e.key === 'Enter' && sel >= 0) { e.preventDefault(); pick(sel); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeAc(); }
+  };
+  E.addr.onblur = closeAc;
   E.imgurl.oninput = () => { st.url = E.imgurl.value.trim(); setMode(st.url ? 'url' : 'auto'); };
   E.fit.onchange = () => { st.fit = E.fit.value; upd(); };
   E.file.onchange = async () => {
@@ -384,12 +436,12 @@ function openItemDialog({ node = null, parentId = null }) {
         if (url !== node.url) await T.rekey(node.url, url);
       }
       const useImg = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
-      await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto' });
+      await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto });
     }
     dlg.close();
     scheduleRefresh();
   };
-  showKind(); upd();
+  showKind(); syncAk(); upd();
   dlg.showModal();
   (isNew ? E.addr : E.ttl).focus();
 }

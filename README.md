@@ -20,3 +20,10 @@ Note: unpacked extensions get a path-based ID. To keep the redirect URI stable, 
 ## Site icons
 Automatic thumbnails try to find the largest icon of a site (apple-touch-icon, manifest icons, SVG) and cache it per origin.
 This needs the "read all sites" permission (page HTML is fetched only to find the icon). Turn it off in settings → "High-res site icons".
+
+## Pageview thumbnails
+Edit → Automatic → **Pageview**: shows a screenshot taken when you visit the page (background.js, only for tiles set to Pageview;
+refreshed at most every 6 h, stored locally, not synced), otherwise the page's og:image, otherwise the logo.
+
+## Address autocomplete
+Add dialog suggests sites from bookmarks, history and a built-in list of popular sites (uses the `history` permission).
