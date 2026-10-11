@@ -352,11 +352,12 @@ function openItemDialog({ node = null, parentId = null }) {
   const ak = $('#ak', dlg);
   // icon picker: shown when the site offers several icon variants
   const icp = $('#icopick', dlg);
-  let cands = [], lastUrl = null, ct;
+  let cands = [], lastUrl = null, ct, searching = false;
+  const shown = new Set();
   const syncAk = () => {
     ak.hidden = st.mode !== 'auto';
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
-    icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && (cands.length >= 2 || st.icon));
+    icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && (cands.length >= 2 || st.icon || searching));
   };
   const renderIcons = () => {
     icp.replaceChildren();
@@ -368,6 +369,7 @@ function openItemDialog({ node = null, parentId = null }) {
     icp.append(auto);
     list.forEach((c) => {
       const b = el('button', 'ic' + (st.icon === c.src ? ' on' : ''));
+      if (!shown.has(c.src)) { shown.add(c.src); b.classList.add('pop'); }
       b.type = 'button';
       b.title = (c.w ? (c.w >= 1024 ? 'vector' : c.w + 'px') + ' · ' : '') + c.src;
       const im = new Image(); im.src = c.src; im.alt = ''; im.draggable = false;
@@ -376,18 +378,22 @@ function openItemDialog({ node = null, parentId = null }) {
       b.onclick = () => { st.icon = c.src; renderIcons(); upd(); };
       icp.append(b);
     });
+    if (searching) {
+      for (let i = 0; i < 2; i++) icp.append(el('div', 'ic sk'));
+      icp.append(el('small', 'sk-note', 'Searching icons…'));
+    }
   };
-  const loadCands = () => {
+  const loadCands = (delay = 250) => {
     clearTimeout(ct);
-    ct = setTimeout(async () => {
+    ct = setTimeout(() => {
       const url = normalizeUrl(E.addr.value);
       if (!S.get().hiResIcons || !/^https?:/i.test(url) || url === lastUrl) return;
-      if (lastUrl !== null) { st.icon = ''; cands = []; renderIcons(); syncAk(); upd(); }
-      lastUrl = url;
-      const r = await Icons.candidates(url);
-      if (lastUrl !== url) return;
-      cands = r; renderIcons(); syncAk();
-    }, 500);
+      if (lastUrl !== null) { st.icon = ''; upd(); }
+      lastUrl = url; cands = []; searching = true; shown.clear();
+      renderIcons(); syncAk();
+      Icons.candidates(url, (list) => { if (lastUrl === url) { cands = list; renderIcons(); syncAk(); } })
+        .then((list) => { if (lastUrl === url) { cands = list; searching = false; renderIcons(); syncAk(); } });
+    }, delay);
   };
   ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; syncAk(); upd(); }));
   const setMode = (m) => { st.mode = m; syncAk(); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
@@ -421,7 +427,7 @@ function openItemDialog({ node = null, parentId = null }) {
     if (!s) return;
     E.addr.value = s.url;
     if (!E.ttl.value.trim()) E.ttl.value = s.title;
-    closeAc(); upd(); loadCands();
+    closeAc(); upd(); loadCands(0);
   };
   E.addr.oninput = () => {
     upd(); loadCands();
@@ -476,7 +482,7 @@ function openItemDialog({ node = null, parentId = null }) {
     dlg.close();
     scheduleRefresh();
   };
-  showKind(); renderIcons(); syncAk(); upd(); loadCands();
+  showKind(); renderIcons(); syncAk(); upd(); loadCands(0);
   dlg.showModal();
   (isNew ? E.addr : E.ttl).focus();
 }
