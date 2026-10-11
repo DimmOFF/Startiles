@@ -97,20 +97,38 @@ function staticCands(u) {
   }
   return list;
 }
+// Minimal tag reader: extracts attributes of <link> / <meta> straight from the HTML text.
+// (A DOM parser would also create the page's <script> elements and the browser would log CSP errors for them.)
+const decode = (v) => v.replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#0?39;/g, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+function tags(html, name) {
+  const out = [];
+  const re = new RegExp('<' + name + '\\b((?:"[^"]*"|\'[^\']*\'|[^>"\'])*)>', 'gi');
+  let m;
+  while ((m = re.exec(html))) {
+    const attrs = {};
+    const ar = /([^\s=\/"'<>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+    let a;
+    while ((a = ar.exec(m[1]))) attrs[a[1].toLowerCase()] = decode(a[2] ?? a[3] ?? a[4] ?? '');
+    out.push(attrs);
+  }
+  return out;
+}
+
 // Candidates declared by the page: <link rel=icon|apple-touch-icon> and web manifest icons.
 async function pageCands(pageUrl, add) {
   const page = await fetchHead(pageUrl);
   if (!page) return;
-  const doc = new DOMParser().parseFromString(page.text, 'text/html');
-  doc.querySelectorAll('link[rel][href]').forEach((l) => {
-    const rel = l.getAttribute('rel').toLowerCase();
+  const links = tags(page.text, 'link');
+  for (const a of links) {
+    const rel = (a.rel || '').toLowerCase();
+    if (!a.href) continue;
     let abs;
-    try { abs = new URL(l.getAttribute('href'), page.url).href; } catch { return; }
-    const sz = sizeOf(l.getAttribute('sizes'));
+    try { abs = new URL(a.href, page.url).href; } catch { continue; }
+    const sz = sizeOf(a.sizes);
     if (rel.includes('apple-touch-icon')) add(abs, sz || 180);
     else if (/(^|\s)(shortcut\s+)?icon(\s|$)/.test(rel)) add(abs, sz || (/\.svg(\?|$)/i.test(abs) ? 1024 : 32));
-  });
-  const mf = doc.querySelector('link[rel=manifest][href]')?.getAttribute('href');
+  }
+  const mf = links.find((a) => /(^|\s)manifest(\s|$)/i.test(a.rel || '') && a.href)?.href;
   if (mf) {
     try {
       const m = await fetchText(new URL(mf, page.url).href, 3000);
@@ -176,11 +194,11 @@ export async function preview(pageUrl) {
   const src = await schedule(async () => {
     const page = await fetchHead(pageUrl);
     if (!page) return null;
-    const doc = new DOMParser().parseFromString(page.text, 'text/html');
+    const metas = tags(page.text, 'meta');
     let href = null;
     for (const m of ['og:image', 'og:image:url', 'twitter:image', 'twitter:image:src']) {
-      const e = doc.querySelector(`meta[property="${m}"],meta[name="${m}"]`);
-      if (e?.content) { href = e.content; break; }
+      const e = metas.find((x) => ((x.property || '').toLowerCase() === m || (x.name || '').toLowerCase() === m) && x.content);
+      if (e) { href = e.content; break; }
     }
     if (!href) return null;
     let abs;

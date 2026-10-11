@@ -34,3 +34,9 @@ Quick Settings (gear icon) has the essentials; "Advanced Settings…" opens a wi
 Advanced Settings → Export saves one JSON file with settings (incl. background image), the dial tree (groups, folders,
 shortcuts, order), thumbnail settings/custom images, page screenshots and the icon cache. Import replaces the current
 settings, groups and shortcuts with the file contents (asks for confirmation) and reloads the page.
+
+## Dial source, nested folders
+Advanced Settings -> Dial Source: **Speed Dial** (the "Modern Speed Dial" folder) or **Bookmarks** (main bookmarks folder:
+top-level folders = groups, inside = tiles and folders). Folders can be nested; use the back arrow or Backspace to leave an
+inner folder. Export / Import always covers the Modern Speed Dial folder only. Groups can be re-ordered by dragging and wrap
+into several rows (max width in Advanced Settings).

@@ -40,6 +40,21 @@ export async function replaceAll(obj) { thumbs = obj; await persist(); }
 export const faviconUrl = (pageUrl, size = 64) =>
   `${chrome.runtime.getURL('/_favicon/')}?pageUrl=${encodeURIComponent(pageUrl)}&size=${size}`;
 
+// Icon for an arbitrary site (search engines, suggestions): the browser's favicon cache only knows visited sites,
+// so ask an icon service first and fall back to the local cache.
+export function setSiteIcon(img, pageUrl, size = 32) {
+  let origin = pageUrl;
+  try { origin = new URL(pageUrl).origin; } catch { /* keep as is */ }
+  const srcs = [
+    `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&nfrp=2&url=${encodeURIComponent(origin)}&size=${size}`,
+    faviconUrl(pageUrl, size),
+  ];
+  let k = 0;
+  img.style.visibility = '';
+  img.onerror = () => { if (++k < srcs.length) img.src = srcs[k]; else img.style.visibility = 'hidden'; };
+  img.src = srcs[0];
+}
+
 export function renderThumbFrom(pageUrl, t) {
   const box = document.createElement('div');
   box.className = 'thumb';

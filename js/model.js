@@ -1,7 +1,10 @@
-// Storage model: <root>\Modern Speed Dial \ <group> \ (<link> | <folder> \ <link>)
-// The folder is placed in the bookmarks root; if the browser refuses, "Other bookmarks" is used.
+// Two data sources:
+//  - Speed Dial: root = "Modern Speed Dial" folder (bookmarks root, falling back to "Other bookmarks")
+//  - Bookmarks:  root = the main bookmarks folder (Bookmarks bar)
+// In both cases: top-level folders of the root = groups, everything inside = tiles / (nested) folders.
 export const ROOT_TITLE = 'Modern Speed Dial';
-export let rootId = null;
+export let rootId = null;   // folder currently shown
+export let sdId = null;     // the "Modern Speed Dial" folder (used by Export / Import)
 export const info = { path: '', note: '' };
 
 const NOTE = 'The bookmarks root could not be used (browsers usually do not let extensions write there), so "Other bookmarks" is used.';
@@ -18,12 +21,11 @@ async function pathOf(id) {
   return parts.join('\\');
 }
 
-export async function ensureRoot() {
+export async function ensureSd() {
   const tree = await chrome.bookmarks.getTree();
   const top = tree[0].children;
   const other = top.find((n) => n.folderType === 'other') || top[1] || top[top.length - 1];
-  info.note = '';
-
+  let note = '';
   const mine = [];
   (function walk(n, d) {
     (n.children || []).forEach((c) => {
@@ -37,15 +39,31 @@ export async function ensureRoot() {
   let node = mine[0]?.c;
   if (node && node.parentId !== tree[0].id) {
     try { await chrome.bookmarks.move(node.id, { parentId: tree[0].id }); }   // try to bring it to the root
-    catch { info.note = NOTE; }
+    catch { note = NOTE; }
   }
   if (!node) {
     try { node = await chrome.bookmarks.create({ parentId: tree[0].id, title: ROOT_TITLE }); }
     catch {
-      info.note = NOTE;
+      note = NOTE;
       node = await chrome.bookmarks.create({ parentId: other.id, title: ROOT_TITLE });
     }
   }
+  sdId = node.id;
+  return { node, note };
+}
+
+export async function ensureRoot(cfg = {}) {
+  info.note = '';
+  if (cfg.source === 'bookmarks') {
+    const tree = await chrome.bookmarks.getTree();
+    const top = tree[0].children;
+    const bar = top.find((n) => n.folderType === 'bookmarks-bar') || top[0];
+    rootId = bar.id;
+    info.path = await pathOf(rootId);
+    return getRoot();
+  }
+  const { node, note } = await ensureSd();
+  info.note = note;
   rootId = node.id;
   const sub = await getRoot();
   if (!(sub.children || []).some((c) => !c.url)) await chrome.bookmarks.create({ parentId: rootId, title: 'General' });
@@ -53,6 +71,7 @@ export async function ensureRoot() {
   return getRoot();
 }
 export const getRoot = async () => (await chrome.bookmarks.getSubTree(rootId))[0];
+export const getSd = async () => { const { node } = await ensureSd(); return (await chrome.bookmarks.getSubTree(node.id))[0]; };
 
 export const addLink = (parentId, url, title) => chrome.bookmarks.create({ parentId, title, url });
 export const addFolder = (parentId, title, index) =>

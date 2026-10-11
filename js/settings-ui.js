@@ -22,10 +22,11 @@ const MAXCOLS = [...[1, 2, 3, 4, 5, 6, 7, 8, 10, 12].map((n) => [String(n), Stri
 const rng = (label, min, max, unit = 'px', step = 1) => ({ type: 'range', label, min, max, step, unit });
 const sw = (label) => ({ type: 'switch', label });
 const DEF = {
-  bgType: { type: 'select', label: 'Page Background', options: [['color', 'Color'], ['image', 'Image']] },
+  bgType: { type: 'select', label: 'Page Background', options: [['color', 'Color'], ['url', 'URL'], ['image', 'Image']] },
   pageBg: { type: 'color', label: 'Background Color', bg: 'color' },
   bgImage: { type: 'bgimage' },
   tileWidth: rng('Thumbnail Size', 120, 420, 'px', 2),
+  ratio: rng('Speed Dial Ratio (W:H)', 1, 1.5, '', 0.01),
   maxColumns: { type: 'select', label: 'Maximum Columns', options: MAXCOLS },
   iconSize: rng('Icon Size in Thumbnail', 15, 80, '%'),
   gapX: rng('Horizontal Gap', 0, 80),
@@ -36,6 +37,10 @@ const DEF = {
   showSearch: sw('Show Search Field'),
   showTitles: sw('Speed Dial Title'),
   showDelete: sw('Show Delete Button'),
+  showLongTitle: sw('Show long title caption'),
+  groupsMaxPx: rng('Group Bar Max Width', 300, 3000, 'px', 10),
+  groupsMaxPct: rng('Group Bar Max Width (% of window)', 30, 100, '%'),
+  source: { type: 'select', label: 'Source', options: [['speeddial', 'Speed Dial'], ['bookmarks', 'Bookmarks']], after: () => hooks.onSource?.() },
   groupsTop: rng('Groups Bar Top Offset', 0, 200),
   searchTop: rng('Search Top Offset', 0, 300),
   gridTop: rng('Speed Dial Top Offset', 0, 300),
@@ -45,32 +50,41 @@ const DEF = {
   animMs: rng('Folder Animation', 150, 900, 'ms', 10),
 };
 
-const syncBg = () => document.querySelectorAll('.bg-url').forEach((i) => {
-  const v = S.get().bgSrc || '';
-  i.value = v.startsWith('data:') ? '' : v;
-  i.placeholder = v.startsWith('data:') ? '(local file in use)' : 'https://…/wallpaper.jpg';
+const syncBg = () => document.querySelectorAll('.bg-url').forEach((i) => { i.value = S.get().bgUrl || ''; });
+const syncBgState = () => document.querySelectorAll('.bg-state').forEach((n) => {
+  n.textContent = S.get().bgSrc ? 'Local image is in use' : 'No image selected';
 });
-async function applyBg(src) {
-  await S.setBg(src);
-  if (src) await S.set({ bgType: 'image' });
-  refreshAll(); syncBg();
-}
-function buildBgImage() {
+
+// Page Background = URL: a link to an image
+function buildBgUrl() {
   const box = el('div');
-  box.dataset.bg = 'image';
+  box.dataset.bg = 'url';
   const lab = el('label', 'row col', '<span>Image URL</span>');
   const url = el('input', 'bg-url');
   url.type = 'text';
+  url.placeholder = 'https://…/wallpaper.jpg';
+  url.value = S.get().bgUrl || '';
+  url.onchange = async () => { await S.set({ bgUrl: url.value.trim() }); syncBg(); };
   lab.append(url);
+  box.append(lab);
+  return box;
+}
+// Page Background = Image: a file from this computer
+function buildBgImage() {
+  const box = el('div');
+  box.dataset.bg = 'image';
   const r = el('div', 'row');
   const choose = el('button', 'pill sm', 'Choose file…'), clear = el('button', 'pill sm', 'Remove');
   const file = el('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
   choose.onclick = () => file.click();
-  file.onchange = async () => { const f = file.files[0]; if (f) await applyBg(await T.fileToDataUrl(f, 2560)); file.value = ''; };
-  url.onchange = () => applyBg(url.value.trim());
-  clear.onclick = () => applyBg('');
+  file.onchange = async () => {
+    const f = file.files[0];
+    if (f) { await S.setBg(await T.fileToDataUrl(f, 2560)); syncBgState(); }
+    file.value = '';
+  };
+  clear.onclick = async () => { await S.setBg(''); syncBgState(); };
   r.append(choose, clear, file);
-  box.append(lab, r);
+  box.append(r, el('p', 'note bg-state'));
   return box;
 }
 
@@ -82,7 +96,7 @@ function buildEngine() {
   const dd = el('div', 'dd');
   const btn = el('button', 'dd-btn'); btn.type = 'button';
   const list = el('div', 'dd-list'); list.hidden = true;
-  const icon = (origin) => { const i = new Image(); i.src = T.faviconUrl(origin, 32); i.alt = ''; i.draggable = false; return i; };
+  const icon = (origin) => { const i = new Image(); i.alt = ''; i.draggable = false; T.setSiteIcon(i, origin, 32); return i; };
   const label = (t) => { const s = el('span'); s.textContent = t; return s; };
   const items = [];
   const paint = () => {
@@ -108,6 +122,7 @@ function buildEngine() {
 }
 function build(key) {
   if (key === 'bgImage') return buildBgImage();
+  if (key === 'bgUrl') return buildBgUrl();
   if (key === 'engine') return buildEngine();
   if (key === 'refreshIcons') {
     const r = el('div', 'row');
@@ -139,6 +154,7 @@ function build(key) {
     const v = read(inp);
     S.set({ [key]: v });
     controls.get(key).forEach((o) => { if (o !== inp) write(o, v); else write(o, v); });
+    d.after?.();
   });
   return lab;
 }
@@ -151,31 +167,37 @@ function section(title, keys) {
 
 export function setStorageText(t) { document.querySelectorAll('.storage-note').forEach((n) => (n.textContent = t)); }
 
-export function init({ engines, onEngine, onRefreshIcons }) {
-  hooks = { onEngine, onRefreshIcons };
+export function init({ engines, onEngine, onRefreshIcons, onSource }) {
+  hooks = { onEngine, onRefreshIcons, onSource };
   engineMap = engines;
   const quick = $('#quick-body'), adv = $('#adv-body');
 
   quick.append(
-    section('Start Page', ['bgType', 'pageBg', 'thumbBg', 'bgImage', 'engine']),
-    section('Speed Dials', ['tileWidth', 'maxColumns', 'iconSize']),
+    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'thumbBg', 'engine']),
+    section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize']),
   );
   const more = el('div', 'row');
   const advBtn = el('button', 'pill', 'Advanced Settings…');
   more.append(advBtn);
   quick.append(more);
 
-  const storage = el('section');
-  storage.append(el('h4', null, 'Storage'), el('p', 'note storage-note'));
-  adv.append(
-    section('Start Page', ['bgType', 'pageBg', 'bgImage', 'engine']),
-    section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete']),
-    section('Speed Dials', ['tileWidth', 'maxColumns', 'iconSize', 'gapX', 'gapY', 'thumbBg', 'hiResIcons', 'refreshIcons']),
-    section('Layout Offsets', ['groupsTop', 'searchTop', 'gridTop', 'addAnchor', 'addOffset']),
-    section('Folder Window', ['folderSize', 'animMs']),
-    storage,
+  const dialSource = el('section');
+  dialSource.append(el('h4', null, 'Dial Source'), build('source'), el('p', 'note storage-note'));
+  const col1 = el('div', 'advcol'), col2 = el('div', 'advcol');
+  col1.append(
+    dialSource,
+    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'engine']),
+    section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct']),
+    section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'gapX', 'gapY', 'thumbBg', 'hiResIcons', 'refreshIcons']),
   );
+  col2.append(
+    section('Folder Window', ['folderSize', 'animMs']),
+    section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle']),
+    section('Layout Offsets', ['groupsTop', 'searchTop', 'gridTop', 'addAnchor', 'addOffset']),
+  );
+  adv.append(col1, col2);
   syncBg();
+  syncBgState();
 
   const panel = $('#settings'), dlg = $('#adv');
   $('#settings-btn').onclick = (e) => { e.stopPropagation(); panel.classList.toggle('open'); };
@@ -221,6 +243,10 @@ export function init({ engines, onEngine, onRefreshIcons }) {
   advBtn.onclick = () => { panel.classList.remove('open'); openAdv(); };
   $('#adv-close').onclick = () => dlg.close();
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.open) dlg.close(); });
+  // a press outside the window closes it (pressing inside and releasing outside, e.g. a slider drag, does not)
+  document.addEventListener('pointerdown', (e) => {
+    if (dlg.open && !e.composedPath().includes(dlg)) dlg.close();
+  });
   window.addEventListener('resize', () => { if (pos && dlg.open) place(); });
   const head = dlg.querySelector('header');
   head.addEventListener('pointerdown', (e) => {

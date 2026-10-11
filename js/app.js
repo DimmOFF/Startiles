@@ -18,13 +18,13 @@ const ENGINES = {
 };
 
 const gridEl = $('#grid'), layer = $('#folder-layer'), nav = $('#groups'), dlg = $('#dlg'), ctx = $('#ctx');
-let root = null, byId = new Map(), openId = null, dragId = null, dropState = null, closing = false;
+let root = null, byId = new Map(), openId = null, curId = null, navStack = [], navBusy = false, dragId = null, groupDragId = null, dropState = null, closing = false;
 
 /* ---------- data refresh ---------- */
 let rt;
 const scheduleRefresh = () => {
   clearTimeout(rt);
-  rt = setTimeout(() => (dragId ? scheduleRefresh() : refresh()), 60);
+  rt = setTimeout(() => (dragId || groupDragId ? scheduleRefresh() : refresh()), 60);
 };
 async function refresh() {
   root = await M.getRoot();
@@ -32,7 +32,14 @@ async function refresh() {
   (function walk(n) { byId.set(n.id, n); (n.children || []).forEach(walk); })(root);
   renderGroups();
   renderGrid();
-  if (openId) byId.has(openId) ? renderFolderGrid() : hideFolderNow();
+  if (openId) {
+    if (!byId.has(openId)) hideFolderNow();
+    else {
+      if (!byId.has(curId)) { curId = openId; navStack = []; }
+      navStack = navStack.filter((x) => byId.has(x));
+      renderFolderGrid();
+    }
+  }
 }
 function activeGroup() {
   const gs = root.children.filter((c) => !c.url);
@@ -44,7 +51,7 @@ function renderGroups() {
   const gs = root.children.filter((c) => !c.url), act = activeGroup();
   nav.replaceChildren();
   gs.forEach((g) => {
-    const b = el('button', 'group' + (g.id === act.id ? ' active' : ''));
+    const b = el('button', 'group' + (g.id === act?.id ? ' active' : ''));
     b.textContent = g.title;
     b.onclick = () => { S.set({ activeGroup: g.id }); renderGroups(); renderGrid(); };
     b.ondblclick = () => renameGroup(g);
@@ -52,10 +59,35 @@ function renderGroups() {
       e.preventDefault();
       showCtx(e.clientX, e.clientY, [['Rename', () => renameGroup(g)], ['Delete', () => deleteGroup(g)]]);
     };
-    b.ondragover = (e) => { if (dragId) { e.preventDefault(); b.classList.add('drop'); } };
-    b.ondragleave = () => b.classList.remove('drop');
+    b.draggable = true;                                   // groups can be re-ordered by dragging
+    b.ondragstart = (e) => {
+      groupDragId = g.id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', g.id);
+      requestAnimationFrame(() => b.classList.add('gdrag'));
+    };
+    b.ondragover = (e) => {
+      if (dragId) { e.preventDefault(); b.classList.add('drop'); return; }
+      if (!groupDragId || groupDragId === g.id) return;
+      e.preventDefault();
+      const r = b.getBoundingClientRect(), after = e.clientX > r.left + r.width / 2;
+      nav.querySelectorAll('.gdrop-before,.gdrop-after').forEach((x) => x.classList.remove('gdrop-before', 'gdrop-after'));
+      b.classList.add(after ? 'gdrop-after' : 'gdrop-before');
+    };
+    b.ondragleave = () => b.classList.remove('drop', 'gdrop-before', 'gdrop-after');
     b.ondrop = async (e) => {
-      e.preventDefault(); b.classList.remove('drop');
+      e.preventDefault();
+      if (groupDragId) {
+        const id = groupDragId, after = b.classList.contains('gdrop-after');
+        cleanDrag();
+        const d = byId.get(id);
+        if (d && d.id !== g.id) {
+          const ins = g.index + (after ? 1 : 0);
+          if (!(ins === d.index || ins === d.index + 1)) { await M.move(d.id, M.rootId, ins); scheduleRefresh(); }
+        }
+        return;
+      }
+      b.classList.remove('drop');
       const id = dragId; cleanDrag();
       if (id) { await M.move(id, g.id); scheduleRefresh(); }
     };
@@ -121,10 +153,16 @@ function fillGrid(g, node, emptyText) {
   if (!kids.length) g.replaceChildren(el('p', 'empty', emptyText));
   else g.replaceChildren(...kids.map(tileEl));
 }
-const renderGrid = () => fillGrid(gridEl, activeGroup(), 'No shortcuts yet. Click “+ Shortcut” to add one.');
+const renderGrid = () => {
+  const g = activeGroup();
+  fillGrid(gridEl, g || { children: [] },
+    g ? 'No shortcuts yet. Click “+ Shortcut” to add one.' : 'No folders found here. Click + above to create a group.');
+};
 const renderFolderGrid = () => {
-  const n = byId.get(openId);
+  const n = byId.get(curId);
+  if (!n) return;
   $('h2', layer).textContent = n.title;
+  $('#f-back', layer).hidden = !navStack.length;
   fillGrid($('.fgrid', layer), n, 'This folder is empty. Drag shortcuts here or add one.');
 };
 
@@ -136,7 +174,7 @@ function bindGrid(g, inFolder) {
     if (!node) return;
     if (e.target.closest('.edit')) return openItemDialog({ node });
     if (e.target.closest('.del')) return deleteNode(node);
-    if (!node.url) return openFolder(node.id, tile);
+    if (!node.url) return inFolder ? enterFolder(node.id) : openFolder(node.id, tile);
     if (inFolder) closeFolder(false);
   });
   g.addEventListener('dragstart', (e) => {
@@ -161,12 +199,17 @@ function bindGrid(g, inFolder) {
     if (t.dataset.id === dragId) return;
     if (!mode) {
       const r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width;
-      const canMerge = g.dataset.merge === '1' && D_ && D_.url;
+      const Tn = byId.get(t.dataset.id);
+      const canMerge = g.dataset.merge === '1' && D_ && Tn && (D_.url || (!Tn.url && !isInside(Tn.id, D_.id)));
       mode = canMerge && x > 0.28 && x < 0.72 ? 'into' : x < 0.5 ? 'before' : 'after';
     }
     setDrop(t, mode);
   });
   g.addEventListener('drop', (e) => { if (dragId) { e.preventDefault(); applyDrop(); } });
+}
+function isInside(id, ancestorId) {
+  for (let n = byId.get(id); n; n = byId.get(n.parentId)) if (n.id === ancestorId) return true;
+  return false;
 }
 function setDrop(t, mode) {
   if (dropState && (dropState.el !== t || dropState.mode !== mode)) clearDropMarks();
@@ -183,7 +226,8 @@ function cleanDrag() {
   document.querySelectorAll('.dragging').forEach((x) => x.classList.remove('dragging'));
   document.querySelectorAll('.drop').forEach((x) => x.classList.remove('drop'));
   layer.classList.remove('out-drop');
-  dragId = null;
+  document.querySelectorAll('.gdrag,.gdrop-before,.gdrop-after').forEach((x) => x.classList.remove('gdrag', 'gdrop-before', 'gdrop-after'));
+  dragId = null; groupDragId = null;
 }
 async function applyDrop() {
   const st = dropState, id = dragId;
@@ -191,6 +235,7 @@ async function applyDrop() {
   if (!st || !id) return;
   const d = byId.get(id), t = byId.get(st.targetId);
   if (!d || !t) return;
+  if (st.mode === 'into' && !t.url && isInside(t.id, d.id)) return;   // never move a folder into itself
   if (st.mode === 'into') {
     if (!t.url) await M.move(d.id, t.id);
     else {
@@ -215,17 +260,42 @@ async function deleteNode(n) {
 
 /* ---------- folder modal ---------- */
 function openFolder(id, tileEl_) {
-  if (openId) { openId = id; renderFolderGrid(); return; }
-  openId = id;
+  if (openId) return;
+  openId = id; curId = id; navStack = [];
   document.body.style.overflow = 'hidden';
   layer.hidden = false;
   layer.innerHTML = `<div class="fback"></div><section class="fpanel">
-    <header><h2></h2><div class="fbtns"><button class="pill sm" id="f-add">+ Shortcut</button>
+    <header><div class="fl"><button class="icon-btn" id="f-back" title="Back (Backspace)" hidden>${svg(ICON.back, 20)}</button><h2></h2></div><div class="fbtns"><button class="pill sm" id="f-add">+ Shortcut</button>
     <button class="icon-btn" id="f-close" title="Close">&times;</button></div></header>
-    <div class="grid fgrid" data-merge="0"></div></section>`;
+    <div class="grid fgrid" data-merge="1"></div></section>`;
   bindGrid($('.fgrid', layer), true);
   renderFolderGrid();
   animateOpen(tileEl_.querySelector('.thumb') || tileEl_);
+}
+// nested folders: slide "deeper" / back with a zoom transition
+function enterFolder(id) {
+  if (navBusy) return;
+  navStack.push(curId);
+  navigate(id, 1);
+}
+function goBack() {
+  if (navBusy || !navStack.length) return;
+  navigate(navStack.pop(), -1);
+}
+async function navigate(toId, dir) {
+  navBusy = true;
+  const grid = $('.fgrid', layer), ms = S.get().animMs;
+  try {
+    await grid.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: dir > 0 ? 'scale(1.06)' : 'scale(.94)' }],
+      { duration: ms * 0.35, easing: 'ease-in', fill: 'forwards' }).finished;
+    if (!openId) return;
+    curId = toId;
+    renderFolderGrid();
+    grid.getAnimations().forEach((a) => a.cancel());
+    grid.animate([{ opacity: 0, transform: dir > 0 ? 'scale(.94)' : 'scale(1.06)' }, { opacity: 1, transform: 'none' }],
+      { duration: ms * 0.55, easing: 'cubic-bezier(.22,1,.36,1)' });
+  } catch { /* folder window was closed meanwhile */ }
+  finally { navBusy = false; }
 }
 function transformFrom(a, b) {
   const dx = a.left + a.width / 2 - (b.left + b.width / 2), dy = a.top + a.height / 2 - (b.top + b.height / 2);
@@ -243,7 +313,7 @@ function animateOpen(from) {
 }
 function hideFolderNow() {
   layer.getAnimations().forEach((a) => a.cancel());
-  layer.hidden = true; layer.innerHTML = ''; openId = null; closing = false;
+  layer.hidden = true; layer.innerHTML = ''; openId = null; curId = null; navStack = []; navBusy = false; closing = false;
   document.body.style.overflow = '';
 }
 async function closeFolder(animated) {
@@ -275,7 +345,8 @@ async function closeFolder(animated) {
 }
 layer.addEventListener('click', (e) => {
   if (e.target.closest('#f-close')) return closeFolder(true);
-  if (e.target.closest('#f-add')) return openItemDialog({ parentId: openId });
+  if (e.target.closest('#f-back')) return goBack();
+  if (e.target.closest('#f-add')) return openItemDialog({ parentId: curId });
   if (!e.target.closest('.fpanel')) closeFolder(true);
 });
 // dragging a tile out of the folder: drop it on the dimmed area -> moves to the current group
@@ -287,7 +358,8 @@ layer.addEventListener('drop', async (e) => {
   if (!dragId || e.target.closest('.fpanel')) return;
   e.preventDefault();
   const id = dragId; cleanDrag();
-  await M.move(id, activeGroup().id);
+  const g = activeGroup();
+  if (g) await M.move(id, g.id);
   scheduleRefresh();
 });
 
@@ -413,7 +485,7 @@ function openItemDialog({ node = null, parentId = null }) {
     items.forEach((s, i) => {
       const b = el('button', i === sel ? 'on' : '');
       b.type = 'button';
-      const im = new Image(); im.src = T.faviconUrl(s.url, 32); im.draggable = false; im.alt = '';
+      const im = new Image(); im.draggable = false; im.alt = ''; T.setSiteIcon(im, s.url, 32);
       const t = el('b'); t.textContent = s.title;
       const h = el('small'); h.textContent = s.url.replace(/^https?:\/\//, '');
       b.append(im, t, h);
@@ -471,7 +543,7 @@ function openItemDialog({ node = null, parentId = null }) {
       const url = normalizeUrl(E.addr.value);
       if (!url) { E.addr.focus(); return; }
       const ttl = title || hostOf(url);
-      if (isNew) await M.addLink(parentId || activeGroup().id, url, ttl);
+      if (isNew) await M.addLink(parentId || activeGroup()?.id, url, ttl);
       else {
         await M.update(node.id, { title: ttl, url });
         if (url !== node.url) await T.rekey(node.url, url);
@@ -508,7 +580,7 @@ const q = $('#q');
 function updateSearch() {
   const [name, , origin] = ENGINES[S.get().engine] || ENGINES.google;
   q.placeholder = 'Search ' + name;
-  $('#engine-ico').src = T.faviconUrl(origin, 32);
+  T.setSiteIcon($('#engine-ico'), origin, 32);
 }
 $('#search').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -525,6 +597,7 @@ function bindSettingsUI() {
     engines: ENGINES,
     onEngine: updateSearch,
     onRefreshIcons: async () => { await Icons.clear(); scheduleRefresh(); },
+    onSource: reinit,
   });
 }
 
@@ -534,10 +607,44 @@ function updateStorageUI() {
 }
 
 /* ---------- misc ---------- */
-$('#add-btn').onclick = () => openItemDialog({ parentId: activeGroup().id });
+$('#add-btn').onclick = () => { const g = activeGroup(); if (g) openItemDialog({ parentId: g.id }); };
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && openId && !dlg.open) closeFolder(true);
+  if (e.key === 'Backspace' && openId && navStack.length && !dlg.open && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+    e.preventDefault();
+    goBack();                                  // leave the inner folder
+  }
 });
+
+// switching Speed Dial <-> Bookmarks
+async function reinit() {
+  if (openId) hideFolderNow();
+  await M.ensureRoot(S.get());
+  await refresh();
+  updateStorageUI();
+}
+
+// caption with the full title when it does not fit into the tile
+const tip = $('#tip');
+let tipT;
+const hideTip = () => { clearTimeout(tipT); tip.hidden = true; };
+document.addEventListener('mouseover', (e) => {
+  const sp = e.target.closest?.('.tile .label span');
+  if (!sp) { hideTip(); return; }
+  if (!S.get().showLongTitle) return;
+  clearTimeout(tipT);
+  tipT = setTimeout(() => {
+    if (sp.scrollWidth <= sp.clientWidth + 1) return;
+    tip.textContent = sp.textContent;
+    tip.hidden = false;
+    const r = sp.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+    tip.style.top = (r.bottom + 6 + h > innerHeight ? r.top - 6 - h : r.bottom + 6) + 'px';
+  }, 350);
+});
+document.addEventListener('mouseout', (e) => { if (e.target.closest?.('.tile .label span')) hideTip(); });
+document.addEventListener('dragstart', hideTip);
+document.addEventListener('scroll', hideTip, true);
 
 (async function init() {
   await S.load(); await T.load();
@@ -545,7 +652,7 @@ document.addEventListener('keydown', (e) => {
   bindSettingsUI();
   updateSearch();
   bindGrid(gridEl, false);
-  await M.ensureRoot();
+  await M.ensureRoot(S.get());
   await refresh();
   updateStorageUI();
   const bm = chrome.bookmarks;

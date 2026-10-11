@@ -1,7 +1,7 @@
 export const DEFAULTS = {
   tileWidth: 220, iconSize: 50, maxColumns: '0', gridTop: 70, addAnchor: 'bottom', addOffset: 16, v: 3, gapX: 28, gapY: 28,
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
-  engine: 'google', bgType: 'color', hiResIcons: true, thumbBg: '#ffffff', pageBg: '#2b2b30',
+  engine: 'google', bgType: 'color', bgUrl: '', ratio: 1.22, source: 'speeddial', showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, hiResIcons: true, thumbBg: '#ffffff', pageBg: '#2b2b30',
   groupsTop: 12, searchTop: 60, folderSize: 90, animMs: 280,
   activeGroup: null,
 };
@@ -16,6 +16,13 @@ export async function load() {
   ['driveClientId', 'driveAuto'].forEach((k) => delete st[k]);   // Google Drive sync was removed
   chrome.storage.local.remove('driveAuth');
   cache = { ...DEFAULTS, ...st, v: 3, bgSrc: r.bgSrc || '' };
+  if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
+    cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
+    if (cache.bgType === 'image') cache.bgType = 'url';
+    chrome.storage.local.remove('bgSrc');
+    const { bgSrc, ...rest } = cache;
+    chrome.storage.local.set({ settings: rest });
+  }
   return cache;
 }
 export const get = () => cache;
@@ -42,6 +49,9 @@ export function applyCss() {
   st.setProperty('--search-top', s.searchTop + 'px');
   st.setProperty('--folder-size', s.folderSize);
   st.setProperty('--grid-top', s.gridTop + 'px');
+  st.setProperty('--ratio', s.ratio);
+  st.setProperty('--groups-max-px', s.groupsMaxPx + 'px');
+  st.setProperty('--groups-max-pct', s.groupsMaxPct);
   st.setProperty('--add-offset', s.addOffset + 'px');
   const n = Number(s.maxColumns) || 0;
   st.setProperty('--grid-max', n ? `calc(${n} * var(--tile-w) + ${n - 1} * var(--gap-x) + 80px)` : 'none');
@@ -51,8 +61,8 @@ export function applyCss() {
   b.toggle('hide-add', !s.showAdd);
   b.toggle('hide-search', !s.showSearch);
   b.toggle('add-top', s.addAnchor === 'top');
-  const img = s.bgType === 'image' && s.bgSrc;
-  b.toggle('bg-image', !!img);
-  st.setProperty('--bg-image', img ? `url("${s.bgSrc.replace(/"/g, '%22')}")` : 'none');
+  const src = s.bgType === 'url' ? s.bgUrl : s.bgType === 'image' ? s.bgSrc : '';
+  b.toggle('bg-image', !!src);
+  st.setProperty('--bg-image', src ? `url("${String(src).replace(/"/g, '%22')}")` : 'none');
   document.querySelectorAll('[data-bg]').forEach((x) => (x.hidden = x.dataset.bg !== s.bgType));
 }

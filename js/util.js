@@ -19,4 +19,5 @@ export const ICON = {
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
   bookmark: '<path d="M6 3h12v18l-6-4-6 4Z"/>',
+  back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
 };
