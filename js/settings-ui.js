@@ -32,6 +32,7 @@ const DEF = {
   gapX: rng('Horizontal Gap', 0, 80),
   gapY: rng('Vertical Gap', 0, 80),
   thumbBg: { type: 'color', label: 'Tile Background Color' },
+  searchSuggest: sw('Search suggestions'),
   hiResIcons: sw('Fetch hi-res icons & previews'),
   showAdd: sw('Show Add Button'),
   showSearch: sw('Show Search Field'),
@@ -178,7 +179,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   const quick = $('#quick-body'), adv = $('#adv-body');
 
   quick.append(
-    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'thumbBg', 'engine']),
+    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'thumbBg', 'engine', 'searchSuggest']),
     section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize']),
   );
   const more = el('div', 'row');
@@ -197,7 +198,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   const col1 = el('div', 'advcol'), col2 = el('div', 'advcol');
   col1.append(
     dialSource,
-    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'engine']),
+    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'engine', 'searchSuggest']),
     section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct']),
     section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'gapX', 'gapY', 'thumbBg', 'hiResIcons', 'refreshIcons']),
   );

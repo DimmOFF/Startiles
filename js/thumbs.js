@@ -114,7 +114,7 @@ export function renderThumbFrom(pageUrl, t) {
 // Vector placeholder for an empty thumbnail (no address yet): a browser window with a globe, crisp at any size.
 export function placeholderThumb() {
   const box = document.createElement('div');
-  box.className = 'thumb empty';
+  box.className = 'thumb thumb-ph';
   box.innerHTML = `<svg viewBox="0 0 120 98" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="16" y="14" width="88" height="70" rx="9"/>
     <path d="M16 31h88"/>

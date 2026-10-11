@@ -6,6 +6,7 @@ import * as SettingsUI from './settings-ui.js';
 import { pickFolder } from './folder-picker.js';
 import * as Icons from './icons.js';
 import * as Suggest from './suggest.js';
+import * as SearchSuggest from './search-suggest.js';
 import { shatter } from './shatter.js';
 
 const ENGINES = {
@@ -421,18 +422,27 @@ function openItemDialog({ node = null, parentId = null }) {
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
     <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com"><div class="ac" hidden></div></label>
     <label class="f"><span>Title</span><input name="ttl"></label>
-    <div class="thumbsec" data-only="link">
-      <div class="lcol"><div class="prev"></div><div class="icons" id="icopick" hidden></div></div>
-      <div class="opts">
-        <label class="r"><input type="radio" name="mode" value="auto"> Automatic</label>
-        <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
-        <label class="r"><input type="radio" name="mode" value="url"> Image URL</label>
-        <input name="imgurl" placeholder="https://…/image.png">
-        <label class="r"><input type="radio" name="mode" value="file"> Local file</label>
-        <input type="file" name="file" accept="image/*">
-        <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option></select></label>
+    <section class="tcat" data-only="link">
+      <h4>Thumbnail</h4>
+      <div class="thumbsec">
+        <div class="lcol"><div class="prev"></div><div class="icons" id="icopick" hidden></div></div>
+        <div class="opts">
+          <div class="modes">
+            <label class="r"><input type="radio" name="mode" value="auto"> Automatic</label>
+            <label class="r"><input type="radio" name="mode" value="url"> Image URL</label>
+            <label class="r"><input type="radio" name="mode" value="file"> Local file</label>
+          </div>
+          <div class="pane" data-modes="auto">
+            <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
+          </div>
+          <div class="pane" data-modes="url"><input name="imgurl" placeholder="https://…/image.png"></div>
+          <div class="pane" data-modes="file"><input type="file" name="file" accept="image/*"></div>
+          <div class="pane" data-modes="url file">
+            <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option></select></label>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
     <div class="btns">${isNew ? '' : '<button type="button" class="danger" id="d-del">Delete</button>'}<span class="sp"></span>
       <button type="button" id="d-cancel">Cancel</button><button type="submit" class="primary">Save</button></div>
   </form>`;
@@ -459,7 +469,7 @@ function openItemDialog({ node = null, parentId = null }) {
   let cands = [], lastUrl = null, ct, searching = false;
   const shown = new Set();
   const syncAk = () => {
-    ak.hidden = st.mode !== 'auto';
+    f.querySelectorAll('.pane').forEach((p) => (p.hidden = !p.dataset.modes.split(' ').includes(st.mode)));
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
     icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && (cands.length >= 2 || st.icon || searching));
   };
@@ -553,7 +563,7 @@ function openItemDialog({ node = null, parentId = null }) {
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeAc(); }
   };
   E.addr.onblur = closeAc;
-  E.imgurl.oninput = () => { st.url = E.imgurl.value.trim(); setMode(st.url ? 'url' : 'auto'); };
+  E.imgurl.oninput = () => { st.url = E.imgurl.value.trim(); upd(); };   // the mode is chosen with the radio buttons
   E.fit.onchange = () => { st.fit = E.fit.value; upd(); };
   E.file.onchange = async () => {
     const file = E.file.files[0];
@@ -614,13 +624,96 @@ function updateSearch() {
   q.placeholder = 'Search ' + name;
   T.setSiteIcon($('#engine-ico'), origin, 32);
 }
-$('#search').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const v = q.value.trim();
+const goSearch = (v) => {
+  v = v.trim();
   if (!v) return;
   const looksUrl = /^(https?:\/\/|chrome:\/\/)\S+$/i.test(v) || /^[^\s/]+\.[a-z]{2,}(\/\S*)?$/i.test(v);
   const tpl = (ENGINES[S.get().engine] || ENGINES.google)[1];
   location.href = looksUrl ? normalizeUrl(v) : tpl.replace('%s', encodeURIComponent(v));
+};
+
+/* search autocomplete: engine query suggestions + matching bookmarks / history sites */
+const sgBox = el('div', 'sg');
+sgBox.hidden = true;
+$('#search').append(sgBox);
+let sgItems = [], sgSel = -1, sgTyped = '', sgTok = 0, sgAbort = null, sgTimer;
+const sgClose = () => { sgBox.hidden = true; sgItems = []; sgSel = -1; sgTok++; sgAbort?.abort(); };
+function sgRender() {
+  sgBox.replaceChildren();
+  const typed = sgTyped.toLowerCase();
+  sgItems.forEach((it, i) => {
+    const b = el('button', 'sg-item' + (i === sgSel ? ' on' : ''));
+    b.type = 'button';
+    if (it.url) {
+      const im = new Image(); im.className = 'sg-ico'; im.alt = ''; im.draggable = false; T.setSiteIcon(im, it.url, 32);
+      const t = el('span', 'sg-t'); t.textContent = it.title;
+      const h = el('small'); h.textContent = it.url.replace(/^https?:\/\//, '');
+      b.append(im, t, h);
+    } else {
+      b.append(el('span', 'sg-ico sg-mag', svg('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', 15)));
+      const t = el('span', 'sg-t');
+      const low = it.text.toLowerCase();
+      if (typed && low.startsWith(typed)) {
+        t.append(document.createTextNode(it.text.slice(0, typed.length)));
+        const r = el('b'); r.textContent = it.text.slice(typed.length); t.append(r);
+      } else t.textContent = it.text;
+      b.append(t);
+    }
+    b.onmousedown = (e) => e.preventDefault();             // keep focus in the field
+    b.onclick = () => sgPick(i);
+    sgBox.append(b);
+  });
+  sgBox.hidden = !sgItems.length;
+}
+const sgPick = (i) => {
+  const it = sgItems[i];
+  if (!it) return;
+  if (it.url) location.href = it.url; else { q.value = it.text; goSearch(it.text); }
+};
+async function sgFetch() {
+  const v = q.value.trim();
+  sgTyped = q.value;
+  if (!v || !S.get().searchSuggest) { sgClose(); return; }
+  const tok = ++sgTok;
+  sgAbort?.abort();
+  sgAbort = new AbortController();
+  const [web, sites] = await Promise.all([
+    SearchSuggest.queries(S.get().engine, v, sgAbort.signal),
+    Suggest.suggest(v).catch(() => []),
+  ]);
+  if (tok !== sgTok) return;                                // a newer keystroke superseded this one
+  const looksUrl = /[./]/.test(v);
+  const siteItems = sites.slice(0, looksUrl ? 4 : 2).map((s) => ({ url: s.url, title: s.title }));
+  const webItems = web.slice(0, looksUrl ? 4 : 6).map((text) => ({ text }));
+  sgItems = looksUrl ? [...siteItems, ...webItems] : [...webItems, ...siteItems];
+  sgSel = -1;
+  sgRender();
+}
+q.addEventListener('input', () => { clearTimeout(sgTimer); sgTimer = setTimeout(sgFetch, 110); });
+q.addEventListener('focus', () => { if (q.value.trim() && !sgItems.length) sgFetch(); });
+q.addEventListener('blur', () => setTimeout(sgClose, 120));
+q.addEventListener('keydown', (e) => {
+  if (sgBox.hidden || !sgItems.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const n = sgItems.length;
+    sgSel = e.key === 'ArrowDown' ? (sgSel + 1 >= n ? -1 : sgSel + 1) : (sgSel - 1 < -1 ? n - 1 : sgSel - 1);
+    const it = sgItems[sgSel];
+    q.value = it ? (it.text || it.url) : sgTyped;          // preview the choice in the field
+    sgRender();
+  } else if (e.key === 'Enter' && sgSel >= 0) {
+    e.preventDefault();
+    sgPick(sgSel);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    if (sgSel >= 0) q.value = sgTyped;
+    sgClose();
+  }
+});
+$('#search').addEventListener('submit', (e) => {
+  e.preventDefault();
+  sgClose();
+  goSearch(q.value);
 });
 
 /* ---------- settings UI ---------- */

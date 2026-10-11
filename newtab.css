@@ -25,7 +25,7 @@ button,input,select{font:inherit;color:inherit}
 #settings-btn{position:fixed;top:14px;right:16px;z-index:5}
 
 /* search */
-#search{margin:var(--search-top) auto 0;width:min(900px,82vw);height:46px;padding:0 16px;display:flex;align-items:center;gap:10px;
+#search{position:relative;margin:var(--search-top) auto 0;width:min(900px,82vw);height:46px;padding:0 16px;display:flex;align-items:center;gap:10px;
   background:rgba(0,0,0,.35);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 #search input{flex:1;background:none;border:0;outline:0;font-size:14px}
 #search input::placeholder{color:var(--muted)}
@@ -237,5 +237,22 @@ html{overflow-x:hidden}
 .pk .btns button:disabled{opacity:.45;cursor:default}
 
 /* empty thumbnail placeholder (Add dialog without an address) */
-.thumb.empty{display:grid;place-items:center;color:rgba(110,118,140,.75);background:var(--thumb-bg)}
-.thumb.empty svg{width:72%;height:auto;max-height:86%}
+.thumb.thumb-ph{display:grid;place-items:center;color:rgba(110,118,140,.75);background:var(--thumb-bg)}
+.thumb.thumb-ph svg{width:72%;height:auto;max-height:86%}
+
+/* Add / Edit: Thumbnail category with horizontal mode switch */
+.tcat{margin-top:6px;padding-top:12px;border-top:1px solid #3a3a42}
+.tcat h4{margin:0 0 10px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.opts .modes{display:flex;flex-wrap:wrap;gap:6px 14px}
+.opts .modes .r{cursor:pointer;white-space:nowrap}
+.opts .pane{display:flex;flex-direction:column;gap:7px}
+.opts .pane .seg.sm{margin:0}
+
+/* search autocomplete dropdown */
+.sg{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:25;background:#2a2a2f;border-radius:12px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.06)}
+.sg-item{display:flex;align-items:center;gap:12px;width:100%;padding:8px 12px;border:0;background:none;border-radius:8px;text-align:left;cursor:pointer;font-size:14px}
+.sg-item:hover,.sg-item.on{background:rgba(123,131,245,.28)}
+.sg-ico{width:16px;height:16px;flex:none;border-radius:3px;display:grid;place-items:center;color:var(--muted)}
+.sg-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sg-t b{font-weight:600}
+.sg-item small{margin-left:auto;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%;font-size:12px}
