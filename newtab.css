@@ -33,14 +33,14 @@ button,input,select{font:inherit;color:inherit}
 .hide-search #search{display:none}
 
 /* grid + tiles */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,var(--tile-w));justify-content:center;column-gap:var(--gap-x);row-gap:var(--gap-y)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,var(--tile-w));justify-content:center;column-gap:var(--gap-x);row-gap:var(--gap-y)}
 #grid{margin-top:44px;padding:0 40px 120px;width:100%}
 .empty{grid-column:1/-1;text-align:center;color:var(--muted);margin:40px 0}
 .tile{position:relative;border-radius:10px;background:var(--label);box-shadow:0 2px 10px rgba(0,0,0,.35);transition:transform .15s,opacity .15s}
 .tile:hover{transform:translateY(-2px)}
 .card{display:block;color:inherit;text-decoration:none;cursor:pointer;border-radius:10px;overflow:hidden}
 .thumb{position:relative;aspect-ratio:11/9;background:var(--thumb-bg);overflow:hidden}
-.thumb .fav{position:absolute;left:50%;top:50%;width:34%;aspect-ratio:1;transform:translate(-50%,-50%);object-fit:contain}
+.thumb .fav{position:absolute;left:50%;top:50%;width:34%;aspect-ratio:1;transform:translate(-50%,-50%);object-fit:contain;border-radius:16%}
 .thumb .cov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .thumb .cov.contain{object-fit:contain}
 .thumb .letter{position:absolute;inset:0;display:grid;place-items:center;font-size:48px;font-weight:600;color:#555}

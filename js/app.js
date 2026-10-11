@@ -3,6 +3,7 @@ import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as M from './model.js';
 import * as D from './drive.js';
+import * as Icons from './icons.js';
 
 const ENGINES = {
   google:     ['Google',      'https://www.google.com/search?q=%s',       'https://www.google.com'],
@@ -254,16 +255,18 @@ async function closeFolder(animated) {
       const b = panel.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
       const nodes = [$('header', panel), ...panel.querySelectorAll('.fgrid .tile')];
       const rects = nodes.map((n) => n.getBoundingClientRect());
-      // 1) all content folds toward the centre of the window
-      await Promise.all(nodes.map((n, i) => n.animate(
+      // the window shrinks into its tile while the content is gathered toward the centre, both at once
+      const dur = ms * 0.8;
+      nodes.forEach((n, i) => n.animate(
         [{ opacity: 1, transform: 'none' },
-         { opacity: 0, transform: `translate(${cx - (rects[i].left + rects[i].width / 2)}px,${cy - (rects[i].top + rects[i].height / 2)}px) scale(.2)` }],
-        { duration: ms * 0.55, delay: i * 18, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished));
-      // 2) the window shrinks back into its folder tile
-      back.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms * 0.7, fill: 'forwards' });
+         { opacity: 0, transform: `translate(${cx - (rects[i].left + rects[i].width / 2)}px,${cy - (rects[i].top + rects[i].height / 2)}px) scale(.3)` }],
+        { duration: dur * 0.8, delay: Math.min(i, 10) * 14, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'forwards' }));
+      back.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur, easing: 'ease-in', fill: 'forwards' });
       await panel.animate(
-        [{ transform: 'none', opacity: 1 }, { transform: transformFrom(src.getBoundingClientRect(), b), opacity: 0.3 }],
-        { duration: ms * 0.8, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' }).finished;
+        [{ transform: 'none', opacity: 1 },
+         { opacity: 1, offset: 0.65 },
+         { transform: transformFrom(src.getBoundingClientRect(), b), opacity: 0 }],
+        { duration: dur, easing: 'cubic-bezier(.4,0,.15,1)', fill: 'forwards' }).finished;
     } else {
       await layer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' }).finished;
     }
@@ -443,6 +446,7 @@ function bindSettingsUI() {
   $('#settings-btn').onclick = (e) => { e.stopPropagation(); panel.classList.toggle('open'); };
   $('#settings-close').onclick = () => panel.classList.remove('open');
   document.addEventListener('click', (e) => { if (!panel.contains(e.target)) panel.classList.remove('open'); });
+  $('#refresh-icons').onclick = async () => { await Icons.clear(); scheduleRefresh(); };
   $('#sync-btn').onclick = async () => {
     const s = $('#sync-status');
     s.textContent = 'Syncing…';

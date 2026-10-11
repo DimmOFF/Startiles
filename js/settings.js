@@ -1,7 +1,7 @@
 export const DEFAULTS = {
   tileWidth: 220, gapX: 28, gapY: 28,
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
-  engine: 'google', thumbBg: '#ffffff', pageBg: '#2b2b30',
+  engine: 'google', hiResIcons: true, thumbBg: '#ffffff', pageBg: '#2b2b30',
   groupsTop: 12, searchTop: 60, folderSize: 90, animMs: 420,
   activeGroup: null, driveClientId: '', driveAuto: false,
 };

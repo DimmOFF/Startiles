@@ -2,6 +2,8 @@
 //   { mode: 'url'|'file', url?, dataUrl?, fit: 'cover'|'contain', ts }
 // 'auto' = no entry (site icon on a coloured background).
 import { hostOf } from './util.js';
+import * as Icons from './icons.js';
+import * as S from './settings.js';
 
 let thumbs = {};
 const listeners = [];
@@ -45,6 +47,17 @@ export function renderThumbFrom(pageUrl, t) {
       img.replaceWith(l);
     };
     box.append(img);
+    if (S.get().hiResIcons && /^https?:/i.test(pageUrl)) {
+      Icons.resolve(pageUrl).then((hi) => {
+        if (!hi) return;
+        const big = new Image();
+        big.onload = () => {
+          big.className = 'fav'; big.draggable = false; big.alt = '';
+          box.firstElementChild?.replaceWith(big);
+        };
+        big.src = hi;
+      });
+    }
   };
   const src = t.mode === 'file' ? t.dataUrl : t.mode === 'url' ? t.url : null;
   if (!src) { auto(); return box; }

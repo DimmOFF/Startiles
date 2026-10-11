@@ -16,3 +16,7 @@ Install: `chrome://extensions` → Developer mode → Load unpacked → select t
 Data goes to the hidden app data folder of your Drive (`msd-thumbs.json`).
 
 Note: unpacked extensions get a path-based ID. To keep the redirect URI stable, add a `"key"` field to manifest.json.
+
+## Site icons
+Automatic thumbnails try to find the largest icon of a site (apple-touch-icon, manifest icons, SVG) and cache it per origin.
+This needs the "read all sites" permission (page HTML is fetched only to find the icon). Turn it off in settings → "High-res site icons".
