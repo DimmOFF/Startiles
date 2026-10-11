@@ -3,6 +3,7 @@ import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as M from './model.js';
 import * as SettingsUI from './settings-ui.js';
+import { pickFolder } from './folder-picker.js';
 import * as Icons from './icons.js';
 import * as Suggest from './suggest.js';
 import { shatter } from './shatter.js';
@@ -627,7 +628,8 @@ function bindSettingsUI() {
     engines: ENGINES,
     onEngine: updateSearch,
     onRefreshIcons: async () => { await Icons.clear(); scheduleRefresh(); },
-    onSource: reinit,
+    onSource: changeSource,
+    onPickRoot: pickRoot,
   });
 }
 
@@ -646,7 +648,27 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// Dial Source = Bookmarks: let the user choose which bookmarks folder is the root
+async function pickRoot() {
+  const id = await pickFolder({ currentId: S.get().bookmarksRootId });
+  if (!id) return false;
+  await S.set({ bookmarksRootId: id });
+  await reinit();
+  return true;
+}
 // switching Speed Dial <-> Bookmarks
+async function changeSource() {
+  if (S.get().source === 'bookmarks') {
+    const had = await M.isFolder(S.get().bookmarksRootId);
+    const ok = await pickRoot();
+    if (ok) return;
+    if (!had) {                                  // cancelled and nothing chosen before: stay on Speed Dial
+      await S.set({ source: 'speeddial' });
+      SettingsUI.syncControls();
+    }
+  }
+  await reinit();
+}
 async function reinit() {
   if (openId) hideFolderNow();
   await M.ensureRoot(S.get());

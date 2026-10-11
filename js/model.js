@@ -1,6 +1,6 @@
 // Two data sources:
 //  - Speed Dial: root = "Modern Speed Dial" folder (bookmarks root, falling back to "Other bookmarks")
-//  - Bookmarks:  root = the main bookmarks folder (Bookmarks bar)
+//  - Bookmarks:  root = the folder chosen by the user (settings.bookmarksRootId), Bookmarks bar by default
 // In both cases: top-level folders of the root = groups, everything inside = tiles / (nested) folders.
 export const ROOT_TITLE = 'Modern Speed Dial';
 export let rootId = null;   // folder currently shown
@@ -55,10 +55,20 @@ export async function ensureSd() {
 export async function ensureRoot(cfg = {}) {
   info.note = '';
   if (cfg.source === 'bookmarks') {
-    const tree = await chrome.bookmarks.getTree();
-    const top = tree[0].children;
-    const bar = top.find((n) => n.folderType === 'bookmarks-bar') || top[0];
-    rootId = bar.id;
+    let node = null;
+    if (cfg.bookmarksRootId) {                 // the folder chosen by the user
+      try {
+        [node] = await chrome.bookmarks.get(cfg.bookmarksRootId);
+        if (node.url || !node.parentId) node = null;
+      } catch { node = null; }
+      if (!node) info.note = 'The chosen bookmarks folder no longer exists, so the Bookmarks bar is used. Choose another one in Advanced Settings.';
+    }
+    if (!node) {
+      const tree = await chrome.bookmarks.getTree();
+      const top = tree[0].children;
+      node = top.find((n) => n.folderType === 'bookmarks-bar') || top[0];
+    }
+    rootId = node.id;
     info.path = await pathOf(rootId);
     return getRoot();
   }
@@ -69,6 +79,10 @@ export async function ensureRoot(cfg = {}) {
   if (!(sub.children || []).some((c) => !c.url)) await chrome.bookmarks.create({ parentId: rootId, title: 'General' });
   info.path = await pathOf(rootId);
   return getRoot();
+}
+export async function isFolder(id) {
+  if (!id) return false;
+  try { const [n] = await chrome.bookmarks.get(id); return !n.url && !!n.parentId; } catch { return false; }
 }
 export const getRoot = async () => (await chrome.bookmarks.getSubTree(rootId))[0];
 export const getSd = async () => { const { node } = await ensureSd(); return (await chrome.bookmarks.getSubTree(node.id))[0]; };

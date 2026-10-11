@@ -222,3 +222,16 @@ a.pill{color:inherit;text-decoration:none;display:inline-block}
 @media (max-width:760px){.advgrid{grid-template-columns:1fr}}
 
 html{overflow-x:hidden}
+
+/* bookmarks folder picker */
+#picker{width:min(480px,92vw)}
+.pk .ptree{background:#1f1f24;border:1px solid #3d3d45;border-radius:10px;padding:6px;height:min(420px,55vh);overflow:auto}
+.prow{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;cursor:pointer;user-select:none}
+.prow:hover{background:rgba(255,255,255,.07)}
+.prow.on{background:rgba(123,131,245,.3)}
+.pcaret{width:14px;flex:none;text-align:center;color:var(--muted);font-size:12px}
+.pico{flex:none;display:grid;color:var(--muted)}
+.plabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcount{color:var(--muted);font-size:11px}
+.pk-path{margin:0;min-height:1.35em}
+.pk .btns button:disabled{opacity:.45;cursor:default}

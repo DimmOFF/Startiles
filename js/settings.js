@@ -1,7 +1,7 @@
 export const DEFAULTS = {
   tileWidth: 220, iconSize: 50, maxColumns: '0', gridTop: 70, addAnchor: 'bottom', addOffset: 16, v: 3, gapX: 28, gapY: 28,
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
-  engine: 'google', bgType: 'color', bgUrl: '', ratio: 1.22, source: 'speeddial', showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, animGroups: true, animFolders: true, hiResIcons: true, thumbBg: '#ffffff', pageBg: '#2b2b30',
+  engine: 'google', bgType: 'color', bgUrl: '', ratio: 1.22, source: 'speeddial', bookmarksRootId: null, showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, animGroups: true, animFolders: true, hiResIcons: true, thumbBg: '#ffffff', pageBg: '#2b2b30',
   groupsTop: 12, searchTop: 60, folderSize: 90, animMs: 280,
   activeGroup: null,
 };

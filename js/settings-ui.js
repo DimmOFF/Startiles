@@ -170,8 +170,10 @@ function section(title, keys) {
 
 export function setStorageText(t) { document.querySelectorAll('.storage-note').forEach((n) => (n.textContent = t)); }
 
-export function init({ engines, onEngine, onRefreshIcons, onSource }) {
-  hooks = { onEngine, onRefreshIcons, onSource };
+export const syncControls = () => refreshAll();
+
+export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }) {
+  hooks = { onEngine, onRefreshIcons, onSource, onPickRoot };
   engineMap = engines;
   const quick = $('#quick-body'), adv = $('#adv-body');
 
@@ -185,7 +187,13 @@ export function init({ engines, onEngine, onRefreshIcons, onSource }) {
   quick.append(more);
 
   const dialSource = el('section');
-  dialSource.append(el('h4', null, 'Dial Source'), build('source'), el('p', 'note storage-note'));
+  const pickRow = el('div', 'row');
+  const pickBtn = el('button', 'pill sm', 'Choose root folder…');
+  pickBtn.onclick = () => hooks.onPickRoot?.();
+  pickRow.append(pickBtn);
+  extraRefresh.push(() => { pickRow.hidden = S.get().source !== 'bookmarks'; });
+  pickRow.hidden = S.get().source !== 'bookmarks';
+  dialSource.append(el('h4', null, 'Dial Source'), build('source'), pickRow, el('p', 'note storage-note'));
   const col1 = el('div', 'advcol'), col2 = el('div', 'advcol');
   col1.append(
     dialSource,
@@ -206,7 +214,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource }) {
   const panel = $('#settings'), dlg = $('#adv');
   $('#settings-btn').onclick = (e) => { e.stopPropagation(); panel.classList.toggle('open'); };
   $('#settings-close').onclick = () => panel.classList.remove('open');
-  document.addEventListener('click', (e) => { if (!panel.contains(e.target)) panel.classList.remove('open'); });
+  document.addEventListener('click', (e) => { if (!panel.contains(e.target) && !e.target.closest('#picker')) panel.classList.remove('open'); });
   // Export / Import
   const status = $('#backup-status'), fileIn = $('#imp-file');
   $('#exp-btn').onclick = async () => {
@@ -246,10 +254,10 @@ export function init({ engines, onEngine, onRefreshIcons, onSource }) {
   };
   advBtn.onclick = () => { panel.classList.remove('open'); openAdv(); };
   $('#adv-close').onclick = () => dlg.close();
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.open) dlg.close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.open && !$('#picker').open) dlg.close(); });
   // a press outside the window closes it (pressing inside and releasing outside, e.g. a slider drag, does not)
   document.addEventListener('pointerdown', (e) => {
-    if (dlg.open && !e.composedPath().includes(dlg)) dlg.close();
+    if (dlg.open && !e.composedPath().includes(dlg) && !$('#picker').open) dlg.close();
   });
   window.addEventListener('resize', () => { if (pos && dlg.open) place(); });
   const head = dlg.querySelector('header');
