@@ -2,6 +2,7 @@
 // so every control exists in both places and stays in sync.
 import * as S from './settings.js';
 import * as T from './thumbs.js';
+import * as Backup from './backup.js';
 import { $, el } from './util.js';
 
 const controls = new Map();   // key -> [inputs]
@@ -180,6 +181,26 @@ export function init({ engines, onEngine, onRefreshIcons }) {
   $('#settings-btn').onclick = (e) => { e.stopPropagation(); panel.classList.toggle('open'); };
   $('#settings-close').onclick = () => panel.classList.remove('open');
   document.addEventListener('click', (e) => { if (!panel.contains(e.target)) panel.classList.remove('open'); });
+  // Export / Import
+  const status = $('#backup-status'), fileIn = $('#imp-file');
+  $('#exp-btn').onclick = async () => {
+    try { const r = await Backup.exportAll(); status.textContent = `Exported ${r.links} shortcuts`; }
+    catch (e) { status.textContent = 'Export failed: ' + e.message; }
+  };
+  $('#imp-btn').onclick = () => fileIn.click();
+  fileIn.onchange = async () => {
+    const f = fileIn.files[0];
+    fileIn.value = '';
+    if (!f) return;
+    try {
+      status.textContent = 'Importing…';
+      const r = await Backup.importFile(f);
+      if (!r) { status.textContent = ''; return; }
+      status.textContent = 'Imported, reloading…';
+      setTimeout(() => location.reload(), 400);
+    } catch (e) { status.textContent = 'Import failed: ' + e.message; }
+  };
+
   // Advanced window: non-modal (no dimming), freely movable by its title bar
   let pos = null;
   const place = () => {

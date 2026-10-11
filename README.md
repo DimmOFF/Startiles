@@ -29,3 +29,8 @@ kept in `Other bookmarks`. The actual path is shown in Settings → Storage.
 ## Settings
 Quick Settings (gear icon) has the essentials; "Advanced Settings…" opens a window with every option
 (background colour/image, show/hide elements, sizes, offsets, folder window).
+
+## Export / Import
+Advanced Settings → Export saves one JSON file with settings (incl. background image), the dial tree (groups, folders,
+shortcuts, order), thumbnail settings/custom images, page screenshots and the icon cache. Import replaces the current
+settings, groups and shortcuts with the file contents (asks for confirmation) and reloads the page.

@@ -199,3 +199,8 @@ dialog.wide[open]{display:flex;flex-direction:column}
 .dd-item{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;background:none;border-radius:6px;cursor:pointer;text-align:left}
 .dd-item:hover,.dd-item.on{background:rgba(123,131,245,.25)}
 .dd img{width:16px;height:16px;flex:none;border-radius:3px}
+
+.advfoot{display:flex;align-items:center;gap:8px;padding:10px 20px;border-top:1px solid #3a3a42}
+.advfoot .sp{flex:1}
+#backup-status{color:var(--muted);font-size:12px;margin-left:6px}
+a.pill{color:inherit;text-decoration:none;display:inline-block}
