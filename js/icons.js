@@ -26,6 +26,29 @@ function loadImg(src, ms = 4000) {
     i.src = src;
   });
 }
+// Downloads an icon, returns its real pixel width and a content hash (to detect duplicates).
+async function probe(src, ms = 7000) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  try {
+    const r = await fetch(src, { credentials: 'omit', signal: c.signal });
+    if (!r.ok) return null;
+    const buf = await r.arrayBuffer();
+    if (!buf.byteLength) return null;
+    const type = r.headers.get('content-type') || '';
+    const blob = new Blob([buf], { type });
+    const isSvg = /svg/i.test(type) || /\.svg(\?|$)/i.test(src);
+    let w = 0;
+    try { w = (await createImageBitmap(blob)).width; }
+    catch {
+      const u = URL.createObjectURL(blob);
+      try { w = (await loadImg(u, 3000)) || (isSvg ? 1024 : 0); } finally { URL.revokeObjectURL(u); }
+    }
+    if (!w) return null;
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-1', buf))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    return { w: isSvg ? 1024 : w, hash };
+  } catch { return null; } finally { clearTimeout(t); }
+}
 async function fetchText(url, ms = 6000) {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), ms);
@@ -36,7 +59,7 @@ async function fetchText(url, ms = 6000) {
   } catch { return null; } finally { clearTimeout(t); }
 }
 
-async function discover(pageUrl) {
+async function collect(pageUrl) {
   const u = new URL(pageUrl);
   const cands = new Map();
   const add = (href, size) => { if (href && (cands.get(href) ?? -1) < size) cands.set(href, size); };
@@ -61,6 +84,19 @@ async function discover(pageUrl) {
   }
   add(u.origin + '/apple-touch-icon.png', 150);
   add(u.origin + '/favicon.ico', 16);
+  // icon services: they often know larger icons than the page declares (e.g. google.com only declares 32px)
+  add(`https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&nfrp=2&url=${encodeURIComponent(u.origin)}&size=256`, 120);
+  add(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(u.hostname)}&sz=256`, 110);
+  add(`https://icons.duckduckgo.com/ip3/${u.hostname}.ico`, 20);
+  if (/^(www\.)?google\.com$/.test(u.hostname)) {
+    add('https://www.gstatic.com/images/branding/googleg/2x/googleg_standard_color_128dp.png', 210);
+    add('https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png', 200);
+  }
+  return cands;
+}
+
+async function discover(pageUrl) {
+  const cands = await collect(pageUrl);
   const top = [...cands].sort((a, b) => b[1] - a[1]).slice(0, 5);
   let best = null, bw = 0;
   for (const [src] of top) {
@@ -119,4 +155,25 @@ export async function preview(pageUrl) {
   cache[pk] = { src: src || null, w: 0, ts: Date.now() };
   save();
   return src || null;
+}
+
+// All usable icon variants of a site (verified by loading), largest first. Used by the icon picker.
+const candCache = new Map();
+export async function candidates(pageUrl) {
+  if (!/^https?:/i.test(pageUrl)) return [];
+  if (candCache.has(pageUrl)) return candCache.get(pageUrl);
+  const p = (async () => {
+    let cands;
+    try { cands = await schedule(() => collect(pageUrl)); } catch { return []; }
+    if (!cands) return [];
+    const list = [...cands].sort((a, b) => b[1] - a[1]).slice(0, 12);
+    const res = await Promise.all(list.map(async ([src, d]) => ({ src, d, ...(await probe(src)) })));
+    const seen = new Set();
+    let out = res.filter((r) => r.w).sort((a, b) => b.w - a.w || b.d - a.d)
+      .filter((r) => !seen.has(r.hash) && seen.add(r.hash));      // identical images listed once
+    if (out.some((r) => r.w >= 48)) out = out.filter((r) => r.w >= 24); // drop tiny placeholders
+    return out;
+  })();
+  candCache.set(pageUrl, p);
+  return p;
 }

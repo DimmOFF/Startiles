@@ -1,5 +1,6 @@
 // Thumbnail metadata lives in chrome.storage.local, keyed by bookmark URL:
 //   { mode: 'url'|'file', url?, dataUrl?, fit, ts }      custom image
+//   { mode: 'auto', auto: 'logo', icon: <chosen icon url>, ts }   automatic logo with a user-picked icon
 //   { mode: 'auto', auto: 'pageview', ts }               automatic: page preview (default 'logo' = no entry)
 // Page screenshots captured by background.js live in storage 'shots' (local only, not synced).
 import { hostOf } from './util.js';
@@ -22,7 +23,7 @@ export const onChange = (f) => listeners.push(f);
 const persist = () => chrome.storage.local.set({ thumbs });
 
 export async function setT(url, t) {
-  if (!t || (t.mode === 'auto' && t.auto !== 'pageview')) delete thumbs[url];
+  if (!t || (t.mode === 'auto' && t.auto !== 'pageview' && !t.icon)) delete thumbs[url];
   else thumbs[url] = { ...t, ts: Date.now() };
   await persist();
   listeners.forEach((f) => f());
@@ -48,7 +49,7 @@ export function renderThumbFrom(pageUrl, t) {
     box.replaceChildren();
     const img = new Image();
     img.className = 'fav'; img.draggable = false; img.alt = '';
-    img.src = faviconUrl(pageUrl, 128);
+    img.src = t.mode === 'auto' && t.icon ? t.icon : faviconUrl(pageUrl, 128);
     img.onerror = () => {
       const l = document.createElement('div');
       l.className = 'letter';
@@ -87,7 +88,7 @@ export function renderThumbFrom(pageUrl, t) {
       else if (S.get().hiResIcons && web) {
         Icons.preview(pageUrl).then((src) => (src ? showCover(src, 'cov', upgradeLogo) : upgradeLogo()));
       } else upgradeLogo();
-    } else upgradeLogo();
+    } else if (!t.icon) upgradeLogo();
     return box;
   }
   const src = t.mode === 'file' ? t.dataUrl : t.url;

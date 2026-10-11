@@ -312,14 +312,14 @@ function openItemDialog({ node = null, parentId = null }) {
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
-  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || 'cover', auto: t0.auto || 'logo' };
+  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || 'cover', auto: t0.auto || 'logo', icon: t0.icon || '' };
   dlg.innerHTML = `<form class="dform">
     <h3>${isNew ? 'Add' : 'Edit'}</h3>
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
     <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com"><div class="ac" hidden></div></label>
     <label class="f"><span>Title</span><input name="ttl"></label>
     <div class="thumbsec" data-only="link">
-      <div class="prev"></div>
+      <div class="lcol"><div class="prev"></div><div class="icons" id="icopick" hidden></div></div>
       <div class="opts">
         <label class="r"><input type="radio" name="mode" value="auto"> Automatic</label>
         <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
@@ -350,9 +350,44 @@ function openItemDialog({ node = null, parentId = null }) {
     }, 150);
   };
   const ak = $('#ak', dlg);
+  // icon picker: shown when the site offers several icon variants
+  const icp = $('#icopick', dlg);
+  let cands = [], lastUrl = null, ct;
   const syncAk = () => {
     ak.hidden = st.mode !== 'auto';
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
+    icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && (cands.length >= 2 || st.icon));
+  };
+  const renderIcons = () => {
+    icp.replaceChildren();
+    const list = [...cands];
+    if (st.icon && !list.some((c) => c.src === st.icon)) list.unshift({ src: st.icon, w: 0 });
+    const auto = el('button', 'ic auto' + (st.icon ? '' : ' on'), 'Auto');
+    auto.type = 'button'; auto.title = 'Best available icon';
+    auto.onclick = () => { st.icon = ''; renderIcons(); upd(); };
+    icp.append(auto);
+    list.forEach((c) => {
+      const b = el('button', 'ic' + (st.icon === c.src ? ' on' : ''));
+      b.type = 'button';
+      b.title = (c.w ? (c.w >= 1024 ? 'vector' : c.w + 'px') + ' · ' : '') + c.src;
+      const im = new Image(); im.src = c.src; im.alt = ''; im.draggable = false;
+      b.append(im);
+      if (c.w) { const s = el('small'); s.textContent = c.w >= 1024 ? 'svg' : c.w; b.append(s); }
+      b.onclick = () => { st.icon = c.src; renderIcons(); upd(); };
+      icp.append(b);
+    });
+  };
+  const loadCands = () => {
+    clearTimeout(ct);
+    ct = setTimeout(async () => {
+      const url = normalizeUrl(E.addr.value);
+      if (!S.get().hiResIcons || !/^https?:/i.test(url) || url === lastUrl) return;
+      if (lastUrl !== null) { st.icon = ''; cands = []; renderIcons(); syncAk(); upd(); }
+      lastUrl = url;
+      const r = await Icons.candidates(url);
+      if (lastUrl !== url) return;
+      cands = r; renderIcons(); syncAk();
+    }, 500);
   };
   ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; syncAk(); upd(); }));
   const setMode = (m) => { st.mode = m; syncAk(); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
@@ -386,10 +421,10 @@ function openItemDialog({ node = null, parentId = null }) {
     if (!s) return;
     E.addr.value = s.url;
     if (!E.ttl.value.trim()) E.ttl.value = s.title;
-    closeAc(); upd();
+    closeAc(); upd(); loadCands();
   };
   E.addr.oninput = () => {
-    upd();
+    upd(); loadCands();
     clearTimeout(acT);
     acT = setTimeout(async () => {
       const q = E.addr.value;
@@ -436,12 +471,12 @@ function openItemDialog({ node = null, parentId = null }) {
         if (url !== node.url) await T.rekey(node.url, url);
       }
       const useImg = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
-      await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto });
+      await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}) });
     }
     dlg.close();
     scheduleRefresh();
   };
-  showKind(); syncAk(); upd();
+  showKind(); renderIcons(); syncAk(); upd(); loadCands();
   dlg.showModal();
   (isNew ? E.addr : E.ttl).focus();
 }

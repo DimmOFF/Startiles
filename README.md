@@ -27,3 +27,7 @@ refreshed at most every 6 h, stored locally, not synced), otherwise the page's o
 
 ## Address autocomplete
 Add dialog suggests sites from bookmarks, history and a built-in list of popular sites (uses the `history` permission).
+
+## Icon picker
+In Add/Edit → Automatic → Logo: if the site offers several icons (favicon, apple-touch-icon, manifest icons, SVG),
+they appear as a row of choices with their pixel size. "Auto" keeps the best-available behaviour.
