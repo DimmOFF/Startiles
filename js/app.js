@@ -2,7 +2,7 @@ import { $, el, hostOf, normalizeUrl, svg, ICON } from './util.js';
 import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as M from './model.js';
-import * as D from './drive.js';
+import * as SettingsUI from './settings-ui.js';
 import * as Icons from './icons.js';
 import * as Suggest from './suggest.js';
 
@@ -519,50 +519,19 @@ $('#search').addEventListener('submit', (e) => {
   location.href = looksUrl ? normalizeUrl(v) : tpl.replace('%s', encodeURIComponent(v));
 });
 
-/* ---------- settings UI + Drive sync ---------- */
+/* ---------- settings UI ---------- */
 function bindSettingsUI() {
-  const sel = $('select[data-key=engine]');
-  Object.entries(ENGINES).forEach(([k, v]) => sel.append(new Option(v[0], k)));
-  const panel = $('#settings');
-  document.querySelectorAll('[data-key]').forEach((inp) => {
-    const k = inp.dataset.key, out = inp.closest('label')?.querySelector('output');
-    if (inp.type === 'checkbox') inp.checked = !!S.get()[k]; else inp.value = S.get()[k];
-    const show = () => { if (out) out.textContent = inp.value + (inp.dataset.unit || ''); };
-    show();
-    inp.addEventListener('input', () => {
-      const v = inp.type === 'checkbox' ? inp.checked : inp.type === 'range' ? Number(inp.value) : inp.value;
-      S.set({ [k]: v }); show();
-      if (k === 'engine') updateSearch();
-    });
+  SettingsUI.init({
+    engines: ENGINES,
+    onEngine: updateSearch,
+    onRefreshIcons: async () => { await Icons.clear(); scheduleRefresh(); },
   });
-  $('#redirect-uri').value = D.redirectUri();
-  $('#settings-btn').onclick = (e) => { e.stopPropagation(); panel.classList.toggle('open'); };
-  $('#settings-close').onclick = () => panel.classList.remove('open');
-  document.addEventListener('click', (e) => { if (!panel.contains(e.target)) panel.classList.remove('open'); });
-  $('#refresh-icons').onclick = async () => { await Icons.clear(); scheduleRefresh(); };
-  $('#sync-btn').onclick = async () => {
-    const s = $('#sync-status');
-    s.textContent = 'Syncing…';
-    try { await syncNow(true); s.textContent = 'Synced ' + new Date().toLocaleTimeString(); }
-    catch (err) { s.textContent = 'Error: ' + err.message; }
-  };
 }
-async function syncNow(interactive) {
-  const id = S.get().driveClientId;
-  const remote = await D.download(id, interactive);
-  const local = T.all(), merged = { ...(remote?.thumbs || {}) };
-  for (const k in local) if (!merged[k] || (merged[k].ts || 0) < (local[k].ts || 0)) merged[k] = local[k];
-  await T.replaceAll(merged);
-  await D.upload(id, { version: 1, updatedAt: Date.now(), thumbs: merged }, interactive);
-  scheduleRefresh();
+
+/* ---------- storage label ---------- */
+function updateStorageUI() {
+  SettingsUI.setStorageText((M.info.path ? 'Root folder: ' + M.info.path : '') + (M.info.note ? '\n' + M.info.note : ''));
 }
-let syncT;
-T.onChange(() => {
-  const s = S.get();
-  if (!s.driveAuto || !s.driveClientId) return;
-  clearTimeout(syncT);
-  syncT = setTimeout(() => syncNow(false).catch(() => {}), 3000);
-});
 
 /* ---------- misc ---------- */
 $('#add-btn').onclick = () => openItemDialog({ parentId: activeGroup().id });
@@ -578,6 +547,7 @@ document.addEventListener('keydown', (e) => {
   bindGrid(gridEl, false);
   await M.ensureRoot();
   await refresh();
+  updateStorageUI();
   const bm = chrome.bookmarks;
   [bm.onCreated, bm.onRemoved, bm.onChanged, bm.onMoved, bm.onChildrenReordered, bm.onImportEnded]
     .forEach((ev) => ev.addListener(scheduleRefresh));

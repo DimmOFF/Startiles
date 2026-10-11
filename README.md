@@ -5,17 +5,7 @@ Install: `chrome://extensions` → Developer mode → Load unpacked → select t
 
 ## Storage
 - Tiles: Bookmarks → Other bookmarks → **Modern Speed Dial** → `<group>` → link or `<folder>` → links.
-- Thumbnail metadata (auto / image URL / local file) is keyed by tile URL in `chrome.storage.local`.
-
-## Google Drive sync
-1. Google Cloud Console → enable **Google Drive API**.
-2. OAuth consent screen → add scope `.../auth/drive.appdata`.
-3. Credentials → Create OAuth client ID → **Web application**.
-   Authorized redirect URI = the value shown in Settings → Google Drive Sync.
-4. Paste the Client ID in settings, press **Sync now**.
-Data goes to the hidden app data folder of your Drive (`msd-thumbs.json`).
-
-Note: unpacked extensions get a path-based ID. To keep the redirect URI stable, add a `"key"` field to manifest.json.
+- Thumbnail metadata (auto / image URL / local file) is keyed by tile URL in `chrome.storage.local` (no cloud sync).
 
 ## Site icons
 Automatic thumbnails try to find the largest icon of a site (apple-touch-icon, manifest icons, SVG) and cache it per origin.
@@ -31,3 +21,11 @@ Add dialog suggests sites from bookmarks, history and a built-in list of popular
 ## Icon picker
 In Add/Edit → Automatic → Logo: if the site offers several icons (favicon, apple-touch-icon, manifest icons, SVG),
 they appear as a row of choices with their pixel size. "Auto" keeps the best-available behaviour.
+
+## Storage location
+Tiles live in `root\Modern Speed Dial`. Chromium usually refuses extension writes to the bookmarks root; then the folder is
+kept in `Other bookmarks`. The actual path is shown in Settings → Storage.
+
+## Settings
+Quick Settings (gear icon) has the essentials; "Advanced Settings…" opens a window with every option
+(background colour/image, show/hide elements, sizes, offsets, folder window).
