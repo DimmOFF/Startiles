@@ -25,6 +25,8 @@ bookmarks.
 - **Long titles**: a caption with the full title appears when a title does not fit into the tile (can be switched off).
 - **Tile deletion** plays a "shattering" animation.
 
+- **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
+
 ## Keyboard
 **Tab order** (cyclic): Group bar → Search field → Dials → + Shortcut → Settings → Group bar. `Shift+Tab` goes the other way.
 After opening a new tab the focus is in the address bar; the first `Tab` moves it to the Group bar. Empty or hidden parts are skipped.

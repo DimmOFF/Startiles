@@ -31,3 +31,9 @@ async function capture(tabId) {
     await chrome.storage.local.set({ shots: cur });
   } catch { /* tab not capturable */ }
 }
+
+// Left click on the toolbar button opens the new-tab page (the Speed Dial) in a new tab of the current window.
+chrome.action.onClicked.addListener(async () => {
+  try { await chrome.tabs.create({ url: 'chrome://newtab/' }); }
+  catch { await chrome.tabs.create({ url: chrome.runtime.getURL('newtab.html') }); }
+});
