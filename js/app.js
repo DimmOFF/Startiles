@@ -178,7 +178,7 @@ function tileEl(n) {
   label.querySelector('span').textContent = n.title || (n.url ? hostOf(n.url) : 'Folder');
   card.append(isF ? folderThumb(n) : T.renderThumb(n.url), label);
   const tools = el('div', 'tools',
-    `<button class="edit" title="Edit">${svg(ICON.pencil, 14)}</button><button class="del" title="Delete">${svg(ICON.x, 14)}</button>`);
+    `<button class="edit" title="Edit">${svg(ICON.pencil, 14)}</button><button class="del" title="Delete">${svg(ICON.trash, 14)}</button>`);
   t.append(card, tools);
   return t;
 }

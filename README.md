@@ -13,7 +13,7 @@ bookmarks.
   right-click / double-click to rename or delete, `+` to add. Many groups wrap into several rows; the maximum width is configurable.
 - **Search field** with a selectable engine (Google, Bing, DuckDuckGo, Yandex, Brave, Ecosia, Yahoo, Startpage) and optional
   search-query suggestions. Typing an address opens it directly.
-- **Tiles**: link tiles and folders. Folder thumbnail = 2×2 grid of its first four tiles. Hover a tile for the edit (✎) and delete (✕) buttons.
+- **Tiles**: link tiles and folders. Folder thumbnail = 2×2 grid of its first four tiles. Hover a tile for the edit (✎) and delete (trash can) buttons.
 - **Drag & drop**: reorder tiles; drop a tile on another one to create a folder, drop on a folder to move it inside, drop on a group tab to move it to that group.
 - **Folders** open as an animated window that grows from the tile and collapses back. Folders can contain folders:
   enter with a click / `Enter`, leave with the back arrow, `Backspace`, the mouse Back button or the browser Back.
