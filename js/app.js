@@ -200,7 +200,12 @@ function bindGrid(g, inFolder) {
     if (e.target.closest('.edit')) return openItemDialog({ node });
     if (e.target.closest('.del')) return deleteNode(node);
     if (!node.url) return inFolder ? enterFolder(node.id) : openFolder(node.id, tile);
-    if (inFolder) closeFolder(false);
+    if (inFolder) {
+      // The link opens now. Do not call history.back() for the folder's history entry here: while the target page
+      // is still loading it would cancel the navigation, so the entry is simply left behind.
+      sentinel = false;
+      closeFolder(false);
+    }
   });
   g.addEventListener('dragstart', (e) => {
     const t = e.target.closest('.tile');
