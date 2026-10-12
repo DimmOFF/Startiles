@@ -184,10 +184,33 @@ function tileEl(n) {
 }
 function fillGrid(g, node, emptyText) {
   const kids = node.children || [];
+  const fl = flip && flip.grid === g && !kids.some((k) => k.id === flip.id) ? flip : null;   // the deleted tile is gone now
+  if (fl) flip = null;
   if (!kids.length) g.replaceChildren(el('p', 'empty', emptyText));
   else g.replaceChildren(...kids.map(tileEl));
 
   kbApply();
+  if (fl) playFlip(g, fl.rects);
+}
+
+/* ---------- smooth shift of the remaining tiles after a deletion (FLIP) ---------- */
+let flip = null, flipTimer;
+function snapshotTiles(grid, exceptId) {
+  const rects = new Map();
+  grid.querySelectorAll('.tile').forEach((t) => {
+    if (t.dataset.id !== exceptId) { const r = t.getBoundingClientRect(); rects.set(t.dataset.id, { x: r.left, y: r.top }); }
+  });
+  return rects;
+}
+function playFlip(grid, rects) {
+  grid.querySelectorAll('.tile').forEach((t) => {
+    const from = rects.get(t.dataset.id);
+    if (!from) return;
+    const r = t.getBoundingClientRect(), dx = from.x - r.left, dy = from.y - r.top;
+    if (!dx && !dy) return;
+    t.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }],
+      { duration: 520, easing: 'cubic-bezier(.65,0,.35,1)' });
+  });
 }
 const renderGrid = () => {
   const g = activeGroup();
@@ -299,6 +322,11 @@ async function deleteNode(n) {
   if (tile && S.get().animDelete) {
     shatter(tile);                                       // shards fly while the bookmark is removed
     await new Promise((r) => setTimeout(r, 380));
+  }
+  if (tile && S.get().animReflow && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const grid = tile.parentElement;                     // remember where the other tiles are, they slide there after the re-render
+    flip = { grid, id: n.id, rects: snapshotTiles(grid, n.id) };
+    clearTimeout(flipTimer); flipTimer = setTimeout(() => { flip = null; }, 2000);
   }
   await M.remove(n);
   scheduleRefresh();
