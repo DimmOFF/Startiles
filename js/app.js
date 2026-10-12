@@ -52,9 +52,13 @@ function activeGroup() {
 /* ---------- groups ---------- */
 function renderGroups() {
   const gs = root.children.filter((c) => !c.url), act = activeGroup();
+  const hadFocus = nav.contains(document.activeElement);       // keep the keyboard focus across the re-render
+  const focusKey = hadFocus ? (document.activeElement.dataset.id || (document.activeElement.classList.contains('add-group') ? 'add' : '')) : '';
   nav.replaceChildren();
   gs.forEach((g) => {
     const b = el('button', 'group' + (g.id === act?.id ? ' active' : ''));
+    b.dataset.id = g.id;
+    b.tabIndex = g.id === act?.id ? 0 : -1;                    // roving tabindex: Tab visits only the active group
     b.textContent = g.title;
     b.onclick = () => switchGroup(g);
     b.ondblclick = () => renameGroup(g);
@@ -96,7 +100,8 @@ function renderGroups() {
     };
     nav.append(b);
   });
-  const add = el('button', 'group', '+');
+  const add = el('button', 'group add-group', '+');
+  add.tabIndex = -1;
   add.title = 'New group';
   add.onclick = async () => {
     const name = await promptText('New group');
@@ -106,6 +111,10 @@ function renderGroups() {
     scheduleRefresh();
   };
   nav.append(add);
+  if (hadFocus) {
+    const t = focusKey === 'add' ? add : (focusKey && nav.querySelector(`.group[data-id="${focusKey}"]`)) || nav.querySelector('.group.active');
+    t?.focus({ preventScroll: true });
+  }
 }
 // swipe all tiles away / in: towards the left when the target group is to the right, and vice versa
 let switchTok = 0;
@@ -158,7 +167,7 @@ function tileEl(n) {
   t.dataset.id = n.id;
   t.draggable = true;
   const card = el(isF ? 'div' : 'a', 'card');
-  if (!isF) { card.href = n.url; card.draggable = false; }
+  if (!isF) { card.href = n.url; card.draggable = false; card.tabIndex = -1; }
   const label = el('div', 'label');
   if (isF) label.innerHTML = svg(ICON.folder, 15) + '<span></span>';
   else {
@@ -177,6 +186,8 @@ function fillGrid(g, node, emptyText) {
   const kids = node.children || [];
   if (!kids.length) g.replaceChildren(el('p', 'empty', emptyText));
   else g.replaceChildren(...kids.map(tileEl));
+
+  kbApply();
 }
 const renderGrid = () => {
   const g = activeGroup();
@@ -317,7 +328,7 @@ function openFolder(id, tileEl_) {
   layer.innerHTML = `<div class="fback"></div><section class="fpanel">
     <header><div class="fl"><button class="icon-btn" id="f-back" title="Back (Backspace / mouse Back button)" hidden>${svg(ICON.back, 20)}</button><h2></h2></div><div class="fbtns"><button class="pill sm" id="f-add">+ Shortcut</button>
     <button class="icon-btn" id="f-close" title="Close">&times;</button></div></header>
-    <div class="grid fgrid" data-merge="1"></div></section>`;
+    <div class="grid fgrid" data-merge="1" tabindex="-1"></div></section>`;
   bindGrid($('.fgrid', layer), true);
   renderFolderGrid();
   if (S.get().animFolders) animateOpen(tileEl_.querySelector('.thumb') || tileEl_);
@@ -333,13 +344,14 @@ function goBack() {
   navigate(navStack.pop(), -1);
 }
 async function navigate(toId, dir) {
-  if (!S.get().animFolders) { curId = toId; renderFolderGrid(); return; }
+  if (!S.get().animFolders) { if (dir < 0) kbNext = curId; curId = toId; renderFolderGrid(); return; }
   navBusy = true;
   const grid = $('.fgrid', layer), ms = S.get().animMs;
   try {
     await grid.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: dir > 0 ? 'scale(1.06)' : 'scale(.94)' }],
       { duration: ms * 0.35, easing: 'ease-in', fill: 'forwards' }).finished;
     if (!openId) return;
+    if (dir < 0) kbNext = curId;
     curId = toId;
     renderFolderGrid();
     grid.getAnimations().forEach((a) => a.cancel());
@@ -363,10 +375,13 @@ function animateOpen(from) {
       { duration: ms * 0.7, delay: ms * 0.35 + i * 30, easing: ease, fill: 'backwards' }));
 }
 function hideFolderNow() {
+  const wasOpen = openId;
   layer.getAnimations().forEach((a) => a.cancel());
   layer.hidden = true; layer.innerHTML = ''; openId = null; curId = null; navStack = []; navBusy = false; closing = false;
   document.body.style.overflow = '';
   dropSentinel();
+  if (kbActive && wasOpen) kbId = wasOpen;
+  kbApply();
 }
 async function closeFolder(animated) {
   if (!openId || closing) return;
@@ -813,6 +828,149 @@ function bindSettingsUI() {
 function updateStorageUI() {
   SettingsUI.setStorageText((M.info.path ? 'Root folder: ' + M.info.path : '') + (M.info.note ? '\n' + M.info.note : ''));
 }
+
+/* ---------- keyboard navigation ---------- */
+// Arrow keys / Home / End move a highlight over the tiles of the visible grid (main grid or open folder),
+// Enter or Space opens the highlighted folder or follows the highlighted link (Ctrl/Cmd/Shift+Enter = like Ctrl/Cmd/Shift+click).
+let kbActive = false, kbId = null, kbNext = null;
+const kbGrid = () => (openId ? $('.fgrid', layer) : gridEl);
+const kbTiles = () => [...(kbGrid()?.querySelectorAll('.tile') || [])];
+function kbApply() {
+  document.querySelectorAll('.tile.kb-sel').forEach((x) => x.classList.remove('kb-sel'));
+  if (!kbActive) return;
+  const tiles = kbTiles();
+  const t = (kbNext && tiles.find((x) => x.dataset.id === kbNext)) || tiles.find((x) => x.dataset.id === kbId) || tiles[0];
+  kbNext = null;
+  if (!t) return;
+  kbId = t.dataset.id;
+  t.classList.add('kb-sel');
+}
+function kbSet(t) {
+  kbActive = true;
+  kbId = t.dataset.id;
+  kbApply();
+  t.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+const kbOff = () => { if (kbActive) { kbActive = false; kbApply(); } };
+document.addEventListener('pointerdown', kbOff, true);          // using the mouse hides the highlight
+
+function kbMove(key) {
+  const tiles = kbTiles();
+  if (!tiles.length) return false;
+  const i = tiles.findIndex((x) => x.dataset.id === kbId);
+  if (!kbActive || i < 0) { kbSet(tiles[i >= 0 ? i : 0]); return true; }   // the first key press only shows the highlight
+  const top0 = tiles[0].getBoundingClientRect().top;
+  const cols = Math.max(1, tiles.filter((x) => Math.abs(x.getBoundingClientRect().top - top0) < 6).length);
+  const last = tiles.length - 1;
+  let j = i;
+  if (key === 'ArrowLeft') j = Math.max(0, i - 1);
+  else if (key === 'ArrowRight') j = Math.min(last, i + 1);
+  else if (key === 'ArrowUp') j = i - cols >= 0 ? i - cols : i;
+  else if (key === 'ArrowDown') j = i + cols <= last ? i + cols : (Math.floor(i / cols) < Math.floor(last / cols) ? last : i);
+  else if (key === 'Home') j = 0;
+  else if (key === 'End') j = last;
+  if (j !== i) kbSet(tiles[j]);
+  return true;
+}
+function kbEnter(e) {
+  const t = kbTiles().find((x) => x.dataset.id === kbId), node = byId.get(kbId);
+  if (!t || !node) return false;
+  const card = t.querySelector('.card');
+  if (!node.url) card.click();                                  // folder: same path as a mouse click
+  else card.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, ctrlKey: e.ctrlKey, metaKey: e.metaKey, shiftKey: e.shiftKey }));
+  return true;
+}
+const KB_MOVE = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
+document.addEventListener('keydown', (e) => {
+  if (e.defaultPrevented || e.altKey || !root) return;
+  const tg = e.target;
+  if (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
+  if (dlg.open || $('#picker').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
+  if (KB_MOVE.has(e.key) && !e.ctrlKey && !e.metaKey) {
+    if (kbMove(e.key)) {
+      e.preventDefault();
+      if (tg.matches?.('button')) tg.blur();                    // so that Enter acts on the tile, not on the last clicked button
+    }
+  } else if ((e.key === 'Enter' || e.key === ' ') && kbActive && !tg.closest?.('button, a, summary')) {
+    if (kbEnter(e)) e.preventDefault();
+  } else if (e.key === 'Escape' && kbActive && !openId) kbOff();
+});
+
+/* ---------- Tab order: Group bar -> Search field -> Dials -> + Shortcut -> Settings (cyclic) ---------- */
+gridEl.tabIndex = -1;
+const shown = (x) => !!x && !x.hidden && x.getClientRects().length > 0;
+function zones() {
+  const dials = {
+    name: 'dials',
+    has: (x) => { const g = kbGrid(); return !!g && (x === g || g.contains(x)); },
+    enter: () => {
+      const tiles = kbTiles();
+      if (!tiles.length) return false;                          // an empty grid is skipped
+      kbGrid().focus({ preventScroll: true });
+      kbSet(tiles.find((t) => t.dataset.id === kbId) || tiles[0]);
+      return true;
+    },
+  };
+  const btn = (name, getEl) => ({ name, has: (x) => x === getEl(), enter: () => { const b = getEl(); if (!shown(b)) return false; b.focus(); return true; } });
+  if (openId) return [btn('fback', () => $('#f-back', layer)), dials, btn('fadd', () => $('#f-add', layer)), btn('fclose', () => $('#f-close', layer))];
+  return [
+    { name: 'groups', has: (x) => nav.contains(x),
+      enter: () => { const b = nav.querySelector('.group.active') || nav.querySelector('.group'); if (!b) return false; b.focus(); return true; } },
+    { name: 'search', has: (x) => x === q, enter: () => { if (!shown(q)) return false; q.focus(); return true; } },
+    dials,
+    btn('add', () => $('#add-btn')),
+    btn('settings', () => $('#settings-btn')),
+  ];
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab' || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (dlg.open || $('#picker').open || closing || navBusy || !root) return;
+  const act = document.activeElement, list = zones();
+  const cur = list.findIndex((z) => z.has(act));
+  if (cur < 0 && act && act !== document.body && act !== document.documentElement) return;   // focus is in the settings panel / Advanced window: native Tab
+  const dir = e.shiftKey ? -1 : 1;
+  if (cur >= 0 && list[cur].name === 'dials') kbOff();
+  let k = cur < 0 ? (dir > 0 ? -1 : 0) : cur;                 // from nowhere: Tab -> first zone, Shift+Tab -> last zone
+  for (let n = 0; n < list.length; n++) {
+    k = (k + dir + list.length) % list.length;
+    if (list[k].enter()) { e.preventDefault(); return; }
+  }
+});
+// Esc closes the Quick Settings panel opened from the keyboard and returns the focus to the gear
+document.addEventListener('keydown', (e) => {
+  const p = $('#settings');
+  if (e.key === 'Escape' && !e.defaultPrevented && p.classList.contains('open') && (p.contains(e.target) || e.target.id === 'settings-btn')) {
+    p.classList.remove('open');
+    $('#settings-btn').focus();
+    e.preventDefault();
+  }
+});
+// Group bar: arrows move between groups and select them ("+" only takes the focus); Up/Down jump between wrapped rows
+nav.addEventListener('keydown', (e) => {
+  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+  const btns = [...nav.querySelectorAll('.group')];
+  const i = btns.indexOf(document.activeElement);
+  if (i < 0) return;
+  const mid = (b) => { const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+  let j = i;
+  if (e.key === 'ArrowRight') j = Math.min(btns.length - 1, i + 1);
+  else if (e.key === 'ArrowLeft') j = Math.max(0, i - 1);
+  else if (e.key === 'Home') j = 0;
+  else if (e.key === 'End') j = btns.length - 1;
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const [cx, cy] = mid(btns[i]), down = e.key === 'ArrowDown';
+    const cand = btns.map((b, n) => { const [x, y] = mid(b); return { n, x, y }; }).filter((o) => (down ? o.y > cy + 4 : o.y < cy - 4));
+    if (!cand.length) return;                                   // single row: nothing above / below
+    const ny = down ? Math.min(...cand.map((o) => o.y)) : Math.max(...cand.map((o) => o.y));
+    j = cand.filter((o) => Math.abs(o.y - ny) < 4).sort((a, b) => Math.abs(a.x - cx) - Math.abs(b.x - cx))[0].n;
+  } else return;
+  e.preventDefault();
+  if (j === i) return;
+  const b = btns[j];
+  b.focus();
+  const g = byId.get(b.dataset.id);
+  if (g) switchGroup(g);
+});
 
 /* ---------- misc ---------- */
 $('#add-btn').onclick = () => { const g = activeGroup(); if (g) openItemDialog({ parentId: g.id }); };

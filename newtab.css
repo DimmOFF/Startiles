@@ -271,3 +271,12 @@ html{overflow-x:hidden}
 .prev{aspect-ratio:var(--ratio,1.22);width:100%}
 .prev .thumb{height:100%}
 .thumbsec .icons{min-height:98px;max-height:98px;overflow-y:auto;align-content:start}
+
+/* keyboard navigation: highlighted tile */
+.tile{scroll-margin:24px 24px 110px}
+.tile.kb-sel{outline:3px solid var(--accent);outline-offset:3px;transform:translateY(-3px);box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 0 7px rgba(123,131,245,.2)}
+
+/* keyboard focus */
+.group:focus-visible,.pill:focus-visible,.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#search:focus-within{box-shadow:0 0 0 2px var(--accent),0 4px 16px rgba(0,0,0,.25)}
+.grid:focus,.fgrid:focus{outline:none}

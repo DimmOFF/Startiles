@@ -213,7 +213,13 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   syncBgState();
 
   const panel = $('#settings'), dlg = $('#adv');
-  $('#settings-btn').onclick = (e) => { e.stopPropagation(); panel.classList.toggle('open'); };
+  $('#settings-btn').onclick = (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+    if (e.detail === 0 && panel.classList.contains('open')) {   // opened with Enter / Space
+      setTimeout(() => panel.querySelector('select, input, button')?.focus({ preventScroll: true }), 60);
+    }
+  };
   $('#settings-close').onclick = () => panel.classList.remove('open');
   document.addEventListener('click', (e) => { if (!panel.contains(e.target) && !e.target.closest('#picker')) panel.classList.remove('open'); });
   // Export / Import
