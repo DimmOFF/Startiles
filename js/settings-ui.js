@@ -26,6 +26,7 @@ const DEF = {
   pageBg: { type: 'color', label: 'Background Color', bg: 'color' },
   bgImage: { type: 'bgimage' },
   tileWidth: rng('Thumbnail Size', 120, 420, 'px', 2),
+  tileRadius: rng('Dial Corner Radius', 0, 32, 'px'),
   ratio: rng('Speed Dial Ratio (W:H)', 1, 1.5, '', 0.01),
   maxColumns: { type: 'select', label: 'Maximum Columns', options: MAXCOLS },
   iconSize: rng('Icon Size in Thumbnail', 15, 80, '%'),
@@ -200,7 +201,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
     dialSource,
     section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'engine', 'searchSuggest']),
     section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct']),
-    section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'gapX', 'gapY', 'thumbBg', 'hiResIcons', 'refreshIcons']),
+    section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'tileRadius', 'gapX', 'gapY', 'thumbBg', 'hiResIcons', 'refreshIcons']),
   );
   col2.append(
     section('Folder Window', ['folderSize', 'animMs']),    

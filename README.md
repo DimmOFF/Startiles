@@ -56,7 +56,7 @@ thumbnail size, ratio, maximum columns, icon size, and the **Advanced Settings�
 | Dial Source | Speed Dial / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder |
 | Start Page | Page background: Color / URL / Image; search engine; search suggestions |
 | Groups Bar | Max width in px and in % of the window |
-| Speed Dials | Thumbnail size, W:H ratio (1–1.5), max columns, icon size in %, gaps, tile background colour, fetch hi-res icons & previews, refresh site icons |
+| Speed Dials | Thumbnail size, W:H ratio (1–1.5), max columns, icon size in %, corner radius, gaps, tile background colour, fetch hi-res icons & previews, refresh site icons |
 | Folder Window | Size in % of the page, animation duration |
 | Show / Hide | + Shortcut button, search field, tile titles, delete button, long-title caption |
 | Layout Offsets | Groups bar, search and tiles top offsets; + Shortcut anchor (bottom of page / below tiles) and offset |

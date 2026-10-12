@@ -280,3 +280,7 @@ html{overflow-x:hidden}
 .group:focus-visible,.pill:focus-visible,.icon-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #search:focus-within{box-shadow:0 0 0 2px var(--accent),0 4px 16px rgba(0,0,0,.25)}
 .grid:focus,.fgrid:focus{outline:none}
+
+/* dial corner radius (Advanced Settings -> Speed Dials) */
+.tile,.card{border-radius:var(--tile-radius,10px)}
+.cell{border-radius:calc(var(--tile-radius,10px) * .5)}
