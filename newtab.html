@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>New Tab</title>
 <link rel="stylesheet" href="newtab.css">
+<script src="js/theme-boot.js"></script>
 </head>
 <body>
   <div id="groups-wrap"><nav id="groups"></nav></div>
@@ -36,7 +37,8 @@
   <dialog id="adv" class="wide">
     <div class="advwrap">
       <header><h3>Advanced Settings</h3><button id="adv-close" class="icon-btn" title="Close">&times;</button></header>
-      <div id="adv-body" class="advgrid"></div>
+      <nav id="adv-tabs" class="tabs"></nav>
+      <div id="adv-body" class="advbody"></div>
       <footer class="advfoot">
         <button id="exp-btn" class="pill sm">Export</button>
         <button id="imp-btn" class="pill sm">Import</button>

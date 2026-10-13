@@ -24,6 +24,7 @@ bookmarks.
   - *Image URL* or *Local file* (with Fill / Fit).
 - **Long titles**: a caption with the full title appears when a title does not fit into the tile (can be switched off).
 - **Tile deletion** plays an animation of your choice (Settings > Animation: Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof; default Disintegrate) with a live preview.
+- **Themes**: Auto (follows the browser's light / dark mode), Light, Dark and your own custom themes (Settings > Appearance > Theme). A theme also has a folder window background that follows the page background by default.
 - **Tile shift**: after a deletion or after moving a tile (drag & drop) the other tiles slide smoothly into their new places.
 
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
@@ -63,7 +64,7 @@ thumbnail size, ratio, maximum columns, icon size, and the **Advanced Settings�
 | Folder Window | Size in % of the page, animation duration |
 | Show / Hide | + Shortcut button, search field, tile titles, delete button, long-title caption |
 | Layout Offsets | Groups bar, search and tiles top offsets; + Shortcut anchor (bottom of page / below tiles) and offset |
-| Animation | Switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |
+| Behavior > Animation | Disable all animations, or switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |
 
 The footer has **Export**, **Import** and **Donate**.
 
@@ -100,7 +101,7 @@ the tiles' own sites for icons and previews (switch **Fetch hi-res icons & previ
 `newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage ·
 `js/settings*.js` – settings and their UI · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search ·
 `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker ·
-`js/backup.js` – export / import · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
+`js/backup.js` – export / import · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
 
 ## License
 MIT, see `LICENSE`.

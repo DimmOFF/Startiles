@@ -126,7 +126,7 @@ async function switchGroup(g) {
   gridEl.getAnimations().forEach((a) => a.cancel());
   S.set({ activeGroup: g.id });
   renderGroups();
-  if (!S.get().animGroups) { renderGrid(); return; }
+  if (!S.anim('animGroups')) { renderGrid(); return; }
   const ms = S.get().animMs, dist = Math.min(innerWidth * 0.12, 140);
   try {
     await gridEl.animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-dir * dist}px)`, opacity: 0 }],
@@ -199,7 +199,7 @@ function fillGrid(g, node, emptyText) {
 // tile that survived from its old place to the new one.
 let flip = null, flipTimer;
 function flipBegin() {
-  if (!S.get().animReflow || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!S.anim('animReflow') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const rects = new Map();
   document.querySelectorAll('.tile').forEach((t) => {
     const r = t.getBoundingClientRect();
@@ -331,7 +331,7 @@ document.addEventListener('dragend', cleanDrag);
 async function deleteNode(n) {
   if (!n.url && n.children?.length && !confirm(`Delete folder "${n.title}" with ${n.children.length} item(s)?`)) return;
   const tile = document.querySelector(`.tile[data-id="${n.id}"]`);
-  if (tile && S.get().animDelete) await playDelete(S.get().deleteAnim, tile);   // the effect chosen in Settings > Animation
+  if (tile && S.anim('animDelete')) await playDelete(S.get().deleteAnim, tile);   // the effect chosen in Settings > Animation
   if (tile) flipBegin();                                 // remember where the tiles are, the others slide after the re-render
   await M.remove(n);
   flipReady();
@@ -365,7 +365,7 @@ function openFolder(id, tileEl_) {
     <div class="grid fgrid" data-merge="1" tabindex="-1"></div></section>`;
   bindGrid($('.fgrid', layer), true);
   renderFolderGrid();
-  if (S.get().animFolders) animateOpen(tileEl_.querySelector('.thumb') || tileEl_);
+  if (S.anim('animFolders')) animateOpen(tileEl_.querySelector('.thumb') || tileEl_);
 }
 // nested folders: slide "deeper" / back with a zoom transition
 function enterFolder(id) {
@@ -378,7 +378,7 @@ function goBack() {
   navigate(navStack.pop(), -1);
 }
 async function navigate(toId, dir) {
-  if (!S.get().animFolders) { if (dir < 0) kbNext = curId; curId = toId; renderFolderGrid(); return; }
+  if (!S.anim('animFolders')) { if (dir < 0) kbNext = curId; curId = toId; renderFolderGrid(); return; }
   navBusy = true;
   const grid = $('.fgrid', layer), ms = S.get().animMs;
   try {
@@ -419,7 +419,7 @@ function hideFolderNow() {
 }
 async function closeFolder(animated) {
   if (!openId || closing) return;
-  if (!S.get().animFolders) { hideFolderNow(); return; }
+  if (!S.anim('animFolders')) { hideFolderNow(); return; }
   closing = true;
   const panel = $('.fpanel', layer), back = $('.fback', layer), ms = S.get().animMs;
   const src = gridEl.querySelector(`.tile[data-id="${openId}"] .thumb`);

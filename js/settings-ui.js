@@ -5,6 +5,7 @@ import * as T from './thumbs.js';
 import * as Backup from './backup.js';
 import { $, el } from './util.js';
 import { DELETE_ANIMS, DEFAULT_ANIM, startDelete } from './delete-anims.js';
+import * as ThemeUI from './theme-ui.js';
 
 const controls = new Map();   // key -> [inputs]
 const read = (i) => (i.type === 'checkbox' ? i.checked : i.type === 'range' ? Number(i.value) : i.value);
@@ -24,7 +25,6 @@ const rng = (label, min, max, unit = 'px', step = 1) => ({ type: 'range', label,
 const sw = (label) => ({ type: 'switch', label });
 const DEF = {
   bgType: { type: 'select', label: 'Page Background', options: [['color', 'Color'], ['url', 'URL'], ['image', 'Image']] },
-  pageBg: { type: 'color', label: 'Background Color', bg: 'color' },
   bgImage: { type: 'bgimage' },
   tileWidth: rng('Thumbnail Size', 120, 420, 'px', 2),
   tileRadius: rng('Dial Corner Radius', 0, 32, 'px'),
@@ -33,7 +33,6 @@ const DEF = {
   iconSize: rng('Icon Size in Thumbnail', 15, 80, '%'),
   gapX: rng('Horizontal Gap', 0, 80),
   gapY: rng('Vertical Gap', 0, 80),
-  thumbBg: { type: 'color', label: 'Tile Background Color' },
   searchSuggest: sw('Search suggestions'),
   hiResIcons: sw('Fetch hi-res icons & previews'),
   showAdd: sw('Show Add Button'),
@@ -41,6 +40,7 @@ const DEF = {
   showTitles: sw('Speed Dial Title'),
   showDelete: sw('Show Delete Button'),
   showLongTitle: sw('Show long title caption'),
+  noAnim: { type: 'switch', label: 'Disable all animations', after: () => refreshAll() },
   animDelete: sw('Tile deletion animation'),
   animReflow: sw('Tile shift (after delete / move)'),
   animGroups: sw('Group switching (swipe)'),
@@ -54,9 +54,10 @@ const DEF = {
   addAnchor: { type: 'select', label: '+ Shortcut Anchor', options: [['bottom', 'Bottom of page'], ['top', 'Below tiles']] },
   addOffset: rng('+ Shortcut Offset', 0, 300),
   folderSize: rng('Folder Window Size', 40, 100, '%'),
-  animMs: rng('Folder Animation', 150, 900, 'ms', 10),
+  animMs: rng('Transition duration (groups, folders)', 150, 900, 'ms', 10),
 };
 
+const ANIM_DEP = ['animDelete', 'animReflow', 'animGroups', 'animFolders', 'animMs'];   // greyed out while 'Disable all animations' is on
 const syncBg = () => document.querySelectorAll('.bg-url').forEach((i) => { i.value = S.get().bgUrl || ''; });
 const syncBgState = () => document.querySelectorAll('.bg-state').forEach((n) => {
   n.textContent = S.get().bgSrc ? 'Local image is in use' : 'No image selected';
@@ -159,11 +160,13 @@ function buildDeleteAnim() {
   sel.onchange = () => { S.set({ deleteAnim: sel.value }); play(); };
   stage.onclick = replay.onclick = play;
   extraRefresh.push(() => { sel.value = cur(); });
+  box.classList.add('anim-dep');
   box.append(lab, stage, foot);
   return box;
 }
 function build(key) {
   if (key === 'deleteAnim') return buildDeleteAnim();
+  if (key === 'theme') return ThemeUI.picker((f) => extraRefresh.push(f), refreshAll);
   if (key === 'bgImage') return buildBgImage();
   if (key === 'bgUrl') return buildBgUrl();
   if (key === 'engine') return buildEngine();
@@ -175,7 +178,7 @@ function build(key) {
     return r;
   }
   const d = DEF[key];
-  const lab = el('label', 'row' + (d.type === 'range' ? ' col' : ''));
+  const lab = el('label', 'row' + (d.type === 'range' ? ' col' : '') + (ANIM_DEP.includes(key) ? ' anim-dep' : ''));
   if (d.bg) lab.dataset.bg = d.bg;
   const span = el('span');
   span.textContent = d.label;
@@ -208,6 +211,23 @@ function section(title, keys) {
   return s;
 }
 
+// Tab strip: nav gets one button per [id, label, pane]; the choice is remembered in localStorage under `key`.
+function makeTabs(nav, items, key) {
+  const btns = [];
+  const show = (id) => {
+    btns.forEach(([i, b]) => b.classList.toggle('on', i === id));
+    items.forEach(([i, , p]) => { p.hidden = i !== id; });
+    try { localStorage.setItem(key, id); } catch {}
+  };
+  items.forEach(([id, label]) => {
+    const b = el('button', null, label); b.type = 'button'; b.onclick = () => show(id);
+    nav.append(b); btns.push([id, b]);
+  });
+  let saved = null;
+  try { saved = localStorage.getItem(key); } catch {}
+  show(items.some(([i]) => i === saved) ? saved : items[0][0]);
+}
+
 export function setStorageText(t) { document.querySelectorAll('.storage-note').forEach((n) => (n.textContent = t)); }
 
 export const syncControls = () => refreshAll();
@@ -218,13 +238,17 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   const quick = $('#quick-body'), adv = $('#adv-body');
 
   quick.append(
-    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'thumbBg', 'engine', 'searchSuggest']),
+    section('Start Page', ['theme', 'bgType', 'bgUrl', 'bgImage', 'engine', 'searchSuggest']),
     section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize']),
   );
   const more = el('div', 'row');
   const advBtn = el('button', 'pill', 'Advanced Settings…');
   more.append(advBtn);
   quick.append(more);
+
+  // ----- Advanced Settings: General | Appearance (Layout, Theme) | Behavior -----
+  const grid = (...cols) => { const g = el('div', 'advgrid'); cols.forEach((c) => { const d = el('div', 'advcol'); d.append(...c); g.append(d); }); return g; };
+  const pane = (...kids) => { const p = el('div', 'tabpane'); p.hidden = true; p.append(...kids); return p; };
 
   const dialSource = el('section');
   const pickRow = el('div', 'row');
@@ -234,20 +258,39 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   extraRefresh.push(() => { pickRow.hidden = S.get().source !== 'bookmarks'; });
   pickRow.hidden = S.get().source !== 'bookmarks';
   dialSource.append(el('h4', null, 'Dial Source'), build('source'), pickRow, el('p', 'note storage-note'));
-  const col1 = el('div', 'advcol'), col2 = el('div', 'advcol');
-  col1.append(
-    dialSource,
-    section('Start Page', ['bgType', 'pageBg', 'bgUrl', 'bgImage', 'engine', 'searchSuggest']),
-    section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct']),
-    section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'tileRadius', 'gapX', 'gapY', 'thumbBg', 'hiResIcons', 'refreshIcons']),
+
+  const general = pane(grid(
+    [dialSource, section('Search', ['engine', 'searchSuggest'])],
+    [section('Icons & Previews', ['hiResIcons', 'refreshIcons'])],
+  ));
+
+  const layout = grid(
+    [section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'tileRadius', 'gapX', 'gapY']),
+     section('Folder Window', ['folderSize'])],
+    [section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct', 'groupsTop']),
+     section('Layout Offsets', ['searchTop', 'gridTop', 'addAnchor', 'addOffset']),
+     section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle'])],
   );
-  col2.append(
-    section('Folder Window', ['folderSize', 'animMs']),    
-    section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle']),
-    section('Layout Offsets', ['groupsTop', 'searchTop', 'gridTop', 'addAnchor', 'addOffset']),
-    section('Animation', ['animDelete', 'deleteAnim', 'animReflow', 'animGroups', 'animFolders']),
-  );
-  adv.append(col1, col2);
+  const themeSec = el('section');
+  themeSec.append(el('h4', null, 'Theme'),
+    ThemeUI.picker((f) => extraRefresh.push(f), refreshAll),
+    ThemeUI.editor((f) => extraRefresh.push(f), refreshAll));
+  const theme = el('div');
+  theme.append(themeSec, section('Background', ['bgType', 'bgUrl', 'bgImage']));
+  const subNav = el('div', 'subtabs'), subPanes = [['layout', 'Layout', layout], ['theme', 'Theme', theme]];
+  const appearance = pane(subNav, ...subPanes.map(([, , p]) => p));
+  appearance.querySelectorAll(':scope > div:not(.subtabs)').forEach((p) => { p.hidden = true; p.style.marginTop = '4px'; });
+  makeTabs(subNav, subPanes, 'msd-adv-subtab');
+
+  const behavior = pane(grid(
+    [section('Animation', ['noAnim']), section('Tiles', ['animDelete', 'deleteAnim', 'animReflow'])],
+    [section('Transitions', ['animGroups', 'animFolders', 'animMs'])],
+  ));
+  extraRefresh.push(() => document.querySelectorAll('.anim-dep').forEach((n) => n.classList.toggle('dim', !!S.get().noAnim)));
+
+  adv.append(general, appearance, behavior);
+  makeTabs($('#adv-tabs'), [['general', 'General', general], ['appearance', 'Appearance', appearance], ['behavior', 'Behavior', behavior]], 'msd-adv-tab');
+  refreshAll();
   syncBg();
   syncBgState();
 
