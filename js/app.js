@@ -18,6 +18,7 @@ const ENGINES = {
   ecosia:     ['Ecosia',      'https://www.ecosia.org/search?q=%s',       'https://www.ecosia.org'],
   yahoo:      ['Yahoo',       'https://search.yahoo.com/search?p=%s',     'https://search.yahoo.com'],
   startpage:  ['Startpage',   'https://www.startpage.com/do/search?q=%s', 'https://www.startpage.com'],
+  bookmarks:  ['Bookmarks',   null,                                       null],   // not a web search: filters the bookmarks of all groups
 };
 
 const gridEl = $('#grid'), layer = $('#folder-layer'), nav = $('#groups'), dlg = $('#dlg'), ctx = $('#ctx');
@@ -60,7 +61,7 @@ function renderGroups() {
     b.dataset.id = g.id;
     b.tabIndex = g.id === act?.id ? 0 : -1;                    // roving tabindex: Tab visits only the active group
     b.textContent = g.title;
-    b.onclick = () => switchGroup(g);
+    b.onclick = () => { clearBmFilter(); switchGroup(g); };
     b.ondblclick = () => renameGroup(g);
     b.oncontextmenu = (e) => {
       e.preventDefault();
@@ -223,6 +224,9 @@ function playFlip(grid, rects) {
   return n;
 }
 const renderGrid = () => {
+  if (bmFilterOn()) { renderResults(); return; }
+  gridEl.classList.remove('search-results');
+  nav.classList.remove('searching');
   const g = activeGroup();
   fillGrid(gridEl, g || { children: [] },
     g ? 'No shortcuts yet. Click “+ Shortcut” to add one.' : 'No folders found here. Click + above to create a group.');
@@ -254,6 +258,7 @@ function bindGrid(g, inFolder) {
   g.addEventListener('dragstart', (e) => {
     const t = e.target.closest('.tile');
     if (!t) return;
+    if (g.classList.contains('search-results')) { e.preventDefault(); return; }
     dragId = t.dataset.id;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', dragId);
@@ -750,14 +755,64 @@ window.addEventListener('blur', hideCtx);
 
 /* ---------- search ---------- */
 const q = $('#q');
+const bmMode = () => S.get().engine === 'bookmarks';
+const bmFilterOn = () => bmMode() && q.value.trim() !== '';
 function updateSearch() {
   const [name, , origin] = ENGINES[S.get().engine] || ENGINES.google;
   q.placeholder = 'Search ' + name;
-  T.setSiteIcon($('#engine-ico'), origin, 32);
+  const img = $('#engine-ico');
+  let bm = $('#engine-bm');
+  if (!origin) {                                              // Bookmarks: a drawn icon instead of a site icon
+    if (!bm) { bm = el('span', null, svg(ICON.bookmark, 18)); bm.id = 'engine-bm'; img.after(bm); }
+    img.hidden = true; bm.hidden = false;
+    sgClose();
+  } else {
+    img.hidden = false; if (bm) bm.hidden = true;
+    T.setSiteIcon(img, origin, 32);
+  }
+  if (root && (bmFilterOn() || gridEl.classList.contains('search-results'))) renderGrid();   // apply / drop the filter right away
 }
+
+/* Bookmarks "engine": filter the bookmarks of ALL groups (and their folders) by title and address while typing */
+const BM_MAX = 100;
+function bmMatches() {
+  const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const out = [];
+  (function walk(n) {
+    for (const c of n.children || []) {
+      if (c.url) { const hay = ((c.title || '') + ' ' + c.url).toLowerCase(); if (words.every((w) => hay.includes(w))) out.push(c); }
+      else walk(c);
+    }
+  })(root);
+  return out;
+}
+function renderResults() {
+  const list = bmMatches();
+  gridEl.classList.add('search-results');
+  nav.classList.add('searching');
+  if (!list.length) {
+    const p = el('p', 'empty');
+    p.textContent = `No bookmarks match “${q.value.trim()}”.`;
+    gridEl.replaceChildren(p);
+  } else {
+    gridEl.replaceChildren(...list.slice(0, BM_MAX).map((n) => { const t = tileEl(n); t.draggable = false; return t; }));
+    if (list.length > BM_MAX) { const p = el('p', 'empty'); p.textContent = `Showing the first ${BM_MAX} of ${list.length} matches. Type more to narrow it down.`; gridEl.append(p); }
+  }
+  kbApply();
+}
+function clearBmFilter() {
+  if (!bmFilterOn()) return;
+  q.value = '';
+  renderGrid();
+}
+let bmTimer;
+q.addEventListener('input', () => { if (bmMode()) { clearTimeout(bmTimer); bmTimer = setTimeout(renderGrid, 60); } });
+q.addEventListener('keydown', (e) => { if (e.key === 'Escape' && bmMode() && q.value) { e.preventDefault(); q.value = ''; renderGrid(); } });
+
 const goSearch = (v) => {
   v = v.trim();
   if (!v) return;
+  if (bmMode()) { const m = bmMatches()[0]; if (m) location.href = m.url; return; }   // Enter opens the first match
   const looksUrl = /^(https?:\/\/|chrome:\/\/)\S+$/i.test(v) || /^[^\s/]+\.[a-z]{2,}(\/\S*)?$/i.test(v);
   const tpl = (ENGINES[S.get().engine] || ENGINES.google)[1];
   location.href = looksUrl ? normalizeUrl(v) : tpl.replace('%s', encodeURIComponent(v));
@@ -804,7 +859,7 @@ const sgPick = (i) => {
 async function sgFetch() {
   const v = q.value.trim();
   sgTyped = q.value;
-  if (!v || !S.get().searchSuggest) { sgClose(); return; }
+  if (!v || !S.get().searchSuggest || bmMode()) { sgClose(); return; }
   const tok = ++sgTok;
   sgAbort?.abort();
   sgAbort = new AbortController();

@@ -333,3 +333,9 @@ body.no-anim *,body.no-anim *::before,body.no-anim *::after{transition:none!impo
 
 /* Add / Edit: visible edge for the thumbnail preview (white previews vanished on the light theme) */
 .prev{border-radius:8px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 22%,transparent)}
+
+/* Bookmarks search engine */
+#engine-bm{display:grid;place-items:center;width:18px;height:18px;flex:none;color:var(--icon,var(--fg))}
+.dd .bm-ico{display:grid;place-items:center;width:16px;height:16px;flex:none;color:var(--icon,var(--fg))}
+#groups.searching .group.active{background:none;opacity:.55}
+.grid.search-results .tile{cursor:pointer}

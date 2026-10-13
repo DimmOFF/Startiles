@@ -3,7 +3,7 @@
 import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as Backup from './backup.js';
-import { $, el } from './util.js';
+import { $, el, svg, ICON } from './util.js';
 import { DELETE_ANIMS, DEFAULT_ANIM, startDelete } from './delete-anims.js';
 import * as ThemeUI from './theme-ui.js';
 
@@ -104,7 +104,10 @@ function buildEngine() {
   const dd = el('div', 'dd');
   const btn = el('button', 'dd-btn'); btn.type = 'button';
   const list = el('div', 'dd-list'); list.hidden = true;
-  const icon = (origin) => { const i = new Image(); i.alt = ''; i.draggable = false; T.setSiteIcon(i, origin, 32); return i; };
+  const icon = (origin) => {
+    if (!origin) return el('span', 'bm-ico', svg(ICON.bookmark, 16));      // Bookmarks has no site icon
+    const i = new Image(); i.alt = ''; i.draggable = false; T.setSiteIcon(i, origin, 32); return i;
+  };
   const label = (t) => { const s = el('span'); s.textContent = t; return s; };
   const items = [];
   const paint = () => {
