@@ -17,6 +17,7 @@
   <form id="search" autocomplete="off">
     <img id="engine-ico" alt="" draggable="false">
     <input id="q" type="text" spellcheck="false">
+    <button type="button" id="q-clear" title="Clear" aria-label="Clear" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
   </form>
 
   <main id="grid" class="grid" data-merge="1"></main>
@@ -61,11 +62,27 @@
       <label class="rchk"><input type="checkbox" data-k="themes"><b>Themes</b>
         <small>Your custom themes are deleted and the theme is set to Auto.</small></label>
       <label class="rchk"><input type="checkbox" data-k="dials"><b>Speed Dials</b>
-        <small>Groups, tiles and folders of the Modern Speed Dial folder, their thumbnails and caches. One empty group is left.</small></label>
+        <small>Groups, tiles and folders of the Modern Speed Dial folder. One empty group is left.</small></label>
+      <label class="rchk sub"><input type="checkbox" data-k="userThumbs"><b>User previews</b>
+        <small>Images, icons and Pageview choices you set for tiles.</small></label>
+      <label class="rchk sub"><input type="checkbox" data-k="cache"><b>Cached previews</b>
+        <small>Automatically fetched icons, page previews and screenshots.</small></label>
       <p id="reset-note" class="rcallout" hidden></p>
       <div class="btns"><span class="sp"></span>
         <button type="button" id="reset-cancel">Cancel</button>
         <button type="submit" id="reset-ok" class="primary danger-ok" disabled>Confirm</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="bk-dlg" class="small">
+    <form id="bk-form" class="dform">
+      <h3 id="bk-title">Export</h3>
+      <p class="note" id="bk-lead"></p>
+      <div id="bk-items" class="rlist"></div>
+      <p id="bk-note" class="rcallout" hidden></p>
+      <div class="btns"><span class="sp"></span>
+        <button type="button" id="bk-cancel">Cancel</button>
+        <button type="submit" id="bk-ok" class="primary">Export</button></div>
     </form>
   </dialog>
 

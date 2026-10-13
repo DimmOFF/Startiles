@@ -6,7 +6,8 @@ export const DEFAULTS = {
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
   engine: 'google', searchSuggest: true, bgType: 'color', bgUrl: '', ratio: 1.22, tileRadius: 10, source: 'speeddial', bookmarksRootId: null, showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, deleteAnim: 'dust', animReflow: true, animGroups: true, animFolders: true, hiResIcons: true,
   groupsTop: 12, searchTop: 60, folderSize: 70, animMs: 280,
-  gearAnchor: 'top', gearSize: 32, gearOffset: 14, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
+  gearAnchor: 'top', gearSize: 48, gearOffset: 24, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
+  iconAutoRefresh: true, iconRefreshEvery: 'month',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
 };
 let cache = { ...DEFAULTS };
@@ -16,6 +17,10 @@ export async function load() {
   const st = r.settings || {};
   if ((st.v || 0) < 2) {           // migration: new defaults for animation / icon size, drop removed keys
     ['animMs', 'iconSize', 'speedDialType', 'rootLocation', 'vivaldiFolderId', 'vivaldiFolderName'].forEach((k) => delete st[k]);
+  }
+  if ((st.v || 0) < 6) {                                       // old defaults of the settings icon (32px, 14px) become the new ones (48px, 24px)
+    if (st.gearSize === 32) delete st.gearSize;
+    if (st.gearOffset === 14) delete st.gearOffset;
   }
   if ((st.v || 0) < 5 && st.folderSize === 90) delete st.folderSize;   // the old default (90%) becomes the new one (70%); a value you set yourself is kept
   if (r.settings && st.theme === undefined) {                // before themes: dark only, colours were separate settings
@@ -31,7 +36,7 @@ export async function load() {
   if (st.gearSize != null) st.gearSize = Math.max(32, st.gearSize);   // the minimum size of the settings icon is 32px
   ['driveClientId', 'driveAuto'].forEach((k) => delete st[k]);   // Google Drive sync was removed
   chrome.storage.local.remove('driveAuth');
-  cache = { ...DEFAULTS, ...st, v: 5, bgSrc: r.bgSrc || '' };
+  cache = { ...DEFAULTS, ...st, v: 6, bgSrc: r.bgSrc || '' };
   if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
     cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
     if (cache.bgType === 'image') cache.bgType = 'url';

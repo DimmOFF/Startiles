@@ -2,7 +2,7 @@
 // so every control exists in both places and stays in sync.
 import * as S from './settings.js';
 import * as T from './thumbs.js';
-import * as Backup from './backup.js';
+import * as BackupUI from './backup-ui.js';
 import * as Reset from './reset.js';
 import { $, el, svg, ICON } from './util.js';
 import { DELETE_ANIMS, DEFAULT_ANIM, startDelete } from './delete-anims.js';
@@ -36,7 +36,9 @@ const DEF = {
   gapX: rng('Horizontal Gap', 0, 80),
   gapY: rng('Vertical Gap', 0, 80),
   searchSuggest: sw('Search suggestions'),
-  hiResIcons: sw('Fetch hi-res icons & previews'),
+  hiResIcons: sw('Try to fetch hi-res icons & previews'),
+  iconAutoRefresh: { ...sw('Auto-refresh icons & previews'), after: () => refreshAll() },
+  iconRefreshEvery: { type: 'select', label: 'Refresh once a', options: [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['year', 'Year']] },
   showAdd: sw('Show Add Button'),
   showSearch: sw('Show Search Field'),
   showTitles: sw('Speed Dial Title'),
@@ -49,7 +51,7 @@ const DEF = {
   animFolders: sw('Folder transitions'),
   groupsMaxPx: rng('Group Bar Max Width', 300, 3000, 'px', 10),
   groupsMaxPct: rng('Group Bar Max Width (% of window)', 30, 100, '%'),
-  source: { type: 'select', label: 'Source', options: [['speeddial', 'Speed Dial'], ['bookmarks', 'Bookmarks']], after: () => hooks.onSource?.() },
+  source: { type: 'select', label: 'Source', options: [['speeddial', 'Speed Dial'], ['bookmarks', 'Bookmarks']], after: () => { refreshAll(); hooks.onSource?.(); } },
   groupsTop: rng('Groups Bar Top Offset', 0, 200),
   searchTop: rng('Search Top Offset', 0, 300),
   gridTop: rng('Speed Dial Top Offset', 0, 300),
@@ -64,6 +66,7 @@ const DEF = {
   animMs: rng('Transition duration (groups, folders)', 150, 900, 'ms', 10),
 };
 
+const ICON_DEP = ['iconRefreshEvery'];                       // greyed out while auto-refresh is off
 const ANIM_DEP = ['animDelete', 'animReflow', 'animGroups', 'animFolders', 'animMs'];   // greyed out while 'Disable all animations' is on
 const syncBg = () => document.querySelectorAll('.bg-url').forEach((i) => { i.value = S.get().bgUrl || ''; });
 const syncBgState = () => document.querySelectorAll('.bg-state').forEach((n) => {
@@ -188,7 +191,7 @@ function build(key) {
     return r;
   }
   const d = DEF[key];
-  const lab = el('label', 'row' + (d.type === 'range' ? ' col' : '') + (ANIM_DEP.includes(key) ? ' anim-dep' : ''));
+  const lab = el('label', 'row' + (d.type === 'range' ? ' col' : '') + (ANIM_DEP.includes(key) ? ' anim-dep' : '') + (ICON_DEP.includes(key) ? ' icon-dep' : ''));
   if (d.bg) lab.dataset.bg = d.bg;
   const span = el('span');
   const labelOf = () => (typeof d.label === 'function' ? d.label() : d.label);   // some labels depend on another setting
@@ -273,7 +276,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
 
   const general = pane(grid(
     [dialSource, section('Search', ['engine', 'searchSuggest'])],
-    [section('Icons & Previews', ['hiResIcons', 'refreshIcons'])],
+    [section('Icons & Previews', ['hiResIcons', 'iconAutoRefresh', 'iconRefreshEvery', 'refreshIcons'])],
   ));
 
   const layout = grid(
@@ -300,6 +303,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
     [section('Transitions', ['animGroups', 'animFolders', 'animMs'])],
   ));
   extraRefresh.push(() => document.querySelectorAll('.anim-dep').forEach((n) => n.classList.toggle('dim', !!S.get().noAnim)));
+  extraRefresh.push(() => document.querySelectorAll('.icon-dep').forEach((n) => n.classList.toggle('dim', !S.get().iconAutoRefresh)));
 
   adv.append(general, appearance, behavior);
   makeTabs($('#adv-tabs'), [['general', 'General', general], ['appearance', 'Appearance', appearance], ['behavior', 'Behavior', behavior]], 'msd-adv-tab');
@@ -317,30 +321,15 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   };
   $('#settings-close').onclick = () => panel.classList.remove('open');
   document.addEventListener('click', (e) => { if (!panel.contains(e.target) && !e.target.closest('#picker')) panel.classList.remove('open'); });
-  // Export / Import
-  const status = $('#backup-status'), fileIn = $('#imp-file');
-  $('#exp-btn').onclick = async () => {
-    try { const r = await Backup.exportAll(); status.textContent = `Exported ${r.links} shortcuts`; }
-    catch (e) { status.textContent = 'Export failed: ' + e.message; }
-  };
-  $('#imp-btn').onclick = () => fileIn.click();
-  fileIn.onchange = async () => {
-    const f = fileIn.files[0];
-    fileIn.value = '';
-    if (!f) return;
-    try {
-      status.textContent = 'Importing…';
-      const r = await Backup.importFile(f);
-      if (!r) { status.textContent = ''; return; }
-      status.textContent = 'Imported, reloading…';
-      setTimeout(() => location.reload(), 400);
-    } catch (e) { status.textContent = 'Import failed: ' + e.message; }
-  };
+  // Export / Import (a window with check boxes, see backup-ui.js)
+  const status = $('#backup-status');
+  BackupUI.init({ status });
 
   // Reset to Default
   const rdlg = $('#reset-dlg'), rform = $('#reset-form'), rok = $('#reset-ok'), rnote = $('#reset-note');
   const chk = (k) => rform.querySelector(`[data-k="${k}"]`);
-  const refreshReset = () => { rok.disabled = !['settings', 'themes', 'dials'].some((k) => chk(k).checked); };
+  const RK = ['settings', 'themes', 'dials', 'userThumbs', 'cache'];
+  const refreshReset = () => { rok.disabled = !RK.some((k) => chk(k).checked); };
   const showNote = async () => {
     rnote.hidden = !chk('dials').checked;
     if (rnote.hidden) return;
@@ -350,14 +339,17 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
       rnote.textContent = `Only the "Modern Speed Dial" folder (${i.sdPath}) is emptied. Your own bookmarks in ${i.bookmarksPath} will not be affected.`;
     } catch { /* the generic text stays */ }
   };
-  rform.addEventListener('change', () => { refreshReset(); showNote(); });
+  rform.addEventListener('change', (e) => {
+    if (e.target === chk('dials')) ['userThumbs', 'cache'].forEach((k) => { chk(k).checked = chk('dials').checked; });   // the previews go with the Speed Dials
+    refreshReset(); showNote();
+  });
   $('#reset-btn').onclick = () => { rform.reset(); refreshReset(); showNote(); rdlg.showModal(); };
   $('#reset-cancel').onclick = () => rdlg.close();
   rdlg.addEventListener('click', (e) => { if (e.target === rdlg) rdlg.close(); });
   rform.onsubmit = async (e) => {
     e.preventDefault();
-    const o = { settings: chk('settings').checked, themes: chk('themes').checked, dials: chk('dials').checked };
-    if (!o.settings && !o.themes && !o.dials) return;
+    const o = Object.fromEntries(RK.map((k) => [k, chk(k).checked]));
+    if (!RK.some((k) => o[k])) return;
     rok.disabled = true;
     try {
       await Reset.resetSelected(o);
@@ -386,10 +378,10 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   };
   advBtn.onclick = () => { panel.classList.remove('open'); openAdv(); };
   $('#adv-close').onclick = () => dlg.close();
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.open && !$('#picker').open && !rdlg.open) dlg.close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.open && !$('#picker').open && !rdlg.open && !$('#bk-dlg').open) dlg.close(); });
   // a press outside the window closes it (pressing inside and releasing outside, e.g. a slider drag, does not)
   document.addEventListener('pointerdown', (e) => {
-    if (dlg.open && !e.composedPath().includes(dlg) && !$('#picker').open && !rdlg.open) dlg.close();
+    if (dlg.open && !e.composedPath().includes(dlg) && !$('#picker').open && !rdlg.open && !$('#bk-dlg').open) dlg.close();
   });
   window.addEventListener('resize', () => { if (pos && dlg.open) place(); });
   const head = dlg.querySelector('header');

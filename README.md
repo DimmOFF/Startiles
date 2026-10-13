@@ -62,9 +62,10 @@ tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** b
 | Dial Source | Speed Dial / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
 | Groups Bar | Max width in px and in % of the window |
-| Speed Dials | Tile size, W:H ratio (1–1.7), max columns, icon size in %, tile corner size, gaps, tile background colour, fetch hi-res icons & previews, refresh site icons |
+| Speed Dials | Tile size, W:H ratio (1–1.7), max columns, icon size in %, tile corner size, gaps, tile background colour |
+| Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
 | Folder Window | Size in % of the page, animation duration |
-| Settings Icon | Anchor (top / bottom), size (min 32), optional hiding until the mouse comes within a radius (default 150 px), one offset (the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
+| Settings Icon | Anchor (top / bottom), size (default 48, min 32), optional hiding until the mouse comes within a radius (default 150 px), one offset (default 24; the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
 | Show / Hide | + Shortcut button, search field, tile titles, delete button, long-title caption |
 | Layout Offsets | Groups bar, search and tiles top offsets; + Shortcut anchor (bottom of page / below tiles) and offset |
 | Behavior > Animation | Disable all animations, or switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |
@@ -74,7 +75,9 @@ The footer has **Export**, **Import**, **Reset to Default** and **Donate**.
 ## Reset to Default
 Advanced Settings → **Reset to Default** opens a window with check boxes: **Settings** (all options except themes, incl. the
 background image), **Themes** (custom themes deleted, theme = Auto) and **Speed Dials** (the *Modern Speed Dial* folder is emptied and
-gets one empty group, thumbnails and caches are cleared). Nothing happens until you press **Confirm**. Your own bookmarks are never
+gets one empty group). Under Speed Dials two more check boxes: **User previews** (images, icons and Pageview choices you set for
+tiles) and **Cached previews** (automatically fetched icons, page previews and screenshots). Ticking *Speed Dials* ticks both;
+they can also be reset on their own. Nothing happens until you press **Confirm**. Your own bookmarks are never
 touched; when *Speed Dials* is ticked the window shows the path of the folder that is reset and the path of your bookmarks that is not.
 
 ## Where the data lives
@@ -83,14 +86,18 @@ touched; when *Speed Dials* is ticked the window shows the path of the folder th
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is
   inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
 - Structure: `<root folder>` → `<group>` → link or `<folder>` → (links, nested folders…).
+- Custom tile preview images you upload are scaled down so that their shorter side is at most 420 px (smaller ones are kept as they are).
 - Settings, thumbnail choices (keyed by the tile URL), custom images, background image, page screenshots and the icon cache
-  are kept in `chrome.storage.local` of the extension.
+  (incl. the time each bookmark's icon was last checked) are kept in `chrome.storage.local` of the extension.
 - No cloud sync. (The earlier Google Drive sync was removed; use Export / Import to move data between browsers.)
 
 ## Export / Import
-Advanced Settings → **Export** writes one JSON file: settings (incl. the background image), the dial tree (groups, folders,
-shortcuts, order), thumbnail settings and custom images, page screenshots and the icon cache.
-**Import** replaces the current settings, groups and shortcuts with the file (asks for confirmation) and reloads the page.
+**Export** and **Import** open a window with check boxes (like Reset): **Settings** (incl. the background image), **Themes**,
+**Speed Dials** (groups, folders, shortcuts, order) and, under it, **User previews** and **Cached previews**. Export writes one JSON file
+with what is ticked. Import reads the file, greys out what it does not contain, and offers **Add** or **Replace** for Themes and for
+Speed Dials (the previews follow the Speed Dials choice; Settings are always replaced). *Add* merges: themes are appended (renamed on
+a name clash), groups and folders with the same name are merged and links with the same address are skipped, existing previews win.
+*Replace* deletes the current themes / groups and tiles first. The page reloads afterwards. Backups from older versions can still be imported.
 Export / Import always covers the *Modern Speed Dial* folder, even when the Bookmarks source is shown.
 
 ## Permissions and network use
@@ -104,13 +111,13 @@ Export / Import always covers the *Modern Speed Dial* folder, even when the Book
 
 Requests made by the page: icon services (Google favicon service, DuckDuckGo icons) for icons of search engines and sites;
 the selected search engine's public suggest endpoint while you type (switch **Search suggestions** off to stop this);
-the tiles' own sites for icons and previews (switch **Fetch hi-res icons & previews** off to stop this).
+the tiles' own sites for icons and previews (switch **Try to fetch hi-res icons & previews** off to stop this; **Auto-refresh** controls how often they are re-checked).
 
 ## Files
 `newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage ·
 `js/settings*.js` – settings and their UI · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search ·
 `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker ·
-`js/backup.js` – export / import · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
+`js/backup.js` – export / import · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
 
 ## License
 MIT, see `LICENSE`.

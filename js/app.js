@@ -162,7 +162,7 @@ function folderThumb(n) {
   }
   return f;
 }
-function tileEl(n) {
+function tileEl(n, reuse) {
   const isF = !n.url;
   const t = el('div', 'tile' + (isF ? ' is-folder' : ''));
   t.dataset.id = n.id;
@@ -172,12 +172,14 @@ function tileEl(n) {
   const label = el('div', 'label');
   if (isF) label.innerHTML = svg(ICON.folder, 15) + '<span></span>';
   else {
-    const i = new Image();
-    i.className = 'ico'; i.draggable = false; i.alt = ''; i.src = T.faviconUrl(n.url, 32);
+    const i = reuse?.ico || new Image();
+    i.className = 'ico'; i.draggable = false; i.alt = '';
+    if (!reuse?.ico) i.src = T.faviconUrl(n.url, 32);
     label.append(i, el('span'));
   }
   label.querySelector('span').textContent = n.title || (n.url ? hostOf(n.url) : 'Folder');
-  card.append(isF ? folderThumb(n) : T.renderThumb(n.url), label);
+  if (!isF) t.dataset.sig = T.sigOf(n.url);
+  card.append(isF ? folderThumb(n) : reuse?.thumb || T.renderThumb(n.url), label);
   const tools = el('div', 'tools',
     `<button class="edit" title="Edit">${svg(ICON.pencil, 14)}</button><button class="del" title="Delete">${svg(ICON.trash, 14)}</button>`);
   t.append(card, tools);
@@ -186,8 +188,15 @@ function tileEl(n) {
 function fillGrid(g, node, emptyText) {
   const kids = node.children || [];
   const fl = flip && flip.ready ? flip : null;           // a deletion / move has just been applied
+  // tiles whose thumbnail did not change keep their thumbnail element: nothing is fetched or redrawn, icons do not flash
+  const keep = new Map();
+  g.querySelectorAll(':scope > .tile[data-sig]').forEach((t) => {
+    const thumb = t.querySelector('.thumb'), ico = t.querySelector('.label .ico');
+    if (thumb && ico) keep.set(t.dataset.id, { sig: t.dataset.sig, thumb, ico });
+  });
+  const mk = (n) => { const k = n.url && keep.get(n.id); return tileEl(n, k && k.sig === T.sigOf(n.url) ? k : null); };
   if (!kids.length) g.replaceChildren(el('p', 'empty', emptyText));
-  else g.replaceChildren(...kids.map(tileEl));
+  else g.replaceChildren(...kids.map(mk));
 
   kbApply();
   if (fl && playFlip(g, fl.rects)) {                      // the same refresh may fill several grids, so close the window a bit later
@@ -624,7 +633,7 @@ function openItemDialog({ node = null, parentId = null }) {
   };
   const setFile = async (file) => {
     if (!file || !/^image\//.test(file.type)) return;
-    st.dataUrl = await T.fileToDataUrl(file);
+    st.dataUrl = await T.previewDataUrl(file);   // shorter side -> 420px
     st.fname = file.name || 'Pasted image';
     syncFile(); setMode('file');
   };
@@ -754,7 +763,7 @@ document.addEventListener('click', hideCtx);
 window.addEventListener('blur', hideCtx);
 
 /* ---------- search ---------- */
-const q = $('#q');
+const q = $('#q'), qClear = $('#q-clear');
 const bmMode = () => S.get().engine === 'bookmarks';
 const bmFilterOn = () => bmMode() && q.value.trim() !== '';
 function updateSearch() {
@@ -770,8 +779,12 @@ function updateSearch() {
     img.hidden = false; if (bm) bm.hidden = true;
     T.setSiteIcon(img, origin, 32);
   }
+  syncClear();
   if (root && (bmFilterOn() || gridEl.classList.contains('search-results'))) renderGrid();   // apply / drop the filter right away
 }
+// the clear button exists only for the Bookmarks engine and only while the field is not empty
+function syncClear() { qClear.hidden = !(bmMode() && q.value !== ''); }
+qClear.onclick = () => { q.value = ''; syncClear(); renderGrid(); q.focus(); };
 
 /* Bookmarks "engine": filter the bookmarks of ALL groups (and their folders) by title and address while typing */
 const BM_MAX = 100;
@@ -803,11 +816,12 @@ function renderResults() {
 function clearBmFilter() {
   if (!bmFilterOn()) return;
   q.value = '';
+  syncClear();
   renderGrid();
 }
 let bmTimer;
-q.addEventListener('input', () => { if (bmMode()) { clearTimeout(bmTimer); bmTimer = setTimeout(renderGrid, 60); } });
-q.addEventListener('keydown', (e) => { if (e.key === 'Escape' && bmMode() && q.value) { e.preventDefault(); q.value = ''; renderGrid(); } });
+q.addEventListener('input', () => { syncClear(); if (bmMode()) { clearTimeout(bmTimer); bmTimer = setTimeout(renderGrid, 60); } });
+q.addEventListener('keydown', (e) => { if (e.key === 'Escape' && bmMode() && q.value) { e.preventDefault(); q.value = ''; syncClear(); renderGrid(); } });
 
 const goSearch = (v) => {
   v = v.trim();
@@ -907,7 +921,7 @@ function bindSettingsUI() {
   SettingsUI.init({
     engines: ENGINES,
     onEngine: updateSearch,
-    onRefreshIcons: async () => { await Icons.clear(); scheduleRefresh(); },
+    onRefreshIcons: async () => { await Icons.clear(); T.bump(); scheduleRefresh(); },
     onSource: changeSource,
     onPickRoot: pickRoot,
   });
@@ -974,7 +988,7 @@ document.addEventListener('keydown', (e) => {
   if (e.defaultPrevented || e.altKey || !root) return;
   const tg = e.target;
   if (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
-  if (dlg.open || $('#picker').open || $('#reset-dlg').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
   if (KB_MOVE.has(e.key) && !e.ctrlKey && !e.metaKey) {
     if (kbMove(e.key)) {
       e.preventDefault();
@@ -1013,7 +1027,7 @@ function zones() {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Tab' || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
-  if (dlg.open || $('#picker').open || $('#reset-dlg').open || closing || navBusy || !root) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || closing || navBusy || !root) return;
   const act = document.activeElement, list = zones();
   const cur = list.findIndex((z) => z.has(act));
   if (cur < 0 && act && act !== document.body && act !== document.documentElement) return;   // focus is in the settings panel / Advanced window: native Tab

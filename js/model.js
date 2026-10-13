@@ -72,8 +72,8 @@ export async function ensureRoot(cfg = {}) {
     info.path = await pathOf(rootId);
     return getRoot();
   }
-  const { node, note } = await ensureSd();
-  info.note = note;
+  const { node } = await ensureSd();
+  info.note = '';                                            // (the "root could not be used" remark is no longer shown)
   rootId = node.id;
   const sub = await getRoot();
   if (!(sub.children || []).some((c) => !c.url)) await chrome.bookmarks.create({ parentId: rootId, title: 'General' });

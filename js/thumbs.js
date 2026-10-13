@@ -19,6 +19,11 @@ chrome.storage.onChanged.addListener((ch, area) => {
   if (area === 'local' && ch.shots) { shots = ch.shots.newValue || {}; listeners.forEach((f) => f()); }   // a new page screenshot: redraw tiles
 });
 
+// Signature of everything a tile thumbnail depends on. A tile whose signature did not change keeps its thumbnail element
+// when the grid is rebuilt (e.g. after a deletion), so icons do not flash. bump() forces a rebuild (refresh icons).
+let gen = 0;
+export const bump = () => { gen++; };
+export const sigOf = (url) => [gen, url, S.get().hiResIcons ? 1 : 0, JSON.stringify(thumbs[url] || null), shots[url]?.dataUrl?.length || 0].join('|');
 export const all = () => thumbs;
 export const getT = (url) => thumbs[url] || { mode: 'auto', auto: 'logo' };
 export const onChange = (f) => listeners.push(f);
@@ -136,10 +141,11 @@ export function placeholderThumb() {
 }
 export const renderThumb = (url) => renderThumbFrom(url, getT(url));
 
-export async function fileToDataUrl(file, max = 640) {
+// Scales an image file down (never up) and returns it as a data URL; scaleFor(w, h) is the wanted scale factor.
+async function toDataUrl(file, scaleFor) {
   try {
     const bmp = await createImageBitmap(file);
-    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const k = Math.min(1, scaleFor(bmp.width, bmp.height));
     const c = document.createElement('canvas');
     c.width = Math.max(1, Math.round(bmp.width * k));
     c.height = Math.max(1, Math.round(bmp.height * k));
@@ -154,3 +160,8 @@ export async function fileToDataUrl(file, max = 640) {
     });
   }
 }
+// Page background image: the longest side is limited to `max`.
+export const fileToDataUrl = (file, max = 2560) => toDataUrl(file, (w, h) => max / Math.max(w, h));
+// Custom tile preview: the SHORTER side is scaled down to 420px (smaller images are kept as they are);
+// the longest side is capped at 4096px so that extremely narrow images still fit into a canvas.
+export const previewDataUrl = (file, side = 420) => toDataUrl(file, (w, h) => Math.min(side / Math.min(w, h), 4096 / Math.max(w, h)));

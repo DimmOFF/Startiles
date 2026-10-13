@@ -2,7 +2,11 @@
 //  - resolve(pageUrl):   best icon for a tile (cached per origin)
 //  - preview(pageUrl):   og:image for the "Pageview" thumbnail
 //  - candidates(url,cb): every usable icon variant, streamed progressively to the icon picker
-const KEY = 'iconCache', TTL_OK = 30 * 864e5, TTL_FAIL = 3 * 864e5;
+import * as S from './settings.js';
+const KEY = 'iconCache', TTL_FAIL = 3 * 864e5;
+const EVERY = { day: 864e5, week: 7 * 864e5, month: 30 * 864e5, year: 365 * 864e5 };
+// how long a found icon / preview stays valid: the chosen interval, forever when auto-refresh is off
+const ttlOk = () => (S.get().iconAutoRefresh ? EVERY[S.get().iconRefreshEvery] || EVERY.month : Infinity);
 let cache = null, saveT;
 const queue = [], inflight = new Map();
 let active = 0;
@@ -10,6 +14,13 @@ let active = 0;
 const load = async () => { if (!cache) cache = (await chrome.storage.local.get(KEY))[KEY] || {}; };
 const save = () => { clearTimeout(saveT); saveT = setTimeout(() => chrome.storage.local.set({ [KEY]: cache }), 500); };
 export async function clear() { cache = {}; inflight.clear(); candCache.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
+// Import: replace the cache or merge an imported one into it (existing entries win)
+export async function merge(obj, replace) {
+  await load();
+  cache = replace ? { ...obj } : { ...obj, ...cache };
+  inflight.clear(); candCache.clear();
+  await chrome.storage.local.set({ [KEY]: cache });
+}
 
 const sizeOf = (s) => {
   if (!s) return 0;
@@ -168,29 +179,44 @@ const schedule = (fn) => new Promise((res) => {
   pump();
 });
 
+// Cache keys: <origin> = best icon of a site, 'u:<page url>' = when THIS bookmark was last checked, 'p:<page url>' = its page preview.
+// A bookmark is re-checked when its own time is older than the auto-refresh interval; the icon already known is shown
+// meanwhile (the tile does not flicker) and the new one is used the next time.
+const refreshing = new Map();
+function refreshIcon(pageUrl, origin) {
+  if (refreshing.has(origin)) return refreshing.get(origin);
+  const p = (async () => {
+    const r = await schedule(() => discover(pageUrl));
+    const old = cache[origin], now = Date.now();
+    cache[origin] = { src: r?.src || old?.src || null, w: r ? r.w : old?.w || 0, ts: now };   // a failed check keeps the old icon
+    save();
+    return cache[origin].src;
+  })().finally(() => refreshing.delete(origin));
+  refreshing.set(origin, p);
+  return p;
+}
 export function resolve(pageUrl) {
   let origin;
   try { origin = new URL(pageUrl).origin; } catch { return Promise.resolve(null); }
   if (!/^https?:/.test(origin)) return Promise.resolve(null);
-  if (inflight.has(origin)) return inflight.get(origin);
+  if (inflight.has(pageUrl)) return inflight.get(pageUrl);
   const p = (async () => {
     await load();
-    const c = cache[origin];
-    if (c && Date.now() - c.ts < (c.src ? TTL_OK : TTL_FAIL)) return c.src;
-    const r = await schedule(() => discover(pageUrl));
-    cache[origin] = { src: r?.src || null, w: r?.w || 0, ts: Date.now() };
-    save();
-    return cache[origin].src;
+    const uk = 'u:' + pageUrl, now = Date.now(), oc = cache[origin];
+    const ttl = oc?.src ? ttlOk() : TTL_FAIL, seen = cache[uk]?.ts ?? oc?.ts ?? 0;
+    if (oc && now - seen < ttl) return oc.src;                                   // this bookmark was checked recently
+    if (oc && now - oc.ts < ttl) { cache[uk] = { ts: now }; save(); return oc.src; }   // another bookmark of the site has just refreshed it
+    const job = refreshIcon(pageUrl, origin).then((src) => { cache[uk] = { ts: Date.now() }; save(); return src; });
+    if (oc?.src) { job.catch(() => {}); return oc.src; }                          // known icon: show it now, update in the background
+    return job;
   })();
-  inflight.set(origin, p);
+  inflight.set(pageUrl, p);
   return p;
 }
 
 // Page preview image (og:image / twitter:image) for the "Pageview" automatic thumbnail.
-export async function preview(pageUrl) {
-  await load();
-  const pk = 'p:' + pageUrl, c = cache[pk];
-  if (c && Date.now() - c.ts < (c.src ? TTL_OK : TTL_FAIL)) return c.src;
+async function fetchPreview(pageUrl) {
+  const pk = 'p:' + pageUrl;
   let transient = false;                                     // the page itself could not be loaded: do not remember the failure
   const src = await schedule(async () => {
     const page = await fetchHead(pageUrl);
@@ -217,10 +243,17 @@ export async function preview(pageUrl) {
     }
     return null;
   });
-  if (transient) return null;
-  cache[pk] = { src: src || null, w: 0, ts: Date.now() };
+  if (transient) return cache[pk]?.src || null;
+  cache[pk] = { src: src || cache[pk]?.src || null, w: 0, ts: Date.now() };   // a failed refresh keeps the old preview
   save();
-  return src || null;
+  return cache[pk].src;
+}
+export async function preview(pageUrl) {
+  await load();
+  const c = cache['p:' + pageUrl];
+  if (c && Date.now() - c.ts < (c.src ? ttlOk() : TTL_FAIL)) return c.src;
+  if (c?.src) { fetchPreview(pageUrl).catch(() => {}); return c.src; }                 // stale: show it, refresh in the background
+  return fetchPreview(pageUrl);
 }
 
 // Icon picker: all variants, verified by downloading. Everything starts at once (no shared queue) and
