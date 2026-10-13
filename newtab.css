@@ -1,6 +1,6 @@
 :root{
-  --tile-w:220px; --gap-x:28px; --gap-y:28px; --thumb-bg:#fff; --page-bg:#2b2b30;
-  --groups-top:12px; --search-top:60px; --folder-size:90;
+  --tile-w:228px; --gap-x:38px; --gap-y:36px; --thumb-bg:#fff; --page-bg:#2b2b30;
+  --groups-top:42px; --search-top:70px; --folder-size:90;
   /* the 8 theme colours (overwritten by js/themes.js); the rest below is derived from them */
   --fg:#e8e8ec; --muted:#a6a6b0; --label:#2f2f34; --accent:#7b83f5; --surface:#2a2a2f; --field:#1f1f24;
   --border:color-mix(in srgb,var(--fg) 18%,var(--surface));
@@ -34,8 +34,8 @@ button,input,select{font:inherit;color:inherit}
 .group:hover{background:var(--faint)}
 .group.active{background:var(--hover);color:var(--fg)}
 .group.drop{outline:2px solid var(--accent)}
-#settings-btn{position:fixed;top:var(--gear-off,14px);right:var(--gear-right,14px);left:auto;width:var(--gear-size,32px);height:var(--gear-size,32px);z-index:5;color:var(--icon,var(--fg))}
-body.gear-bottom #settings-btn{top:auto;bottom:var(--gear-off,14px)}
+#settings-btn{position:fixed;top:var(--gear-off,12px);right:var(--gear-right,12px);left:auto;width:var(--gear-size,50px);height:var(--gear-size,50px);z-index:5;color:var(--icon,var(--fg))}
+body.gear-bottom #settings-btn{top:auto;bottom:var(--gear-off,12px)}
 #settings-btn svg{width:56%;height:56%}
 
 /* search */
@@ -48,12 +48,12 @@ body.gear-bottom #settings-btn{top:auto;bottom:var(--gear-off,14px)}
 
 /* grid + tiles */
 .grid{display:grid;grid-template-columns:repeat(auto-fit,var(--tile-w));justify-content:center;column-gap:var(--gap-x);row-gap:var(--gap-y)}
-#grid{margin:var(--grid-top,70px) auto 0;padding:0 40px 120px;width:100%;max-width:var(--grid-max,none)}
+#grid{margin:var(--grid-top,80px) auto 0;padding:0 40px 120px;width:100%;max-width:var(--grid-max,none)}
 .empty{grid-column:1/-1;text-align:center;color:var(--muted);margin:40px 0}
 .tile{position:relative;border-radius:10px;background:var(--label);box-shadow:0 2px 10px rgba(0,0,0,var(--shadow-a));transition:transform .15s,opacity .15s}
 .tile:hover{transform:translateY(-2px)}
 .card{display:block;color:inherit;text-decoration:none;cursor:pointer;border-radius:10px;overflow:hidden}
-.thumb{position:relative;aspect-ratio:var(--ratio,1.22);background:var(--thumb-bg);overflow:hidden}
+.thumb{position:relative;aspect-ratio:var(--ratio,1.34);background:var(--thumb-bg);overflow:hidden}
 .thumb .fav{position:absolute;left:50%;top:50%;width:var(--icon-size,36%);aspect-ratio:1;transform:translate(-50%,-50%);object-fit:contain;border-radius:16%}
 .thumb .cov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .thumb .cov.contain{object-fit:contain}
@@ -86,9 +86,9 @@ body.gear-bottom #settings-btn{top:auto;bottom:var(--gear-off,14px)}
 .tile.drop-after::after{right:calc(var(--gap-x) / -2 - 2px)}
 
 /* footer */
-#foot{position:fixed;left:0;right:0;bottom:var(--add-offset,16px);display:flex;justify-content:center;pointer-events:none}
+#foot{position:fixed;left:0;right:0;bottom:var(--add-offset,44px);display:flex;justify-content:center;pointer-events:none}
 .hide-add #foot{display:none}
-.add-top #foot{position:static;margin-top:var(--add-offset,16px);padding-bottom:40px}
+.add-top #foot{position:static;margin-top:var(--add-offset,44px);padding-bottom:40px}
 .add-top #grid{padding-bottom:0}
 
 /* folder modal */
@@ -283,7 +283,7 @@ html{overflow-x:hidden}
 .thumbsec.dragover .prev .thumb{outline:2px dashed var(--accent);outline-offset:3px}
 
 /* Add / Edit: stable layout (space for the preview and the icon picker is reserved) */
-.prev{aspect-ratio:var(--ratio,1.22);width:100%}
+.prev{aspect-ratio:var(--ratio,1.34);width:100%}
 .prev .thumb{height:100%}
 .thumbsec .icons{min-height:98px;max-height:98px;overflow-y:auto;align-content:start}
 
@@ -378,3 +378,6 @@ dialog.small{width:min(460px,92vw)}
 .rchk:has(.rmode){grid-template-columns:auto 1fr auto}
 .rlist{display:flex;flex-direction:column;gap:8px}
 #reset-form .rchk.sub{margin-top:-6px}
+
+/* while the settings icon anchor changes, the closed Quick Settings panel jumps to its new hidden place without animating */
+body.gear-switch .panel{transition:none!important}

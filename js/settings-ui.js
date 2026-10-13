@@ -60,8 +60,8 @@ const DEF = {
   folderSize: rng('Folder Window Size', 40, 100, '%'),
   gearAnchor: { type: 'select', label: 'Anchor', options: [['top', 'Top'], ['bottom', 'Bottom']], after: () => refreshAll() },
   gearSize: { ...rng('Size', 32, 64, 'px'), after: () => refreshAll() },
-  gearAutoHide: sw('Hide until the mouse is near'),
-  gearRadius: rng('Appearance radius', 50, 600, 'px'),
+  gearAutoHide: sw('Auto hide'),
+  gearRadius: rng('Appearance distance', 50, 600, 'px'),
   gearOffset: { ...rng('', 0, 300, 'px'), label: () => 'Offset (' + (S.get().gearAnchor === 'bottom' ? 'bottom' : 'top') + ' and right edge)' },
   animMs: rng('Transition duration (groups, folders)', 150, 900, 'ms', 10),
 };
@@ -282,7 +282,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   const layout = grid(
     [section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'tileRadius', 'gapX', 'gapY']),
      section('Folder Window', ['folderSize']),
-     section('Settings Icon', ['gearAnchor', 'gearSize', 'gearOffset', 'gearAutoHide', 'gearRadius'])],
+     section('Settings Icon', ['gearAutoHide', 'gearRadius', 'gearAnchor', 'gearSize', 'gearOffset'])],
     [section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct', 'groupsTop']),
      section('Layout Offsets', ['searchTop', 'gridTop', 'addAnchor', 'addOffset']),
      section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle'])],

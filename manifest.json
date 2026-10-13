@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Modern Speed Dial",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "Vivaldi-style Speed Dial for Chromium browsers: groups, folders, drag & drop, bookmarks storage.",
   "permissions": ["bookmarks", "storage", "unlimitedStorage", "favicon", "history", "tabs"],
   "background": { "service_worker": "background.js" },

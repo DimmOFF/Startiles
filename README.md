@@ -65,7 +65,7 @@ tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** b
 | Speed Dials | Tile size, W:H ratio (1–1.7), max columns, icon size in %, tile corner size, gaps, tile background colour |
 | Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
 | Folder Window | Size in % of the page, animation duration |
-| Settings Icon | Anchor (top / bottom), size (default 48, min 32), optional hiding until the mouse comes within a radius (default 150 px), one offset (default 24; the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
+| Settings Icon | **Auto hide** (hide the icon until the mouse comes within the **Appearance distance**, default 150 px), anchor (top / bottom), size (default 50, min 32), one offset (default 12; the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
 | Show / Hide | + Shortcut button, search field, tile titles, delete button, long-title caption |
 | Layout Offsets | Groups bar, search and tiles top offsets; + Shortcut anchor (bottom of page / below tiles) and offset |
 | Behavior > Animation | Disable all animations, or switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |

@@ -2,11 +2,11 @@ import * as Themes from './themes.js';
 
 export const DEFAULTS = {
   theme: 'auto', customThemes: [], noAnim: false,
-  tileWidth: 220, iconSize: 50, maxColumns: '0', gridTop: 70, addAnchor: 'bottom', addOffset: 16, v: 3, gapX: 28, gapY: 28,
+  tileWidth: 228, iconSize: 50, maxColumns: '6', gridTop: 80, addAnchor: 'bottom', addOffset: 44, v: 3, gapX: 38, gapY: 36,
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
-  engine: 'google', searchSuggest: true, bgType: 'color', bgUrl: '', ratio: 1.22, tileRadius: 10, source: 'speeddial', bookmarksRootId: null, showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, deleteAnim: 'dust', animReflow: true, animGroups: true, animFolders: true, hiResIcons: true,
-  groupsTop: 12, searchTop: 60, folderSize: 70, animMs: 280,
-  gearAnchor: 'top', gearSize: 48, gearOffset: 24, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
+  engine: 'google', searchSuggest: true, bgType: 'color', bgUrl: '', ratio: 1.34, tileRadius: 10, source: 'speeddial', bookmarksRootId: null, showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, deleteAnim: 'dust', animReflow: true, animGroups: true, animFolders: true, hiResIcons: true,
+  groupsTop: 42, searchTop: 70, folderSize: 70, animMs: 280,
+  gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   iconAutoRefresh: true, iconRefreshEvery: 'month',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
 };
@@ -36,7 +36,11 @@ export async function load() {
   if (st.gearSize != null) st.gearSize = Math.max(32, st.gearSize);   // the minimum size of the settings icon is 32px
   ['driveClientId', 'driveAuto'].forEach((k) => delete st[k]);   // Google Drive sync was removed
   chrome.storage.local.remove('driveAuth');
-  cache = { ...DEFAULTS, ...st, v: 6, bgSrc: r.bgSrc || '' };
+  if ((st.v || 0) < 7) {                                       // new defaults: a value still equal to the old default becomes the new one; a value you set yourself is kept
+    const OLD = { maxColumns: '0', tileWidth: 220, ratio: 1.22, gapX: 28, gapY: 28, gearSize: 48, gearOffset: 24, groupsTop: 12, searchTop: 60, gridTop: 70, addOffset: 16 };
+    for (const k in OLD) if (st[k] === OLD[k]) delete st[k];
+  }
+  cache = { ...DEFAULTS, ...st, v: 7, bgSrc: r.bgSrc || '' };
   if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
     cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
     if (cache.bgType === 'image') cache.bgType = 'url';
@@ -86,7 +90,12 @@ export function applyCss() {
   b.toggle('hide-add', !s.showAdd);
   b.toggle('hide-search', !s.showSearch);
   b.toggle('add-top', s.addAnchor === 'top');
-  b.toggle('gear-bottom', s.gearAnchor === 'bottom');
+  const gb = s.gearAnchor === 'bottom';
+  if (b.contains('gear-bottom') !== gb) {                      // the closed Quick Settings panel must not animate between its two hidden places (it flashed)
+    b.add('gear-switch');
+    b.toggle('gear-bottom', gb);
+    requestAnimationFrame(() => requestAnimationFrame(() => b.remove('gear-switch')));
+  }
   b.toggle('gear-autohide', !!s.gearAutoHide);
   const src = s.bgType === 'url' ? s.bgUrl : s.bgType === 'image' ? s.bgSrc : '';
   b.toggle('bg-image', !!src);
