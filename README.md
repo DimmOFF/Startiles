@@ -1,6 +1,6 @@
-# Modern Speed Dial
+# Startiles - Speed Dial X Bookmarks Tile
 
-A Vivaldi-style Speed Dial for Chromium browsers (Chrome, Edge, Brave, Vivaldi, Opera): a new-tab page with groups,
+A Speed Dial new tab for Chromium browsers (Chrome, Edge, Brave, Vivaldi, Opera): a new-tab page with groups,
 thumbnail tiles, folders (also nested), drag & drop, search and a lot of settings. Your dials are stored as ordinary
 bookmarks.
 
@@ -74,14 +74,14 @@ The footer has **Export**, **Import**, **Reset to Default** and **Donate**.
 
 ## Reset to Default
 Advanced Settings → **Reset to Default** opens a window with check boxes: **Settings** (all options except themes, incl. the
-background image), **Themes** (custom themes deleted, theme = Auto) and **Speed Dials** (the *Modern Speed Dial* folder is emptied and
+background image), **Themes** (custom themes deleted, theme = Auto) and **Speed Dials** (the *Startiles Speed Dial* folder is emptied and
 gets one empty group). Under Speed Dials two more check boxes: **User previews** (images, icons and Pageview choices you set for
 tiles) and **Cached previews** (automatically fetched icons, page previews and screenshots). Ticking *Speed Dials* ticks both;
 they can also be reset on their own. Nothing happens until you press **Confirm**. Your own bookmarks are never
 touched; when *Speed Dials* is ticked the window shows the path of the folder that is reset and the path of your bookmarks that is not.
 
 ## Where the data lives
-- **Speed Dial** source: bookmarks folder `root\Modern Speed Dial`. Chromium usually does not let extensions write to the
+- **Speed Dial** source: bookmarks folder `root\Startiles Speed Dial` (a folder named *Modern Speed Dial* from earlier versions is found and renamed automatically). Chromium usually does not let extensions write to the
   bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Dial Source.
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is
   inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
@@ -98,7 +98,7 @@ with what is ticked. Import reads the file, greys out what it does not contain, 
 Speed Dials (the previews follow the Speed Dials choice; Settings are always replaced). *Add* merges: themes are appended (renamed on
 a name clash), groups and folders with the same name are merged and links with the same address are skipped, existing previews win.
 *Replace* deletes the current themes / groups and tiles first. The page reloads afterwards. Backups from older versions can still be imported.
-Export / Import always covers the *Modern Speed Dial* folder, even when the Bookmarks source is shown.
+Export / Import always covers the *Startiles Speed Dial* folder, even when the Bookmarks source is shown.
 
 ## Permissions and network use
 | Permission | Why |

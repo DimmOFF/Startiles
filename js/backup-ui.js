@@ -6,7 +6,7 @@ import { $, el } from './util.js';
 const ITEMS = [
   { k: 'settings', t: 'Settings', d: 'All options except themes, including the page background image.' },
   { k: 'themes', t: 'Themes', d: 'Custom themes and the selected theme.', mode: true },
-  { k: 'dials', t: 'Speed Dials', d: 'Groups, folders and tiles of the Modern Speed Dial folder.', mode: true },
+  { k: 'dials', t: 'Speed Dials', d: 'Groups, folders and tiles of the Startiles Speed Dial folder.', mode: true },
   { k: 'userThumbs', t: 'User previews', d: 'Images, icons and Pageview choices you set for tiles.', sub: true },
   { k: 'cache', t: 'Cached previews', d: 'Automatically fetched icons, page previews and screenshots.', sub: true },
 ];

@@ -336,7 +336,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
     rnote.textContent = 'Your own bookmarks will not be affected.';
     try {
       const i = await Reset.dialsInfo();
-      rnote.textContent = `Only the "Modern Speed Dial" folder (${i.sdPath}) is emptied. Your own bookmarks in ${i.bookmarksPath} will not be affected.`;
+      rnote.textContent = `Only the "Startiles Speed Dial" folder (${i.sdPath}) is emptied. Your own bookmarks in ${i.bookmarksPath} will not be affected.`;
     } catch { /* the generic text stays */ }
   };
   rform.addEventListener('change', (e) => {

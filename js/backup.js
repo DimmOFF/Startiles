@@ -1,7 +1,7 @@
 // Export / Import. The user picks what goes into the file (or is taken from it):
 //   settings     all options except themes, plus the page background image
 //   themes       custom themes and the selected theme              (import: Add or Replace)
-//   dials        the Modern Speed Dial bookmark tree               (import: Add = merge, Replace)
+//   dials        the Startiles Speed Dial bookmark tree               (import: Add = merge, Replace)
 //   userThumbs   what the user chose for tiles: custom images, picked icons, Pageview
 //   cache        automatically fetched data: page screenshots, site icons, page previews
 // Previews follow the Add / Replace choice of the Speed Dials.
@@ -11,7 +11,8 @@ import * as M from './model.js';
 import * as Icons from './icons.js';
 import { PRESETS } from './themes.js';
 
-const FORMAT = 'modern-speed-dial-backup';
+const FORMAT = 'startiles-backup';
+const LEGACY_FORMATS = ['modern-speed-dial-backup'];   // backups made by earlier versions can still be imported
 const THEME_KEYS = ['theme', 'customThemes'];
 const strip = (n) => (n.url ? { title: n.title, url: n.url } : { title: n.title, children: (n.children || []).map(strip) });
 const countLinks = (nodes) => nodes.reduce((a, n) => a + (n.url ? 1 : countLinks(n.children || [])), 0);
@@ -42,7 +43,7 @@ export async function exportSelected(o) {
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
-  a.download = `modern-speed-dial-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `startiles-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   return res;
@@ -53,7 +54,7 @@ export async function exportSelected(o) {
 export async function readFile(file) {
   let raw;
   try { raw = JSON.parse(await file.text()); } catch { throw new Error('not a valid JSON file'); }
-  if (!isObj(raw) || raw.format !== FORMAT) throw new Error('this is not a Modern Speed Dial backup');
+  if (!isObj(raw) || ![FORMAT, ...LEGACY_FORMATS].includes(raw.format)) throw new Error('this is not a Startiles backup');
   const old = isObj(raw.settings) ? raw.settings : null;
   const themes = isObj(raw.themes) ? raw.themes
     : old && (Array.isArray(old.customThemes) || typeof old.theme === 'string') ? { theme: old.theme, customThemes: old.customThemes || [] } : null;

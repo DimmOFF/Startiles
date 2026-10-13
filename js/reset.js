@@ -1,5 +1,5 @@
 // "Reset to Default": settings, themes and/or the Speed Dials. The user's own bookmarks are never touched:
-// Speed Dials = only the "Modern Speed Dial" folder. The previews are separate options:
+// Speed Dials = only the "Startiles Speed Dial" folder. The previews are separate options:
 //   userThumbs = what the user chose for tiles (custom images, picked icons, Pageview), cache = everything fetched automatically
 //   (page screenshots, site icons, page previews).
 import * as S from './settings.js';
@@ -14,7 +14,7 @@ export async function dialsInfo() {
 export async function resetSelected({ settings, themes, dials, userThumbs, cache }) {
   if (dials) {
     const { node } = await M.ensureSd();
-    if (node.title !== M.ROOT_TITLE) throw new Error('unexpected folder, nothing was changed');   // safety: only our own folder
+    if (![M.ROOT_TITLE, ...M.LEGACY_TITLES].includes(node.title)) throw new Error('unexpected folder, nothing was changed');   // safety: only our own folder
     const sd = (await chrome.bookmarks.getSubTree(node.id))[0];
     for (const c of sd.children || []) await M.remove(c);
     await M.addFolder(node.id, 'General');

@@ -1,10 +1,11 @@
 // Two data sources:
-//  - Speed Dial: root = "Modern Speed Dial" folder (bookmarks root, falling back to "Other bookmarks")
+//  - Speed Dial: root = "Startiles Speed Dial" folder (bookmarks root, falling back to "Other bookmarks")
 //  - Bookmarks:  root = the folder chosen by the user (settings.bookmarksRootId), Bookmarks bar by default
 // In both cases: top-level folders of the root = groups, everything inside = tiles / (nested) folders.
-export const ROOT_TITLE = 'Modern Speed Dial';
+export const ROOT_TITLE = 'Startiles Speed Dial';
+export const LEGACY_TITLES = ['Modern Speed Dial'];   // the folder of earlier versions: found and renamed, nothing is lost
 export let rootId = null;   // folder currently shown
-export let sdId = null;     // the "Modern Speed Dial" folder (used by Export / Import)
+export let sdId = null;     // the "Startiles Speed Dial" folder (used by Export / Import)
 export const info = { path: '', note: '' };
 
 const NOTE = 'The bookmarks root could not be used (browsers usually do not let extensions write there), so "Other bookmarks" is used.';
@@ -30,11 +31,11 @@ export async function ensureSd() {
   (function walk(n, d) {
     (n.children || []).forEach((c) => {
       if (c.url) return;
-      if (c.title === ROOT_TITLE) mine.push({ c, d });
+      if (c.title === ROOT_TITLE || LEGACY_TITLES.includes(c.title)) mine.push({ c, d, old: c.title !== ROOT_TITLE });
       walk(c, d + 1);
     });
   })(tree[0], 0);
-  mine.sort((a, b) => a.d - b.d);
+  mine.sort((a, b) => a.old - b.old || a.d - b.d);               // a folder with the current name wins, then the shallowest
 
   let node = mine[0]?.c;
   if (node && node.parentId !== tree[0].id) {
@@ -47,6 +48,9 @@ export async function ensureSd() {
       note = NOTE;
       node = await chrome.bookmarks.create({ parentId: other.id, title: ROOT_TITLE });
     }
+  }
+  if (node.title !== ROOT_TITLE) {                              // an earlier version's folder: give it the new name
+    try { node = await chrome.bookmarks.update(node.id, { title: ROOT_TITLE }); } catch { /* keep working with the old name */ }
   }
   sdId = node.id;
   return { node, note };
