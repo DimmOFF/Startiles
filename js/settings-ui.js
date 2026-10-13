@@ -238,7 +238,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   const quick = $('#quick-body'), adv = $('#adv-body');
 
   quick.append(
-    section('Start Page', ['theme', 'bgType', 'bgUrl', 'bgImage', 'engine', 'searchSuggest']),
+    section('Start Page', ['theme', 'engine']),
     section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize']),
   );
   const more = el('div', 'row');

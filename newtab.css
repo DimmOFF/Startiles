@@ -34,7 +34,7 @@ button,input,select{font:inherit;color:inherit}
 .group:hover{background:var(--faint)}
 .group.active{background:var(--hover);color:var(--fg)}
 .group.drop{outline:2px solid var(--accent)}
-#settings-btn{position:fixed;top:14px;right:16px;z-index:5}
+#settings-btn{position:fixed;top:14px;right:16px;z-index:5;color:var(--icon,var(--fg))}
 
 /* search */
 #search{position:relative;margin:var(--search-top) auto 0;width:min(900px,82vw);height:46px;padding:0 16px;display:flex;align-items:center;gap:10px;
@@ -58,7 +58,7 @@ button,input,select{font:inherit;color:inherit}
 .thumb .letter{position:absolute;inset:0;display:grid;place-items:center;font-size:48px;font-weight:600;color:#555}
 .label{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;background:var(--label)}
 .label .ico{width:16px;height:16px;flex:none;border-radius:3px}
-.label svg{flex:none;color:var(--muted)}
+.label svg{flex:none;color:var(--icon,var(--fg))}
 .label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hide-titles .label{display:none}
 .folder-thumb{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:6px;padding:8px;background:var(--folder-bg,var(--surface))}
@@ -69,10 +69,11 @@ button,input,select{font:inherit;color:inherit}
 .cell .thumb .letter{font-size:20px}
 .ph{height:100%;display:grid;place-items:center;color:color-mix(in srgb,var(--fg) 28%,transparent)}
 .tools button{position:absolute;top:6px;width:26px;height:26px;border:0;border-radius:7px;display:grid;place-items:center;
-  background:rgba(20,20,24,.75);color:#fff;cursor:pointer;opacity:0;transition:opacity .15s;backdrop-filter:blur(4px)}
+  background:transparent;color:var(--icon,var(--fg));cursor:pointer;opacity:0;transition:opacity .15s,transform .15s}
+.tools button svg{filter:drop-shadow(0 1px 2px var(--icon-shadow,rgba(0,0,0,.7))) drop-shadow(0 0 1px var(--icon-shadow,rgba(0,0,0,.7)))}
 .tools .edit{right:6px}.tools .del{left:6px}
 .tile:hover .tools button{opacity:1}
-.tools button:hover{background:rgba(70,70,80,.95)}
+.tools button:hover{transform:scale(1.15)}
 .hide-del .tools .del{display:none}
 
 /* drag & drop states */
@@ -329,3 +330,6 @@ body.no-anim *,body.no-anim *::before,body.no-anim *::after{transition:none!impo
 .advbody{flex:1;min-height:0;display:flex;flex-direction:column}
 .row select.theme-sel{width:210px;max-width:210px}
 .cwrap{display:flex;align-items:center;gap:8px}
+
+/* Add / Edit: visible edge for the thumbnail preview (white previews vanished on the light theme) */
+.prev{border-radius:8px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 22%,transparent)}

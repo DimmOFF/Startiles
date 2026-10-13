@@ -6,6 +6,7 @@ export const COLOR_KEYS = [
   ['folderBg', 'Folder background'],
   ['text', 'Text'],
   ['muted', 'Secondary text'],
+  ['icon', 'Icon color'],
   ['accent', 'Accent'],
   ['surface', 'Panels & menus'],
   ['field', 'Inputs & bars'],
@@ -13,10 +14,10 @@ export const COLOR_KEYS = [
   ['thumbBg', 'Tile background'],
 ];
 export const PRESETS = {
-  dark: { name: 'Dark', colors: { pageBg: '#2b2b30', text: '#e8e8ec', muted: '#a6a6b0', accent: '#7b83f5', surface: '#2a2a2f', field: '#1f1f24', label: '#2f2f34', thumbBg: '#3b3b3b' } },
-  light: { name: 'Light', colors: { pageBg: '#eceef3', text: '#1d1d22', muted: '#6a6a75', accent: '#5560e8', surface: '#ffffff', field: '#f1f2f6', label: '#f2f2f2', thumbBg: '#ffffff' } },
+  dark: { name: 'Dark', colors: { pageBg: '#2b2b30', text: '#e8e8ec', muted: '#a6a6b0', icon: '#d4d4dc', accent: '#7b83f5', surface: '#2a2a2f', field: '#1f1f24', label: '#2f2f34', thumbBg: '#3b3b3b' } },
+  light: { name: 'Light', colors: { pageBg: '#eceef3', text: '#1d1d22', muted: '#6a6a75', icon: '#3a3a45', accent: '#5560e8', surface: '#ffffff', field: '#f1f2f6', label: '#f2f2f2', thumbBg: '#ffffff' } },
 };
-const VARS = { pageBg: '--page-bg', text: '--fg', muted: '--muted', accent: '--accent', surface: '--surface', field: '--field', label: '--label', thumbBg: '--thumb-bg', folderBg: '--folder-bg' };
+const VARS = { pageBg: '--page-bg', text: '--fg', muted: '--muted', accent: '--accent', surface: '--surface', field: '--field', label: '--label', thumbBg: '--thumb-bg', folderBg: '--folder-bg', icon: '--icon' };
 
 export const isDarkOs = () => matchMedia('(prefers-color-scheme: dark)').matches;
 const lum = (hex) => {
@@ -33,7 +34,8 @@ export function resolve(s) {
   if (id === 'auto') id = isDarkOs() ? 'dark' : 'light';
   const custom = (s.customThemes || []).find((t) => t.id === id);
   if (!custom && !PRESETS[id]) id = 'dark';
-  const colors = custom ? { ...PRESETS.dark.colors, ...custom.colors } : PRESETS[id].colors;
+  // older custom themes have no icon colour: they use their text colour
+  const colors = custom ? { ...PRESETS.dark.colors, ...custom.colors, icon: custom.colors.icon || custom.colors.text || PRESETS.dark.colors.icon } : PRESETS[id].colors;
   const full = { ...colors, folderBg: colors.folderBg || colors.pageBg };   // the folder window follows the page background unless set
   return { id, colors: full, scheme: lum(full.text) > 0.5 ? 'dark' : 'light' };   // light text -> dark theme
 }
@@ -43,6 +45,9 @@ export function apply(s) {
   last = s;
   const { colors, scheme } = resolve(s), root = document.documentElement, vars = {};
   for (const k in VARS) { root.style.setProperty(VARS[k], colors[k]); vars[VARS[k]] = colors[k]; }
+  // shadow for icons that sit directly on tile previews: dark under a light icon, light under a dark one
+  vars['--icon-shadow'] = lum(colors.icon) > 0.5 ? 'rgba(0,0,0,.7)' : 'rgba(255,255,255,.85)';
+  root.style.setProperty('--icon-shadow', vars['--icon-shadow']);
   root.style.colorScheme = scheme;                         // native controls, scrollbars and select popups follow the theme
   root.dataset.scheme = scheme;
   try { localStorage.setItem('msd-theme', JSON.stringify({ vars, scheme })); } catch {}   // read by theme-boot.js to avoid a flash
