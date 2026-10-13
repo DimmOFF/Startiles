@@ -26,7 +26,7 @@ bookmarks.
   - *Image URL* or *Local file* (with Fill / Fit).
 - **Long titles**: a caption with the full title appears when a title does not fit into the tile (can be switched off).
 - **Tile deletion** plays an animation of your choice (Settings > Animation: Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof; default Disintegrate) with a live preview.
-- **Themes**: Auto (follows the browser's light / dark mode), Light, Dark and your own custom themes (Settings > Appearance > Theme). A theme also has a folder window background that follows the page background by default.
+- **Themes**: Auto (follows the browser's light / dark mode), Light, Dark, Midnight (deep navy, cyan accent), Sand (warm paper, terracotta accent) and your own custom themes (Settings > Appearance > Theme). A theme also has a folder window background that follows the page background by default.
 - **Tile shift**: after a deletion or after moving a tile (drag & drop) the other tiles slide smoothly into their new places.
 
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.

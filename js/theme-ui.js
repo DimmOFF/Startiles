@@ -1,7 +1,7 @@
 // Theme picker (also used in Quick Settings) and the custom theme editor (Advanced Settings > Appearance > Theme).
 import * as S from './settings.js';
 import { el } from './util.js';
-import { COLOR_KEYS, resolve, newId } from './themes.js';
+import { COLOR_KEYS, PRESETS, resolve, newId } from './themes.js';
 
 const customs = () => S.get().customThemes || [];
 const current = () => customs().find((t) => t.id === S.get().theme) || null;   // the selected custom theme; null for Auto / Light / Dark
@@ -17,7 +17,7 @@ export function picker(reg, refreshAll) {
   const lab = el('label', 'row', '<span>Theme</span>');
   const sel = el('select', 'theme-sel');
   const fill = () => {
-    const opts = [['auto', 'Auto (follow browser)'], ['light', 'Light'], ['dark', 'Dark'], ...customs().map((t) => [t.id, t.name])];
+    const opts = [['auto', 'Auto (follow browser)'], ...Object.entries(PRESETS).map(([id, p]) => [id, p.name]), ...customs().map((t) => [t.id, t.name])];
     sel.replaceChildren(...opts.map(([v, t]) => new Option(t, v)));
     sel.value = opts.some(([v]) => v === S.get().theme) ? S.get().theme : 'auto';
   };

@@ -9,6 +9,7 @@ import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as M from './model.js';
 import * as Icons from './icons.js';
+import { PRESETS } from './themes.js';
 
 const FORMAT = 'modern-speed-dial-backup';
 const THEME_KEYS = ['theme', 'customThemes'];
@@ -119,7 +120,7 @@ export async function importSelected(data, o) {
     const imported = data.themes.customThemes, have = next.customThemes || [];
     if (o.themes.mode === 'replace') {
       next.customThemes = imported;
-      const ok = ['auto', 'light', 'dark'].includes(data.themes.theme) || imported.some((t) => t.id === data.themes.theme);
+      const ok = ['auto', ...Object.keys(PRESETS)].includes(data.themes.theme) || imported.some((t) => t.id === data.themes.theme);
       next.theme = ok ? data.themes.theme : 'auto';
     } else {
       const ids = new Set(have.map((t) => t.id)), names = new Set(have.map((t) => t.name)), add = [];

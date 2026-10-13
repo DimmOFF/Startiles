@@ -14,8 +14,12 @@ export const COLOR_KEYS = [
   ['thumbBg', 'Tile background'],
 ];
 export const PRESETS = {
-  dark: { name: 'Dark', colors: { pageBg: '#2b2b30', text: '#e8e8ec', muted: '#a6a6b0', icon: '#d4d4dc', accent: '#7b83f5', surface: '#2a2a2f', field: '#1f1f24', label: '#2f2f34', thumbBg: '#3b3b3b' } },
   light: { name: 'Light', colors: { pageBg: '#eceef3', text: '#1d1d22', muted: '#6a6a75', icon: '#3a3a45', accent: '#5560e8', surface: '#ffffff', field: '#ffffff', label: '#f2f2f2', thumbBg: '#ffffff' } },
+  dark: { name: 'Dark', colors: { pageBg: '#2b2b30', text: '#e8e8ec', muted: '#a6a6b0', icon: '#d4d4dc', accent: '#7b83f5', surface: '#2a2a2f', field: '#1f1f24', label: '#2f2f34', thumbBg: '#3b3b3b' } },
+  // Midnight: deep navy with a cool cyan accent (a bluer, more atmospheric alternative to Dark)
+  midnight: { name: 'Midnight', colors: { pageBg: '#0e1525', folderBg: '#131c30', text: '#e4eaf6', muted: '#8b99b8', icon: '#c9d5ee', accent: '#38bdf8', surface: '#162036', field: '#0a101d', label: '#1a2742', thumbBg: '#1f2d4a' } },
+  // Sand: warm paper tones with a terracotta accent (a softer, warmer alternative to Light)
+  sand: { name: 'Sand', colors: { pageBg: '#f3ede2', folderBg: '#ebe3d4', text: '#2c261e', muted: '#7b705f', icon: '#4b4236', accent: '#d2582a', surface: '#fbf7ef', field: '#fffdf8', label: '#e8dfcd', thumbBg: '#fbf7ef' } },
 };
 const VARS = { pageBg: '--page-bg', text: '--fg', muted: '--muted', accent: '--accent', surface: '--surface', field: '--field', label: '--label', thumbBg: '--thumb-bg', folderBg: '--folder-bg', icon: '--icon' };
 
