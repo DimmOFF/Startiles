@@ -4,6 +4,7 @@ import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as Backup from './backup.js';
 import { $, el } from './util.js';
+import { DELETE_ANIMS, DEFAULT_ANIM, startDelete } from './delete-anims.js';
 
 const controls = new Map();   // key -> [inputs]
 const read = (i) => (i.type === 'checkbox' ? i.checked : i.type === 'range' ? Number(i.value) : i.value);
@@ -40,7 +41,7 @@ const DEF = {
   showTitles: sw('Speed Dial Title'),
   showDelete: sw('Show Delete Button'),
   showLongTitle: sw('Show long title caption'),
-  animDelete: sw('Tile deletion (shatter)'),
+  animDelete: sw('Tile deletion animation'),
   animReflow: sw('Tile shift after deletion'),
   animGroups: sw('Group switching (swipe)'),
   animFolders: sw('Folder transitions'),
@@ -126,7 +127,43 @@ function buildEngine() {
   row.append(dd);
   return row;
 }
+// Deletion animation picker: a dropdown plus a live preview on a sample tile (plays on change, on click and on the button).
+function buildDeleteAnim() {
+  const box = el('div', 'anim-pick');
+  const lab = el('label', 'row', '<span>Deletion animation</span>');
+  const sel = el('select');
+  DELETE_ANIMS.forEach(([v, t]) => sel.append(new Option(t, v)));
+  lab.append(sel);
+  const stage = el('div', 'anim-stage');
+  stage.title = 'Click to replay';
+  const tile = el('div', 'pv-tile', '<b>G</b><i>example.com</i>');
+  stage.append(tile);
+  const foot = el('div', 'row');
+  const replay = el('button', 'pill sm', '▶ Preview'); replay.type = 'button';
+  foot.append(el('span', 'note', 'The tile comes back after the preview.'), replay);
+  let busy = false;
+  const play = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      await startDelete(sel.value, tile, stage).done;
+      tile.style.visibility = 'hidden';
+      tile.getAnimations().forEach((a) => a.cancel());
+      await new Promise((r) => setTimeout(r, 350));
+      tile.style.visibility = '';
+      tile.animate([{ opacity: 0, transform: 'scale(.92)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
+    } finally { busy = false; }
+  };
+  const cur = () => (DELETE_ANIMS.some(([v]) => v === S.get().deleteAnim) ? S.get().deleteAnim : DEFAULT_ANIM);
+  sel.value = cur();
+  sel.onchange = () => { S.set({ deleteAnim: sel.value }); play(); };
+  stage.onclick = replay.onclick = play;
+  extraRefresh.push(() => { sel.value = cur(); });
+  box.append(lab, stage, foot);
+  return box;
+}
 function build(key) {
+  if (key === 'deleteAnim') return buildDeleteAnim();
   if (key === 'bgImage') return buildBgImage();
   if (key === 'bgUrl') return buildBgUrl();
   if (key === 'engine') return buildEngine();
@@ -208,7 +245,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
     section('Folder Window', ['folderSize', 'animMs']),    
     section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle']),
     section('Layout Offsets', ['groupsTop', 'searchTop', 'gridTop', 'addAnchor', 'addOffset']),
-    section('Animation', ['animDelete', 'animReflow', 'animGroups', 'animFolders']),
+    section('Animation', ['animDelete', 'deleteAnim', 'animReflow', 'animGroups', 'animFolders']),
   );
   adv.append(col1, col2);
   syncBg();

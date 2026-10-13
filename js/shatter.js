@@ -2,9 +2,10 @@
 // (clones of the tile clipped with clip-path) which fly apart, spin and fall while fading out.
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-export function shatter(tile) {
+// host (optional): an element with position:relative to draw the shards in (settings preview); by default they go on <body>.
+export function shatter(tile, host) {
   const r = tile.getBoundingClientRect();
-  if (!r.width || !r.height || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  if (!r.width || !r.height || (!host && matchMedia('(prefers-reduced-motion: reduce)').matches)) return Promise.resolve();
   const W = r.width, H = r.height;
   const cols = 5, rows = 4, jit = 0.3;
 
@@ -29,7 +30,10 @@ export function shatter(tile) {
   }
 
   const holder = document.createElement('div');
-  holder.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${W}px;height:${H}px;pointer-events:none;z-index:85`;
+  const hr = host ? host.getBoundingClientRect() : null;
+  holder.style.cssText = hr
+    ? `position:absolute;left:${r.left - hr.left}px;top:${r.top - hr.top}px;width:${W}px;height:${H}px;pointer-events:none;z-index:85`
+    : `position:fixed;left:${r.left}px;top:${r.top}px;width:${W}px;height:${H}px;pointer-events:none;z-index:85`;
   const proto = tile.cloneNode(true);
   proto.querySelectorAll('.tools').forEach((n) => n.remove());
   proto.classList.remove('dragging', 'drop-into', 'drop-before', 'drop-after');
@@ -56,7 +60,7 @@ export function shatter(tile) {
     ], { duration: rnd(650, 950), delay: dist * 140 + rnd(0, 60), easing: 'cubic-bezier(.4,.1,.7,1)', fill: 'both' }));
   });
 
-  document.body.append(holder);
+  (host || document.body).append(holder);
   tile.style.visibility = 'hidden';                     // the shards take its place in the same frame
   return Promise.all(anims.map((a) => a.finished.catch(() => {}))).then(() => holder.remove());
 }

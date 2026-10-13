@@ -23,7 +23,7 @@ bookmarks.
   - *Automatic → Pageview*: a screenshot taken when you visit the page, otherwise the page's `og:image`, otherwise the logo.
   - *Image URL* or *Local file* (with Fill / Fit).
 - **Long titles**: a caption with the full title appears when a title does not fit into the tile (can be switched off).
-- **Tile deletion** plays a "shattering" animation.
+- **Tile deletion** plays an animation of your choice (Settings > Animation: Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof; default Disintegrate) with a live preview.
 - **Tile shift after deletion**: the remaining tiles slide smoothly into their new places.
 
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
@@ -100,7 +100,7 @@ the tiles' own sites for icons and previews (switch **Fetch hi-res icons & previ
 `newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage ·
 `js/settings*.js` – settings and their UI · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search ·
 `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker ·
-`js/backup.js` – export / import · `js/shatter.js` – deletion animation.
+`js/backup.js` – export / import · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
 
 ## License
 MIT, see `LICENSE`.

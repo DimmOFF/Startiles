@@ -7,7 +7,7 @@ import { pickFolder } from './folder-picker.js';
 import * as Icons from './icons.js';
 import * as Suggest from './suggest.js';
 import * as SearchSuggest from './search-suggest.js';
-import { shatter } from './shatter.js';
+import { playDelete } from './delete-anims.js';
 
 const ENGINES = {
   google:     ['Google',      'https://www.google.com/search?q=%s',       'https://www.google.com'],
@@ -319,10 +319,7 @@ document.addEventListener('dragend', cleanDrag);
 async function deleteNode(n) {
   if (!n.url && n.children?.length && !confirm(`Delete folder "${n.title}" with ${n.children.length} item(s)?`)) return;
   const tile = document.querySelector(`.tile[data-id="${n.id}"]`);
-  if (tile && S.get().animDelete) {
-    shatter(tile);                                       // shards fly while the bookmark is removed
-    await new Promise((r) => setTimeout(r, 380));
-  }
+  if (tile && S.get().animDelete) await playDelete(S.get().deleteAnim, tile);   // the effect chosen in Settings > Animation
   if (tile && S.get().animReflow && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     const grid = tile.parentElement;                     // remember where the other tiles are, they slide there after the re-render
     flip = { grid, id: n.id, rects: snapshotTiles(grid, n.id) };
