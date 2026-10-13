@@ -15,7 +15,7 @@ export const COLOR_KEYS = [
 ];
 export const PRESETS = {
   dark: { name: 'Dark', colors: { pageBg: '#2b2b30', text: '#e8e8ec', muted: '#a6a6b0', icon: '#d4d4dc', accent: '#7b83f5', surface: '#2a2a2f', field: '#1f1f24', label: '#2f2f34', thumbBg: '#3b3b3b' } },
-  light: { name: 'Light', colors: { pageBg: '#eceef3', text: '#1d1d22', muted: '#6a6a75', icon: '#3a3a45', accent: '#5560e8', surface: '#ffffff', field: '#f1f2f6', label: '#f2f2f2', thumbBg: '#ffffff' } },
+  light: { name: 'Light', colors: { pageBg: '#eceef3', text: '#1d1d22', muted: '#6a6a75', icon: '#3a3a45', accent: '#5560e8', surface: '#ffffff', field: '#ffffff', label: '#f2f2f2', thumbBg: '#ffffff' } },
 };
 const VARS = { pageBg: '--page-bg', text: '--fg', muted: '--muted', accent: '--accent', surface: '--surface', field: '--field', label: '--label', thumbBg: '--thumb-bg', folderBg: '--folder-bg', icon: '--icon' };
 
