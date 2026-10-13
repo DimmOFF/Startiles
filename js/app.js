@@ -974,7 +974,7 @@ document.addEventListener('keydown', (e) => {
   if (e.defaultPrevented || e.altKey || !root) return;
   const tg = e.target;
   if (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
-  if (dlg.open || $('#picker').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
   if (KB_MOVE.has(e.key) && !e.ctrlKey && !e.metaKey) {
     if (kbMove(e.key)) {
       e.preventDefault();
@@ -1013,7 +1013,7 @@ function zones() {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Tab' || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
-  if (dlg.open || $('#picker').open || closing || navBusy || !root) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || closing || navBusy || !root) return;
   const act = document.activeElement, list = zones();
   const cur = list.findIndex((z) => z.has(act));
   if (cur < 0 && act && act !== document.body && act !== document.documentElement) return;   // focus is in the settings panel / Advanced window: native Tab
@@ -1060,6 +1060,17 @@ nav.addEventListener('keydown', (e) => {
   const g = byId.get(b.dataset.id);
   if (g) switchGroup(g);
 });
+
+/* ---------- settings icon: shown only when the mouse is near (optional) ---------- */
+const gearBtn = $('#settings-btn');
+document.addEventListener('pointermove', (e) => {
+  const s = S.get();
+  if (!s.gearAutoHide) return;
+  const r = gearBtn.getBoundingClientRect();
+  const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right), dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+  document.body.classList.toggle('gear-near', Math.hypot(dx, dy) <= s.gearRadius);   // distance to the button itself
+}, { passive: true });
+document.documentElement.addEventListener('mouseleave', () => document.body.classList.remove('gear-near'));
 
 /* ---------- misc ---------- */
 $('#add-btn').onclick = () => { const g = activeGroup(); if (g) openItemDialog({ parentId: g.id }); };

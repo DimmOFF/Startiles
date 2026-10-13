@@ -53,7 +53,7 @@ highlight; arrow keys do nothing while you type in a field or a dialog is open.
 
 ## Settings
 **Quick Settings** (gear icon): theme, search engine,
-thumbnail size, ratio, maximum columns, icon size, and the **Advanced Settings…** button.
+tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** button.
 
 **Advanced Settings** (movable window, closes on a click outside or `Esc`):
 
@@ -62,13 +62,20 @@ thumbnail size, ratio, maximum columns, icon size, and the **Advanced Settings�
 | Dial Source | Speed Dial / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
 | Groups Bar | Max width in px and in % of the window |
-| Speed Dials | Thumbnail size, W:H ratio (1–1.5), max columns, icon size in %, corner radius, gaps, tile background colour, fetch hi-res icons & previews, refresh site icons |
+| Speed Dials | Tile size, W:H ratio (1–1.7), max columns, icon size in %, tile corner size, gaps, tile background colour, fetch hi-res icons & previews, refresh site icons |
 | Folder Window | Size in % of the page, animation duration |
+| Settings Icon | Anchor (top / bottom), size (min 32), optional hiding until the mouse comes within a radius (default 150 px), one offset (the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
 | Show / Hide | + Shortcut button, search field, tile titles, delete button, long-title caption |
 | Layout Offsets | Groups bar, search and tiles top offsets; + Shortcut anchor (bottom of page / below tiles) and offset |
 | Behavior > Animation | Disable all animations, or switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |
 
-The footer has **Export**, **Import** and **Donate**.
+The footer has **Export**, **Import**, **Reset to Default** and **Donate**.
+
+## Reset to Default
+Advanced Settings → **Reset to Default** opens a window with check boxes: **Settings** (all options except themes, incl. the
+background image), **Themes** (custom themes deleted, theme = Auto) and **Speed Dials** (the *Modern Speed Dial* folder is emptied and
+gets one empty group, thumbnails and caches are cleared). Nothing happens until you press **Confirm**. Your own bookmarks are never
+touched; when *Speed Dials* is ticked the window shows the path of the folder that is reset and the path of your bookmarks that is not.
 
 ## Where the data lives
 - **Speed Dial** source: bookmarks folder `root\Modern Speed Dial`. Chromium usually does not let extensions write to the

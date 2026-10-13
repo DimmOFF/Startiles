@@ -95,3 +95,19 @@ export const remove = (n) => (n.url ? chrome.bookmarks.remove(n.id) : chrome.boo
 // index = "insert before this position in the list as it was before the move" (Chrome semantics)
 export const move = (id, parentId, index) =>
   chrome.bookmarks.move(id, index == null ? { parentId } : { parentId, index });
+
+// Paths shown in the Reset dialog.
+export async function sdPath() { const { node } = await ensureSd(); return pathOf(node.id); }
+// The folder the "Bookmarks" source shows (the chosen folder, or the Bookmarks bar) = the user's own bookmarks.
+export async function bookmarksPath(cfg = {}) {
+  let node = null;
+  if (cfg.bookmarksRootId) {
+    try { [node] = await chrome.bookmarks.get(cfg.bookmarksRootId); if (node.url || !node.parentId) node = null; } catch { node = null; }
+  }
+  if (!node) {
+    const tree = await chrome.bookmarks.getTree();
+    const top = tree[0].children;
+    node = top.find((n) => n.folderType === 'bookmarks-bar') || top[0];
+  }
+  return pathOf(node.id);
+}

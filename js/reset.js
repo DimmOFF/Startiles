@@ -1,0 +1,30 @@
+// "Reset to Default": settings, themes and/or the Speed Dials. The user's own bookmarks are never touched:
+// Speed Dials = only the "Modern Speed Dial" folder (and the thumbnail data kept by the extension).
+import * as S from './settings.js';
+import * as M from './model.js';
+
+export async function dialsInfo() {
+  return { sdPath: await M.sdPath(), bookmarksPath: await M.bookmarksPath(S.get()) };
+}
+
+export async function resetSelected({ settings, themes, dials }) {
+  if (dials) {
+    const { node } = await M.ensureSd();
+    if (node.title !== M.ROOT_TITLE) throw new Error('unexpected folder, nothing was changed');   // safety: only our own folder
+    const sd = (await chrome.bookmarks.getSubTree(node.id))[0];
+    for (const c of sd.children || []) await M.remove(c);
+    await M.addFolder(node.id, 'General');
+    await chrome.storage.local.remove(['thumbs', 'shots', 'iconCache']);
+  }
+  if (settings || themes) {
+    const { bgSrc, ...next } = S.get();
+    if (settings) {
+      for (const k of Object.keys(S.DEFAULTS)) if (!['theme', 'customThemes', 'v'].includes(k)) next[k] = S.DEFAULTS[k];
+      next.activeGroup = null;
+      await chrome.storage.local.remove('bgSrc');            // the page background image belongs to the settings
+    }
+    if (themes) { next.theme = S.DEFAULTS.theme; next.customThemes = []; }
+    await chrome.storage.local.set({ settings: next });
+    try { localStorage.removeItem('msd-theme'); } catch { /* ignore */ }   // the colours cached for the next start
+  }
+}

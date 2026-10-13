@@ -5,7 +5,8 @@ export const DEFAULTS = {
   tileWidth: 220, iconSize: 50, maxColumns: '0', gridTop: 70, addAnchor: 'bottom', addOffset: 16, v: 3, gapX: 28, gapY: 28,
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
   engine: 'google', searchSuggest: true, bgType: 'color', bgUrl: '', ratio: 1.22, tileRadius: 10, source: 'speeddial', bookmarksRootId: null, showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, deleteAnim: 'dust', animReflow: true, animGroups: true, animFolders: true, hiResIcons: true,
-  groupsTop: 12, searchTop: 60, folderSize: 90, animMs: 280,
+  groupsTop: 12, searchTop: 60, folderSize: 70, animMs: 280,
+  gearAnchor: 'top', gearSize: 32, gearOffset: 14, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   activeGroup: null,
 };
 let cache = { ...DEFAULTS };
@@ -16,6 +17,7 @@ export async function load() {
   if ((st.v || 0) < 2) {           // migration: new defaults for animation / icon size, drop removed keys
     ['animMs', 'iconSize', 'speedDialType', 'rootLocation', 'vivaldiFolderId', 'vivaldiFolderName'].forEach((k) => delete st[k]);
   }
+  if ((st.v || 0) < 5 && st.folderSize === 90) delete st.folderSize;   // the old default (90%) becomes the new one (70%); a value you set yourself is kept
   if (r.settings && st.theme === undefined) {                // before themes: dark only, colours were separate settings
     const d = Themes.PRESETS.dark.colors;
     if ((st.pageBg && st.pageBg !== d.pageBg) || (st.thumbBg && st.thumbBg.toLowerCase() !== d.thumbBg)) {
@@ -25,9 +27,11 @@ export async function load() {
     } else st.theme = 'dark';
   }
   delete st.pageBg; delete st.thumbBg;
+  delete st.gearLeft;                                          // the separate left offset was replaced by one symmetric offset
+  if (st.gearSize != null) st.gearSize = Math.max(32, st.gearSize);   // the minimum size of the settings icon is 32px
   ['driveClientId', 'driveAuto'].forEach((k) => delete st[k]);   // Google Drive sync was removed
   chrome.storage.local.remove('driveAuth');
-  cache = { ...DEFAULTS, ...st, v: 4, bgSrc: r.bgSrc || '' };
+  cache = { ...DEFAULTS, ...st, v: 5, bgSrc: r.bgSrc || '' };
   if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
     cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
     if (cache.bgType === 'image') cache.bgType = 'url';
@@ -65,6 +69,9 @@ export function applyCss() {
   st.setProperty('--groups-max-px', s.groupsMaxPx + 'px');
   st.setProperty('--groups-max-pct', s.groupsMaxPct);
   st.setProperty('--add-offset', s.addOffset + 'px');
+  st.setProperty('--gear-size', s.gearSize + 'px');
+  st.setProperty('--gear-off', s.gearOffset + 'px');
+  st.setProperty('--gear-right', s.gearOffset + 'px');
   const n = Number(s.maxColumns) || 0;
   st.setProperty('--grid-max', n ? `calc(${n} * var(--tile-w) + ${n - 1} * var(--gap-x) + 80px)` : 'none');
   const b = document.body.classList;
@@ -74,6 +81,8 @@ export function applyCss() {
   b.toggle('hide-add', !s.showAdd);
   b.toggle('hide-search', !s.showSearch);
   b.toggle('add-top', s.addAnchor === 'top');
+  b.toggle('gear-bottom', s.gearAnchor === 'bottom');
+  b.toggle('gear-autohide', !!s.gearAutoHide);
   const src = s.bgType === 'url' ? s.bgUrl : s.bgType === 'image' ? s.bgSrc : '';
   b.toggle('bg-image', !!src);
   st.setProperty('--bg-image', src ? `url("${String(src).replace(/"/g, '%22')}")` : 'none');

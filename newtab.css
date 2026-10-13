@@ -34,7 +34,9 @@ button,input,select{font:inherit;color:inherit}
 .group:hover{background:var(--faint)}
 .group.active{background:var(--hover);color:var(--fg)}
 .group.drop{outline:2px solid var(--accent)}
-#settings-btn{position:fixed;top:14px;right:16px;z-index:5;color:var(--icon,var(--fg))}
+#settings-btn{position:fixed;top:var(--gear-off,14px);right:var(--gear-right,14px);left:auto;width:var(--gear-size,32px);height:var(--gear-size,32px);z-index:5;color:var(--icon,var(--fg))}
+body.gear-bottom #settings-btn{top:auto;bottom:var(--gear-off,14px)}
+#settings-btn svg{width:56%;height:56%}
 
 /* search */
 #search{position:relative;margin:var(--search-top) auto 0;width:min(900px,82vw);height:46px;padding:0 16px;display:flex;align-items:center;gap:10px;
@@ -339,3 +341,27 @@ body.no-anim *,body.no-anim *::before,body.no-anim *::after{transition:none!impo
 .dd .bm-ico{display:grid;place-items:center;width:16px;height:16px;flex:none;color:var(--icon,var(--fg))}
 #groups.searching .group.active{background:none;opacity:.55}
 .grid.search-results .tile{cursor:pointer}
+
+/* Quick Settings: from the bottom-right corner when the settings icon is anchored to the bottom */
+body.gear-bottom .panel{top:auto;bottom:10px;transform-origin:100% 100%;transform:translateY(16px) scale(.88);opacity:0;visibility:hidden;
+  transition:transform .25s cubic-bezier(.22,1,.36,1),opacity .2s,visibility 0s .25s}
+body.gear-bottom .panel.open{transform:none;opacity:1;visibility:visible;transition:transform .25s cubic-bezier(.22,1,.36,1),opacity .2s,visibility 0s}
+
+/* settings icon auto-hide: visible when the mouse is near, the icon has keyboard focus or Quick Settings is open */
+body.gear-autohide #settings-btn{opacity:0;transition:opacity .2s}
+body.gear-autohide.gear-near #settings-btn,
+body.gear-autohide #settings-btn:focus-visible,
+body.gear-autohide:has(#settings.open) #settings-btn{opacity:1}
+
+/* Reset to Default */
+.vsep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.pill.warn{color:#ff8b8b}
+dialog.small{width:min(460px,92vw)}
+.rchk{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:start;padding:9px 11px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.rchk:has(input:checked){border-color:var(--accent)}
+.rchk input{margin:3px 0 0}
+.rchk b{font-weight:600}
+.rchk small{grid-column:2;color:var(--muted);font-size:12px;line-height:1.4}
+.rcallout{margin:0;padding:9px 11px;border-left:3px solid #e5a24b;border-radius:8px;background:color-mix(in srgb,#e5a24b 14%,transparent);font-size:12px;line-height:1.5;word-break:break-word}
+.btns .danger-ok{background:#d6455d;color:#fff}
+.btns .danger-ok:disabled{opacity:.45;cursor:not-allowed}

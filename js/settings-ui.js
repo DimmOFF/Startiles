@@ -3,11 +3,13 @@
 import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as Backup from './backup.js';
+import * as Reset from './reset.js';
 import { $, el, svg, ICON } from './util.js';
 import { DELETE_ANIMS, DEFAULT_ANIM, startDelete } from './delete-anims.js';
 import * as ThemeUI from './theme-ui.js';
 
 const controls = new Map();   // key -> [inputs]
+const val = (k) => S.get()[k];
 const read = (i) => (i.type === 'checkbox' ? i.checked : i.type === 'range' ? Number(i.value) : i.value);
 function write(i, v) {
   if (i.type === 'checkbox') i.checked = !!v; else i.value = v;
@@ -16,7 +18,7 @@ function write(i, v) {
 }
 const extraRefresh = [];
 const refreshAll = () => {
-  controls.forEach((arr, k) => arr.forEach((i) => write(i, S.get()[k])));
+  controls.forEach((arr, k) => arr.forEach((i) => write(i, val(k))));
   extraRefresh.forEach((f) => f());
 };
 
@@ -26,9 +28,9 @@ const sw = (label) => ({ type: 'switch', label });
 const DEF = {
   bgType: { type: 'select', label: 'Page Background', options: [['color', 'Color'], ['url', 'URL'], ['image', 'Image']] },
   bgImage: { type: 'bgimage' },
-  tileWidth: rng('Thumbnail Size', 120, 420, 'px', 2),
-  tileRadius: rng('Dial Corner Radius', 0, 32, 'px'),
-  ratio: rng('Speed Dial Ratio (W:H)', 1, 1.5, '', 0.01),
+  tileWidth: rng('Tile Size', 120, 420, 'px', 2),
+  tileRadius: rng('Tile Corner Size', 0, 32, 'px'),
+  ratio: rng('Tile Ratio (W:H)', 1, 1.7, '', 0.01),
   maxColumns: { type: 'select', label: 'Maximum Columns', options: MAXCOLS },
   iconSize: rng('Icon Size in Thumbnail', 15, 80, '%'),
   gapX: rng('Horizontal Gap', 0, 80),
@@ -54,6 +56,11 @@ const DEF = {
   addAnchor: { type: 'select', label: '+ Shortcut Anchor', options: [['bottom', 'Bottom of page'], ['top', 'Below tiles']] },
   addOffset: rng('+ Shortcut Offset', 0, 300),
   folderSize: rng('Folder Window Size', 40, 100, '%'),
+  gearAnchor: { type: 'select', label: 'Anchor', options: [['top', 'Top'], ['bottom', 'Bottom']], after: () => refreshAll() },
+  gearSize: { ...rng('Size', 32, 64, 'px'), after: () => refreshAll() },
+  gearAutoHide: sw('Hide until the mouse is near'),
+  gearRadius: rng('Appearance radius', 50, 600, 'px'),
+  gearOffset: { ...rng('', 0, 300, 'px'), label: () => 'Offset (' + (S.get().gearAnchor === 'bottom' ? 'bottom' : 'top') + ' and right edge)' },
   animMs: rng('Transition duration (groups, folders)', 150, 900, 'ms', 10),
 };
 
@@ -184,8 +191,10 @@ function build(key) {
   const lab = el('label', 'row' + (d.type === 'range' ? ' col' : '') + (ANIM_DEP.includes(key) ? ' anim-dep' : ''));
   if (d.bg) lab.dataset.bg = d.bg;
   const span = el('span');
-  span.textContent = d.label;
+  const labelOf = () => (typeof d.label === 'function' ? d.label() : d.label);   // some labels depend on another setting
+  span.textContent = labelOf();
   lab.append(span);
+  if (typeof d.label === 'function') extraRefresh.push(() => { span.firstChild.nodeValue = labelOf(); });
   let inp;
   if (d.type === 'switch') { inp = el('input', 'switch'); inp.type = 'checkbox'; }
   else if (d.type === 'select') { inp = el('select'); d.options.forEach(([v, t]) => inp.append(new Option(t, v))); }
@@ -198,7 +207,7 @@ function build(key) {
   const arr = controls.get(key) || [];
   arr.push(inp);
   controls.set(key, arr);
-  write(inp, S.get()[key]);
+  write(inp, val(key));
   inp.addEventListener('input', () => {
     const v = read(inp);
     S.set({ [key]: v });
@@ -269,7 +278,8 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
 
   const layout = grid(
     [section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'tileRadius', 'gapX', 'gapY']),
-     section('Folder Window', ['folderSize'])],
+     section('Folder Window', ['folderSize']),
+     section('Settings Icon', ['gearAnchor', 'gearSize', 'gearOffset', 'gearAutoHide', 'gearRadius'])],
     [section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct', 'groupsTop']),
      section('Layout Offsets', ['searchTop', 'gridTop', 'addAnchor', 'addOffset']),
      section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle'])],
@@ -327,6 +337,36 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
     } catch (e) { status.textContent = 'Import failed: ' + e.message; }
   };
 
+  // Reset to Default
+  const rdlg = $('#reset-dlg'), rform = $('#reset-form'), rok = $('#reset-ok'), rnote = $('#reset-note');
+  const chk = (k) => rform.querySelector(`[data-k="${k}"]`);
+  const refreshReset = () => { rok.disabled = !['settings', 'themes', 'dials'].some((k) => chk(k).checked); };
+  const showNote = async () => {
+    rnote.hidden = !chk('dials').checked;
+    if (rnote.hidden) return;
+    rnote.textContent = 'Your own bookmarks will not be affected.';
+    try {
+      const i = await Reset.dialsInfo();
+      rnote.textContent = `Only the "Modern Speed Dial" folder (${i.sdPath}) is emptied. Your own bookmarks in ${i.bookmarksPath} will not be affected.`;
+    } catch { /* the generic text stays */ }
+  };
+  rform.addEventListener('change', () => { refreshReset(); showNote(); });
+  $('#reset-btn').onclick = () => { rform.reset(); refreshReset(); showNote(); rdlg.showModal(); };
+  $('#reset-cancel').onclick = () => rdlg.close();
+  rdlg.addEventListener('click', (e) => { if (e.target === rdlg) rdlg.close(); });
+  rform.onsubmit = async (e) => {
+    e.preventDefault();
+    const o = { settings: chk('settings').checked, themes: chk('themes').checked, dials: chk('dials').checked };
+    if (!o.settings && !o.themes && !o.dials) return;
+    rok.disabled = true;
+    try {
+      await Reset.resetSelected(o);
+      rdlg.close();
+      status.textContent = 'Reset done, reloading…';
+      setTimeout(() => location.reload(), 300);
+    } catch (err) { rdlg.close(); status.textContent = 'Reset failed: ' + err.message; }
+  };
+
   // Advanced window: non-modal (no dimming), freely movable by its title bar
   let pos = null;
   const place = () => {
@@ -346,10 +386,10 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   };
   advBtn.onclick = () => { panel.classList.remove('open'); openAdv(); };
   $('#adv-close').onclick = () => dlg.close();
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.open && !$('#picker').open) dlg.close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && dlg.open && !$('#picker').open && !rdlg.open) dlg.close(); });
   // a press outside the window closes it (pressing inside and releasing outside, e.g. a slider drag, does not)
   document.addEventListener('pointerdown', (e) => {
-    if (dlg.open && !e.composedPath().includes(dlg) && !$('#picker').open) dlg.close();
+    if (dlg.open && !e.composedPath().includes(dlg) && !$('#picker').open && !rdlg.open) dlg.close();
   });
   window.addEventListener('resize', () => { if (pos && dlg.open) place(); });
   const head = dlg.querySelector('header');
