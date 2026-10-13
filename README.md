@@ -24,7 +24,7 @@ bookmarks.
   - *Image URL* or *Local file* (with Fill / Fit).
 - **Long titles**: a caption with the full title appears when a title does not fit into the tile (can be switched off).
 - **Tile deletion** plays an animation of your choice (Settings > Animation: Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof; default Disintegrate) with a live preview.
-- **Tile shift after deletion**: the remaining tiles slide smoothly into their new places.
+- **Tile shift**: after a deletion or after moving a tile (drag & drop) the other tiles slide smoothly into their new places.
 
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
 
@@ -63,7 +63,7 @@ thumbnail size, ratio, maximum columns, icon size, and the **Advanced Settingsâ€
 | Folder Window | Size in % of the page, animation duration |
 | Show / Hide | + Shortcut button, search field, tile titles, delete button, long-title caption |
 | Layout Offsets | Groups bar, search and tiles top offsets; + Shortcut anchor (bottom of page / below tiles) and offset |
-| Animation | Switch off: tile deletion, tile shift after deletion, group switching, folder transitions |
+| Animation | Switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |
 
 The footer has **Export**, **Import** and **Donate**.
 

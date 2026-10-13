@@ -42,7 +42,7 @@ const DEF = {
   showDelete: sw('Show Delete Button'),
   showLongTitle: sw('Show long title caption'),
   animDelete: sw('Tile deletion animation'),
-  animReflow: sw('Tile shift after deletion'),
+  animReflow: sw('Tile shift (after delete / move)'),
   animGroups: sw('Group switching (swipe)'),
   animFolders: sw('Folder transitions'),
   groupsMaxPx: rng('Group Bar Max Width', 300, 3000, 'px', 10),

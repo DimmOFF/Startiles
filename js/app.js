@@ -96,7 +96,7 @@ function renderGroups() {
       }
       b.classList.remove('drop');
       const id = dragId; cleanDrag();
-      if (id) { await M.move(id, g.id); scheduleRefresh(); }
+      if (id) { flipBegin(); await M.move(id, g.id); flipReady(); scheduleRefresh(); }
     };
     nav.append(b);
   });
@@ -184,33 +184,43 @@ function tileEl(n) {
 }
 function fillGrid(g, node, emptyText) {
   const kids = node.children || [];
-  const fl = flip && flip.grid === g && !kids.some((k) => k.id === flip.id) ? flip : null;   // the deleted tile is gone now
-  if (fl) flip = null;
+  const fl = flip && flip.ready ? flip : null;           // a deletion / move has just been applied
   if (!kids.length) g.replaceChildren(el('p', 'empty', emptyText));
   else g.replaceChildren(...kids.map(tileEl));
 
   kbApply();
-  if (fl) playFlip(g, fl.rects);
+  if (fl && playFlip(g, fl.rects)) {                      // the same refresh may fill several grids, so close the window a bit later
+    clearTimeout(flipTimer); flipTimer = setTimeout(() => { if (flip === fl) flip = null; }, 150);
+  }
 }
 
-/* ---------- smooth shift of the remaining tiles after a deletion (FLIP) ---------- */
+/* ---------- smooth shift of the tiles after a deletion or a move (FLIP) ---------- */
+// flipBegin() right before the bookmark tree changes, flipReady() right after; the next render then slides every
+// tile that survived from its old place to the new one.
 let flip = null, flipTimer;
-function snapshotTiles(grid, exceptId) {
+function flipBegin() {
+  if (!S.get().animReflow || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const rects = new Map();
-  grid.querySelectorAll('.tile').forEach((t) => {
-    if (t.dataset.id !== exceptId) { const r = t.getBoundingClientRect(); rects.set(t.dataset.id, { x: r.left, y: r.top }); }
+  document.querySelectorAll('.tile').forEach((t) => {
+    const r = t.getBoundingClientRect();
+    if (r.width) rects.set(t.dataset.id, { x: r.left, y: r.top });
   });
-  return rects;
+  flip = { rects, ready: false };
+  clearTimeout(flipTimer); flipTimer = setTimeout(() => { flip = null; }, 2500);
 }
+const flipReady = () => { if (flip) flip.ready = true; };
 function playFlip(grid, rects) {
+  let n = 0;
   grid.querySelectorAll('.tile').forEach((t) => {
     const from = rects.get(t.dataset.id);
     if (!from) return;
     const r = t.getBoundingClientRect(), dx = from.x - r.left, dy = from.y - r.top;
     if (!dx && !dy) return;
+    n++;
     t.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }],
       { duration: 520, easing: 'cubic-bezier(.65,0,.35,1)' });
   });
+  return n;
 }
 const renderGrid = () => {
   const g = activeGroup();
@@ -300,6 +310,9 @@ async function applyDrop() {
   const d = byId.get(id), t = byId.get(st.targetId);
   if (!d || !t) return;
   if (st.mode === 'into' && !t.url && isInside(t.id, d.id)) return;   // never move a folder into itself
+  const ins = t.index + (st.mode === 'after' ? 1 : 0);
+  if (st.mode !== 'into' && d.parentId === t.parentId && (ins === d.index || ins === d.index + 1)) return;   // nothing changes
+  flipBegin();
   if (st.mode === 'into') {
     if (!t.url) await M.move(d.id, t.id);
     else {
@@ -308,10 +321,9 @@ async function applyDrop() {
       await M.move(d.id, f.id);
     }
   } else {
-    const ins = t.index + (st.mode === 'after' ? 1 : 0);
-    if (d.parentId === t.parentId && (ins === d.index || ins === d.index + 1)) return;
     await M.move(d.id, t.parentId, ins);
   }
+  flipReady();
   scheduleRefresh();
 }
 document.addEventListener('dragend', cleanDrag);
@@ -320,12 +332,9 @@ async function deleteNode(n) {
   if (!n.url && n.children?.length && !confirm(`Delete folder "${n.title}" with ${n.children.length} item(s)?`)) return;
   const tile = document.querySelector(`.tile[data-id="${n.id}"]`);
   if (tile && S.get().animDelete) await playDelete(S.get().deleteAnim, tile);   // the effect chosen in Settings > Animation
-  if (tile && S.get().animReflow && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    const grid = tile.parentElement;                     // remember where the other tiles are, they slide there after the re-render
-    flip = { grid, id: n.id, rects: snapshotTiles(grid, n.id) };
-    clearTimeout(flipTimer); flipTimer = setTimeout(() => { flip = null; }, 2000);
-  }
+  if (tile) flipBegin();                                 // remember where the tiles are, the others slide after the re-render
   await M.remove(n);
+  flipReady();
   scheduleRefresh();
 }
 
@@ -452,7 +461,7 @@ layer.addEventListener('drop', async (e) => {
   e.preventDefault();
   const id = dragId; cleanDrag();
   const g = activeGroup();
-  if (g) await M.move(id, g.id);
+  if (g) { flipBegin(); await M.move(id, g.id); flipReady(); }
   scheduleRefresh();
 });
 
