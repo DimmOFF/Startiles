@@ -26,7 +26,7 @@ const MAXCOLS = [...[1, 2, 3, 4, 5, 6, 7, 8, 10, 12].map((n) => [String(n), Stri
 const rng = (label, min, max, unit = 'px', step = 1) => ({ type: 'range', label, min, max, step, unit });
 const sw = (label) => ({ type: 'switch', label });
 const DEF = {
-  bgType: { type: 'select', label: 'Page Background', options: [['color', 'Color'], ['url', 'URL'], ['image', 'Image']] },
+  bgType: { type: 'select', label: 'Page background', options: [['color', 'Color'], ['url', 'URL'], ['image', 'Image']] },
   bgImage: { type: 'bgimage' },
   tileWidth: rng('Tile Size', 120, 420, 'px', 2),
   tileRadius: rng('Tile Corner Size', 0, 32, 'px'),
@@ -222,7 +222,7 @@ function build(key) {
 function section(title, keys) {
   const s = el('section');
   s.append(el('h4', null, title));
-  keys.forEach((k) => s.append(build(k)));
+  keys.forEach((k) => s.append(typeof k === 'string' ? build(k) : k));   // a key of a row, or a ready-made row element
   return s;
 }
 
@@ -279,20 +279,28 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
     [section('Icons & Previews', ['hiResIcons', 'iconAutoRefresh', 'iconRefreshEvery', 'refreshIcons'])],
   ));
 
+  // Layout: left column = the page from top to bottom (each element with its own switch, position and size),
+  // right column = how a tile looks, then the windows and the settings icon.
   const layout = grid(
-    [section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize', 'tileRadius', 'gapX', 'gapY']),
+    [section('Groups Bar', ['groupsTop', 'groupsMaxPx', 'groupsMaxPct']),
+     section('Search Field', ['showSearch', 'searchTop']),
+     section('Speed Dial Grid', ['gridTop', 'maxColumns', 'gapX', 'gapY']),
+     section('+ Shortcut Button', ['showAdd', 'addAnchor', 'addOffset'])],
+    [section('Tiles', ['tileWidth', 'ratio', 'tileRadius', 'iconSize', 'showTitles', 'showLongTitle', 'showDelete']),
      section('Folder Window', ['folderSize']),
      section('Settings Icon', ['gearAutoHide', 'gearRadius', 'gearAnchor', 'gearSize', 'gearOffset'])],
-    [section('Groups Bar', ['groupsMaxPx', 'groupsMaxPct', 'groupsTop']),
-     section('Layout Offsets', ['searchTop', 'gridTop', 'addAnchor', 'addOffset']),
-     section('Show / Hide', ['showAdd', 'showSearch', 'showTitles', 'showDelete', 'showLongTitle'])],
   );
+  // Theme: the choice of theme with its actions on top, then the colours grouped by what they paint.
+  const ed = ThemeUI.editor((f) => extraRefresh.push(f), refreshAll);
   const themeSec = el('section');
-  themeSec.append(el('h4', null, 'Theme'),
-    ThemeUI.picker((f) => extraRefresh.push(f), refreshAll),
-    ThemeUI.editor((f) => extraRefresh.push(f), refreshAll));
+  themeSec.append(ThemeUI.picker((f) => extraRefresh.push(f), refreshAll), ed.head);
   const theme = el('div');
-  theme.append(themeSec, section('Background', ['bgType', 'bgUrl', 'bgImage']));
+  theme.append(themeSec, grid(
+    [section('Page', ['bgType', 'bgUrl', 'bgImage', ed.rows.pageBg, ed.rows.folderBg]),
+     section('Tiles', [ed.rows.thumbBg, ed.rows.label])],
+    [section('Text & Accent', [ed.rows.text, ed.rows.muted, ed.rows.icon, ed.rows.accent]),
+     section('Panels & Controls', [ed.rows.surface, ed.rows.field])],
+  ));
   const subNav = el('div', 'subtabs'), subPanes = [['layout', 'Layout', layout], ['theme', 'Theme', theme]];
   const appearance = pane(subNav, ...subPanes.map(([, , p]) => p));
   appearance.querySelectorAll(':scope > div:not(.subtabs)').forEach((p) => { p.hidden = true; p.style.marginTop = '4px'; });

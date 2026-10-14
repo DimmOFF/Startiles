@@ -1,4 +1,5 @@
-// Theme picker (also used in Quick Settings) and the custom theme editor (Advanced Settings > Appearance > Theme).
+// Theme picker (also used in Quick Settings) and the custom theme editor (Advanced Settings > Appearance > Theme):
+// editor() returns { head: name + actions, rows: one colour row per key } and settings-ui.js places them.
 import * as S from './settings.js';
 import { el } from './util.js';
 import { COLOR_KEYS, PRESETS, resolve, newId } from './themes.js';
@@ -29,15 +30,15 @@ export function picker(reg, refreshAll) {
 }
 
 export function editor(reg, refreshAll) {
-  const box = el('div', 'theme-editor');
+  const head = el('div', 'theme-editor');
   const note = el('p', 'note', 'Built-in themes cannot be edited. Create a custom theme to change the colors.');
   const nameRow = el('label', 'row', '<span>Theme name</span>');
   const name = el('input', 'theme-name'); name.type = 'text'; name.maxLength = 40;
   nameRow.append(name);
-  const grid = el('div', 'theme-colors'), inputs = {};
+  const rows = {}, inputs = {};                              // one row (label + colour) per colour key; the page arranges them
   let follow = null;
   COLOR_KEYS.forEach(([k, label]) => {
-    const r = el('label', 'row'), sp = el('span'), i = el('input'), w = el('span', 'cwrap');
+    const r = el('label', 'row crow'), sp = el('span'), i = el('input'), w = el('span', 'cwrap');
     sp.textContent = label; i.type = 'color'; inputs[k] = i;
     i.oninput = () => { const t = current(); if (t) { update(t.id, { colors: { ...t.colors, [k]: i.value } }); refresh(); } };
     if (k === 'folderBg') {                                  // by default the folder window uses the page background
@@ -52,7 +53,7 @@ export function editor(reg, refreshAll) {
       };
       w.append(follow);
     }
-    w.append(i); r.append(sp, w); grid.append(r);
+    w.append(i); r.append(sp, w); rows[k] = r;
   });
   const btns = el('div', 'theme-btns');
   const mk = (txt, fn) => { const b = el('button', 'pill sm', txt); b.type = 'button'; b.onclick = fn; return b; };
@@ -90,6 +91,6 @@ export function editor(reg, refreshAll) {
   };
   reg(refresh);
   refresh();
-  box.append(note, nameRow, grid, btns);
-  return box;
+  head.append(note, nameRow, btns);                          // the name and the actions sit right under the theme choice
+  return { head, rows };
 }

@@ -26,7 +26,7 @@ bookmarks.
   - *Image URL* or *Local file* (Fit: Fill / Fit inside / Icon size - the image is shown at the same size as site icons, following the Icon Size setting). The Fit you used last is preselected next time.
 - **Long titles**: a caption with the full title appears when a title does not fit into the tile (can be switched off).
 - **Tile deletion** plays an animation of your choice (Settings > Animation: Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof; default Disintegrate) with a live preview.
-- **Themes**: Auto (follows the browser's light / dark mode), Light, Dark, Midnight (deep navy, cyan accent), Sand (warm paper, terracotta accent) and your own custom themes (Settings > Appearance > Theme). A theme also has a folder window background that follows the page background by default.
+- **Themes**: Auto (follows the browser's light / dark mode), Light, Dark, Midnight (deep navy, cyan accent), Sand (warm paper, terracotta accent) and your own custom themes (Settings > Appearance > Theme; the colours are grouped as Page, Tiles, Text & Accent, Panels & Controls). A theme also has a folder window colour that follows the page colour by default.
 - **Tile shift**: after a deletion or after moving a tile (drag & drop) the other tiles slide smoothly into their new places.
 
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
@@ -61,13 +61,14 @@ tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** b
 |---|---|
 | Dial Source | Speed Dial / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
-| Groups Bar | Max width in px and in % of the window |
-| Speed Dials | Tile size, W:H ratio (1–1.7), max columns, icon size in %, tile corner size, gaps, tile background colour |
 | Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
-| Folder Window | Size in % of the page, animation duration |
+| Groups Bar | Top offset; max width in px and in % of the window |
+| Search Field | Show / hide; top offset |
+| Speed Dial Grid | Top offset, max columns, horizontal and vertical gaps |
+| + Shortcut Button | Show / hide; anchor (bottom of page / below tiles); offset |
+| Tiles | Tile size, W:H ratio (1-1.7), tile corner size, icon size in %, tile titles, long-title caption, delete button |
+| Folder Window | Size in % of the page |
 | Settings Icon | **Auto hide** (hide the icon until the mouse comes within the **Appearance distance**, default 150 px), anchor (top / bottom), size (default 50, min 32), one offset (default 12; the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
-| Show / Hide | + Shortcut button, search field, tile titles, delete button, long-title caption |
-| Layout Offsets | Groups bar, search and tiles top offsets; + Shortcut anchor (bottom of page / below tiles) and offset |
 | Behavior > Animation | Disable all animations, or switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |
 
 The footer has **Export**, **Import**, **Reset to Default** and **Donate**.

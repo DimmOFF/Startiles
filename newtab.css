@@ -322,16 +322,14 @@ body.no-anim *,body.no-anim *::before,body.no-anim *::after{transition:none!impo
 .dim{opacity:.45;pointer-events:none}
 
 /* ---- Theme editor ---- */
-.theme-colors{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
-.theme-colors .row input[type=color]{border:1px solid var(--border);border-radius:6px;cursor:pointer}
-.theme-colors .row input[type=color]:disabled{opacity:.6;cursor:default}
+.crow input[type=color]{border:1px solid var(--border);border-radius:6px;cursor:pointer}
+.crow input[type=color]:disabled{opacity:.6;cursor:default}
 /* the browser draws its own frame around the swatch inside the input: with our border that was a double frame */
-.theme-colors input[type=color]::-webkit-color-swatch-wrapper{padding:0}
-.theme-colors input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}
-.theme-colors input[type=color]::-moz-color-swatch{border:0;border-radius:5px}
+.crow input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.crow input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}
+.crow input[type=color]::-moz-color-swatch{border:0;border-radius:5px}
 .theme-btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
 .row input.theme-name[type=text]{width:170px}
-@media (max-width:760px){.theme-colors{grid-template-columns:1fr}}
 
 .advbody{flex:1;min-height:0;display:flex;flex-direction:column}
 .row select.theme-sel{width:210px;max-width:210px}

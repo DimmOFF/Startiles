@@ -2,8 +2,8 @@
 //   settings.theme        : 'auto' | 'light' | 'dark' | <id of a custom theme>
 //   settings.customThemes : [{ id, name, colors }]
 export const COLOR_KEYS = [
-  ['pageBg', 'Page background'],
-  ['folderBg', 'Folder background'],
+  ['pageBg', 'Page color'],
+  ['folderBg', 'Folder window'],
   ['text', 'Text'],
   ['muted', 'Secondary text'],
   ['icon', 'Icon color'],
