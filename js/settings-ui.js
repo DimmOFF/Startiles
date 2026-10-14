@@ -39,6 +39,7 @@ const DEF = {
   hiResIcons: sw('Try to fetch hi-res icons & previews'),
   iconAutoRefresh: { ...sw('Auto-refresh icons & previews'), after: () => refreshAll() },
   iconRefreshEvery: { type: 'select', label: 'Refresh once a', options: [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['year', 'Year']] },
+  showBmGroup: { ...sw('Show default "Bookmarks" group'), after: () => hooks.onGroups?.() },
   showAdd: sw('Show Add Button'),
   showSearch: sw('Show Search Field'),
   showTitles: sw('Speed Dial Title'),
@@ -247,8 +248,8 @@ export function setStorageText(t) { document.querySelectorAll('.storage-note').f
 
 export const syncControls = () => refreshAll();
 
-export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }) {
-  hooks = { onEngine, onRefreshIcons, onSource, onPickRoot };
+export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, onGroups }) {
+  hooks = { onEngine, onRefreshIcons, onSource, onPickRoot, onGroups };
   engineMap = engines;
   const quick = $('#quick-body'), adv = $('#adv-body');
 
@@ -272,7 +273,10 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   pickRow.append(pickBtn);
   extraRefresh.push(() => { pickRow.hidden = S.get().source !== 'bookmarks'; });
   pickRow.hidden = S.get().source !== 'bookmarks';
-  dialSource.append(el('h4', null, 'Mode'), build('source'), pickRow, el('p', 'note storage-note'));
+  const bmGroupRow = build('showBmGroup');                      // only meaningful in the Bookmarks mode
+  extraRefresh.push(() => { bmGroupRow.hidden = S.get().source !== 'bookmarks'; });
+  bmGroupRow.hidden = S.get().source !== 'bookmarks';
+  dialSource.append(el('h4', null, 'Mode'), build('source'), pickRow, bmGroupRow, el('p', 'note storage-note'));
 
   const general = pane(grid(
     [dialSource, section('Search', ['engine', 'searchSuggest'])],

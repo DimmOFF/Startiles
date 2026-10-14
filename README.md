@@ -60,7 +60,7 @@ tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** b
 
 | Category | Options |
 |---|---|
-| Mode | Speed Dials / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder. Switching to Bookmarks also sets the search engine to *Bookmarks* (it can be changed back at any time) |
+| Mode | Speed Dials / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder. **Show default "Bookmarks" group** (Bookmarks mode); Switching to Bookmarks also sets the search engine to *Bookmarks* (it can be changed back at any time) |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
 | Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
 | Groups Bar | Top offset; max width in px and in % of the window |
@@ -88,6 +88,9 @@ touched; when *Speed Dials* is ticked the window shows the path of the folder th
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is
   inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
 - Structure: `<root folder>` → `<group>` → link or `<folder>` → (links, nested folders…).
+- In the **Bookmarks** mode the links that lie directly in the chosen root folder are shown in a default group **Bookmarks**, always the first one
+  in the group bar. It shows only these links (no folders); a folder created or dropped there becomes a new group. Its context menu has only **Hide** (no Rename / Delete) and it cannot be dragged;
+  it comes back with **Show default "Bookmarks" group** in Advanced Settings → Mode.
 - Custom tile preview images you upload are scaled down so that their shorter side is at most 420 px (smaller ones are kept as they are).
 - Settings, thumbnail choices (keyed by the tile URL), custom images, background image, page screenshots and the icon cache
   (incl. the time each bookmark's icon was last checked) are kept in `chrome.storage.local` of the extension.

@@ -47,14 +47,25 @@ async function refresh() {
     }
   }
 }
-function activeGroup() {
+// Bookmarks mode: links lying directly in the chosen root folder have no group of their own, so they get a virtual
+// first group "Bookmarks". Its id is the id of the root folder itself, so adding / moving / reordering tiles in it works
+// on the real bookmarks without any special case. Folders of the root are the other groups and are not shown in it;
+// a folder created or dropped here lands in the root, i.e. it becomes a new group.
+const BM_GROUP_TITLE = 'Bookmarks';
+const bmGroupOn = () => M.mode === 'bookmarks' && S.get().showBmGroup !== false;
+function groupList() {
   const gs = root.children.filter((c) => !c.url);
+  if (bmGroupOn()) gs.unshift({ id: root.id, title: BM_GROUP_TITLE, virtual: true, parentId: root.parentId, children: root.children.filter((c) => c.url) });
+  return gs;
+}
+function activeGroup() {
+  const gs = groupList();
   return gs.find((g) => g.id === S.get().activeGroup) || gs[0];
 }
 
 /* ---------- groups ---------- */
 function renderGroups() {
-  const gs = root.children.filter((c) => !c.url), act = activeGroup();
+  const gs = groupList(), act = activeGroup();
   const hadFocus = nav.contains(document.activeElement);       // keep the keyboard focus across the re-render
   const focusKey = hadFocus ? (document.activeElement.dataset.id || (document.activeElement.classList.contains('add-group') ? 'add' : '')) : '';
   nav.replaceChildren();
@@ -64,12 +75,14 @@ function renderGroups() {
     b.tabIndex = g.id === act?.id ? 0 : -1;                    // roving tabindex: Tab visits only the active group
     b.textContent = g.title;
     b.onclick = () => { clearBmFilter(); switchGroup(g); };
-    b.ondblclick = () => renameGroup(g);
+    if (!g.virtual) b.ondblclick = () => renameGroup(g);
     b.oncontextmenu = (e) => {
       e.preventDefault();
-      showCtx(e.clientX, e.clientY, [['Rename', () => renameGroup(g)], ['Delete', () => deleteGroup(g)]]);
+      showCtx(e.clientX, e.clientY, g.virtual
+        ? [['Hide', hideBmGroup]]                          // the default group cannot be renamed or deleted, only hidden
+        : [['Rename', () => renameGroup(g)], ['Delete', () => deleteGroup(g)]]);
     };
-    b.draggable = true;                                   // groups can be re-ordered by dragging
+    b.draggable = !g.virtual;                             // groups can be re-ordered by dragging (the default group stays first)
     b.ondragstart = (e) => {
       groupDragId = g.id;
       e.dataTransfer.effectAllowed = 'move';
@@ -77,10 +90,12 @@ function renderGroups() {
       requestAnimationFrame(() => b.classList.add('gdrag'));
     };
     b.ondragover = (e) => {
-      if (dragId) { e.preventDefault(); b.classList.add('drop'); return; }
+      if (dragId) {
+        e.preventDefault(); b.classList.add('drop'); return;
+      }
       if (!groupDragId || groupDragId === g.id) return;
       e.preventDefault();
-      const r = b.getBoundingClientRect(), after = e.clientX > r.left + r.width / 2;
+      const r = b.getBoundingClientRect(), after = g.virtual || e.clientX > r.left + r.width / 2;   // nothing can go before the default group
       nav.querySelectorAll('.gdrop-before,.gdrop-after').forEach((x) => x.classList.remove('gdrop-before', 'gdrop-after'));
       b.classList.add(after ? 'gdrop-after' : 'gdrop-before');
     };
@@ -92,7 +107,9 @@ function renderGroups() {
         cleanDrag();
         const d = byId.get(id);
         if (d && d.id !== g.id) {
-          const ins = g.index + (after ? 1 : 0);
+          const first = g.virtual ? root.children.find((c) => !c.url) : null;   // dropped on the default group = become the first real group
+          if (g.virtual && !first) return;
+          const ins = g.virtual ? first.index : g.index + (after ? 1 : 0);
           if (!(ins === d.index || ins === d.index + 1)) { await M.move(d.id, M.rootId, ins); scheduleRefresh(); }
         }
         return;
@@ -122,7 +139,7 @@ function renderGroups() {
 // swipe all tiles away / in: towards the left when the target group is to the right, and vice versa
 let switchTok = 0;
 async function switchGroup(g) {
-  const gs = root.children.filter((c) => !c.url), cur = activeGroup();
+  const gs = groupList(), cur = activeGroup();
   if (!cur || g.id === cur.id) return;
   const dir = gs.indexOf(g) > gs.indexOf(cur) ? 1 : -1;      // +1: the new group is on the right
   const tok = ++switchTok;
@@ -144,6 +161,13 @@ async function switchGroup(g) {
 async function renameGroup(g) {
   const name = await promptText('Rename group', g.title);
   if (name) { await M.update(g.id, { title: name }); scheduleRefresh(); }
+}
+async function hideBmGroup() {
+  await S.set({ showBmGroup: false });                        // it comes back with the check box in Advanced Settings > Mode
+  SettingsUI.syncControls();
+  clearBmFilter();
+  renderGroups();
+  renderGrid();
 }
 async function deleteGroup(g) {
   if (root.children.filter((c) => !c.url).length <= 1) return alert('At least one group is required.');
@@ -934,6 +958,7 @@ function bindSettingsUI() {
     onRefreshIcons: async () => { await Icons.clear(); T.bump(); scheduleRefresh(); },
     onSource: changeSource,
     onPickRoot: pickRoot,
+    onGroups: () => { renderGroups(); renderGrid(); },
   });
 }
 
@@ -1081,7 +1106,7 @@ nav.addEventListener('keydown', (e) => {
   if (j === i) return;
   const b = btns[j];
   b.focus();
-  const g = byId.get(b.dataset.id);
+  const g = groupList().find((x) => x.id === b.dataset.id);
   if (g) switchGroup(g);
 });
 
