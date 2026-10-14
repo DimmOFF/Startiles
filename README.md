@@ -119,7 +119,16 @@ the tiles' own sites for icons and previews (switch **Try to fetch hi-res icons 
 `newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage ·
 `js/settings*.js` – settings and their UI · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search ·
 `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker ·
-`js/backup.js` – export / import · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
+`js/backup.js` – export / import · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect · `docs/` – the project site (GitHub Pages): donation page and privacy policy.
+
+## Support
+
+Startiles is free and open source. If it is useful to you, you can support its development: **<https://dimmoff.github.io/Startiles/donate/>**
+(card and cryptocurrency). Starring the repository, reporting bugs and sharing the extension help just as much.
+
+## Privacy
+
+The developer collects no data; everything stays in your browser. Details: <https://dimmoff.github.io/Startiles/privacy/>
 
 ## License
 MIT, see `LICENSE`.
