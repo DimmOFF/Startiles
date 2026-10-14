@@ -383,3 +383,40 @@ dialog.small{width:min(460px,92vw)}
 
 /* while the settings icon anchor changes, the closed Quick Settings panel jumps to its new hidden place without animating */
 body.gear-switch .panel{transition:none!important}
+
+/* first run: Speed Dials or Bookmarks? */
+#mode-dlg{width:min(760px,94vw)}
+#mode-form{gap:16px;padding:24px 26px 22px}
+.mode-head h3{font-size:21px}
+.mode-head .note{margin:6px 0 0;font-size:13px}
+.mode-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.mode-card{position:relative;display:flex;flex-direction:column;gap:7px;padding:10px 10px 14px;background:var(--field);border:2px solid var(--line);border-radius:16px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.mode-card:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.mode-card:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.mode-card:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
+.mode-card input{position:absolute;opacity:0;pointer-events:none}
+.mode-card b{font-size:16px;padding:5px 5px 0}
+.mode-card small{padding:0 5px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.mode-card .tick{position:absolute;z-index:1;top:18px;left:18px;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:var(--field);transition:background .15s,border-color .15s}
+.mode-card .tick::after{content:'';position:absolute;left:5px;top:1.5px;width:5px;height:9px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) scale(0);transition:transform .15s}
+.mode-card:has(input:checked) .tick{background:var(--accent);border-color:var(--accent)}
+.mode-card:has(input:checked) .tick::after{transform:rotate(45deg) scale(1)}
+.mode-art{display:block;width:100%;height:auto;border-radius:10px}
+.mode-art .a-page{fill:var(--page-bg)}
+.mode-art .a-tab{fill:var(--hover)}.mode-art .a-tab.on{fill:var(--accent)}
+.mode-art .a-bar{fill:var(--glass);stroke:var(--line);stroke-width:1}
+.mode-art .a-thumb{fill:var(--thumb-bg)}.mode-art .a-cap{fill:var(--label)}
+.mode-art .a-line{fill:var(--muted);opacity:.55}
+.mode-art .a-badge-bg{fill:var(--accent);stroke:var(--surface);stroke-width:3}
+.mode-art .a-gauge{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round}.mode-art .a-gauge.thin{stroke-width:2}
+.mode-art .a-needle{stroke:#fff;stroke-width:3;stroke-linecap:round}
+.mode-art .needle{transform:rotate(-80deg);transform-origin:212px 133px;transition:transform .7s cubic-bezier(.3,1.5,.5,1)}
+.mode-card:hover .needle,.mode-card:has(input:checked) .needle{transform:none}
+.mode-art .a-tile{transition:transform .25s}
+.mode-card:hover .a-tile{transform:translateY(-2px)}
+.mode-root{display:flex;align-items:center;gap:12px;margin:0;padding:10px 12px;border:1px dashed var(--border);border-radius:12px}
+.mode-root .note{margin:0;flex:1;word-break:break-word}
+.mode-root .note.set{color:var(--fg)}
+#mode-form .btns button{padding:9px 26px}
+#mode-form .btns button:disabled{opacity:.5;cursor:default}
+@media (max-width:640px){.mode-cols{grid-template-columns:1fr}.mode-art{max-height:150px}#mode-form{padding:18px}}

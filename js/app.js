@@ -990,7 +990,7 @@ document.addEventListener('keydown', (e) => {
   if (e.defaultPrevented || e.altKey || !root) return;
   const tg = e.target;
   if (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
-  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || $('#mode-dlg').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
   if (KB_MOVE.has(e.key) && !e.ctrlKey && !e.metaKey) {
     if (kbMove(e.key)) {
       e.preventDefault();
@@ -1029,7 +1029,7 @@ function zones() {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Tab' || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
-  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || closing || navBusy || !root) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || $('#mode-dlg').open || closing || navBusy || !root) return;
   const act = document.activeElement, list = zones();
   const cur = list.findIndex((z) => z.has(act));
   if (cur < 0 && act && act !== document.body && act !== document.documentElement) return;   // focus is in the settings panel / Advanced window: native Tab
@@ -1098,7 +1098,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Dial Source = Bookmarks: let the user choose which bookmarks folder is the root
+// Mode = Bookmarks: let the user choose which bookmarks folder is the root
 async function pickRoot() {
   const id = await pickFolder({ currentId: S.get().bookmarksRootId });
   if (!id) return false;
@@ -1117,18 +1117,60 @@ window.addEventListener('mouseup', (e) => {
   if (navStack.length) goBack(); else closeFolder(true);
 }, true);
 
-// switching Speed Dial <-> Bookmarks
+// Bookmarks mode: the search field searches the bookmarks. It is only a default - the engine can be changed back afterwards.
+async function useBookmarksEngine() {
+  if (S.get().engine === 'bookmarks') return;
+  await S.set({ engine: 'bookmarks' });
+  updateSearch();
+  SettingsUI.syncControls();
+}
+// switching Speed Dials <-> Bookmarks
 async function changeSource() {
   if (S.get().source === 'bookmarks') {
     const had = await M.isFolder(S.get().bookmarksRootId);
     const ok = await pickRoot();
-    if (ok) return;
-    if (!had) {                                  // cancelled and nothing chosen before: stay on Speed Dial
+    if (ok) { await useBookmarksEngine(); return; }
+    if (!had) {                                  // cancelled and nothing chosen before: stay on Speed Dials
       await S.set({ source: 'speeddial' });
       SettingsUI.syncControls();
-    }
+    } else await useBookmarksEngine();
   }
   await reinit();
+}
+
+/* ---------- first run: Speed Dials or Bookmarks? ---------- */
+// Asked on the first start and again after Reset to Default > Settings. Nothing is created in the bookmarks before the answer.
+function chooseMode() {
+  const d = $('#mode-dlg'), form = $('#mode-form'), rootRow = $('#mode-root'), path = $('#mode-path'), ok = $('#mode-ok');
+  let folderId = null, answered = false;
+  const mode = () => form.querySelector('input[name=mode]:checked').value;
+  const sync = () => {
+    rootRow.hidden = mode() !== 'bookmarks';
+    ok.disabled = mode() === 'bookmarks' && !folderId;      // Bookmarks mode needs a root folder
+  };
+  form.addEventListener('change', sync);
+  $('#mode-pick').onclick = async () => {
+    const id = await pickFolder({ currentId: folderId });
+    if (!id) return;
+    folderId = id;
+    path.textContent = await M.bookmarksPath({ bookmarksRootId: id });
+    path.classList.add('set');
+    sync();
+  };
+  d.addEventListener('cancel', (e) => e.preventDefault());   // Esc does not close it: an answer is required
+  d.addEventListener('close', () => { if (!answered) d.showModal(); });   // (the browser may close it anyway: open it again)
+  sync();
+  return new Promise((resolve) => {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const bm = mode() === 'bookmarks';
+      answered = true;
+      await S.set({ source: bm ? 'bookmarks' : 'speeddial', modeChosen: true, ...(bm ? { bookmarksRootId: folderId, engine: 'bookmarks' } : {}) });
+      d.close();
+      resolve();
+    };
+    d.showModal();
+  });
 }
 async function reinit() {
   if (openId) hideFolderNow();
@@ -1165,6 +1207,7 @@ document.addEventListener('scroll', hideTip, true);
   bindSettingsUI();
   updateSearch();
   bindGrid(gridEl, false);
+  if (!S.get().modeChosen) { await chooseMode(); updateSearch(); SettingsUI.syncControls(); }
   await M.ensureRoot(S.get());
   await refresh();
   updateStorageUI();

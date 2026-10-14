@@ -58,7 +58,7 @@
       <h3>Reset to Default</h3>
       <p class="note">Choose what to reset:</p>
       <label class="rchk"><input type="checkbox" data-k="settings"><b>Settings</b>
-        <small>All options (sizes, layout, animations, search engine, background image…) except themes.</small></label>
+        <small>All options (sizes, layout, animations, search engine, background image…) except themes. You will be asked to choose Speed Dials or Bookmarks mode again.</small></label>
       <label class="rchk"><input type="checkbox" data-k="themes"><b>Themes</b>
         <small>Your custom themes are deleted and the theme is set to Auto.</small></label>
       <label class="rchk"><input type="checkbox" data-k="dials"><b>Speed Dials</b>
@@ -71,6 +71,51 @@
       <div class="btns"><span class="sp"></span>
         <button type="button" id="reset-cancel">Cancel</button>
         <button type="submit" id="reset-ok" class="primary danger-ok" disabled>Confirm</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="mode-dlg">
+    <form id="mode-form" class="dform">
+      <div class="mode-head">
+        <h3>Welcome to Startiles</h3>
+        <p class="note">How should your tiles be stored? You can change this later in Settings → Mode.</p>
+      </div>
+      <div class="mode-cols">
+        <label class="mode-card">
+          <input type="radio" name="mode" value="speeddial" checked><span class="tick"></span>
+          <svg class="mode-art" viewBox="0 0 240 150" aria-hidden="true">
+          <rect width="240" height="150" rx="10" class="a-page"/>
+          <rect x="72" y="12" width="28" height="8" rx="4" class="a-tab on"/><rect x="104" y="12" width="28" height="8" rx="4" class="a-tab"/><rect x="136" y="12" width="28" height="8" rx="4" class="a-tab"/>
+          <rect x="52" y="28" width="136" height="12" rx="6" class="a-bar"/>
+          <g class="a-tile"><rect x="31" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="31" y="50" width="40" height="27" rx="5" class="a-thumb"/><circle cx="51" cy="63.5" r="7.5" fill="#4285f4"/><rect x="40" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="77" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="77" y="50" width="40" height="27" rx="5" class="a-thumb"/><circle cx="97" cy="63.5" r="7.5" fill="#ea4335"/><rect x="86" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="123" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="123" y="50" width="40" height="27" rx="5" class="a-thumb"/><circle cx="143" cy="63.5" r="7.5" fill="#fbbc05"/><rect x="132" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="169" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="169" y="50" width="40" height="27" rx="5" class="a-thumb"/><circle cx="189" cy="63.5" r="7.5" fill="#34a853"/><rect x="178" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="31" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="31" y="92" width="40" height="27" rx="5" class="a-thumb"/><circle cx="51" cy="105.5" r="7.5" fill="#a855f7"/><rect x="40" y="122" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="77" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="77" y="92" width="40" height="27" rx="5" class="a-thumb"/><circle cx="97" cy="105.5" r="7.5" fill="#f97316"/><rect x="86" y="122" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="123" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="123" y="92" width="40" height="27" rx="5" class="a-thumb"/><circle cx="143" cy="105.5" r="7.5" fill="#14b8a6"/><rect x="132" y="122" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="169" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="169" y="92" width="40" height="27" rx="5" class="a-thumb"/><circle cx="189" cy="105.5" r="7.5" fill="#ec4899"/><rect x="178" y="122" width="22" height="3" rx="1.5" class="a-line"/></g>
+          <g class="a-badge"><circle cx="212" cy="126" r="22" class="a-badge-bg"/>
+            <path d="M196 133a16 16 0 0 1 32 0" class="a-gauge"/>
+            <path d="M198.5 124.5l2.5 2.5M212 116v4M225.5 124.5L223 127" class="a-gauge thin"/>
+            <line x1="212" y1="133" x2="221" y2="122" class="a-needle needle"/><circle cx="212" cy="133" r="3" fill="#fff"/></g>
+        </svg>
+          <b>Speed Dials</b>
+          <small>Your tiles live in their own folder, “Startiles Speed Dial”, inside your bookmarks. Your existing bookmarks are never touched.</small>
+        </label>
+        <label class="mode-card">
+          <input type="radio" name="mode" value="bookmarks"><span class="tick"></span>
+          <svg class="mode-art" viewBox="0 0 240 150" aria-hidden="true">
+          <rect width="240" height="150" rx="10" class="a-page"/>
+          <rect x="72" y="12" width="28" height="8" rx="4" class="a-tab on"/><rect x="104" y="12" width="28" height="8" rx="4" class="a-tab"/><rect x="136" y="12" width="28" height="8" rx="4" class="a-tab"/>
+          <rect x="52" y="28" width="136" height="12" rx="6" class="a-bar"/>
+          <g class="a-tile"><rect x="31" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="31" y="50" width="40" height="27" rx="5" class="a-thumb"/><path d="M44.5 57.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#4285f4"/><rect x="40" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="77" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="77" y="50" width="40" height="27" rx="5" class="a-thumb"/><path d="M90.5 57.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#ea4335"/><rect x="86" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="123" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="123" y="50" width="40" height="27" rx="5" class="a-thumb"/><path d="M136.5 57.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#fbbc05"/><rect x="132" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="169" y="50" width="40" height="36" rx="5" class="a-cap"/><rect x="169" y="50" width="40" height="27" rx="5" class="a-thumb"/><path d="M182.5 57.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#34a853"/><rect x="178" y="80" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="31" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="31" y="92" width="40" height="27" rx="5" class="a-thumb"/><path d="M44.5 99.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#a855f7"/><rect x="40" y="122" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="77" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="77" y="92" width="40" height="27" rx="5" class="a-thumb"/><path d="M90.5 99.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#f97316"/><rect x="86" y="122" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="123" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="123" y="92" width="40" height="27" rx="5" class="a-thumb"/><path d="M136.5 99.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#14b8a6"/><rect x="132" y="122" width="22" height="3" rx="1.5" class="a-line"/></g><g class="a-tile"><rect x="169" y="92" width="40" height="36" rx="5" class="a-cap"/><rect x="169" y="92" width="40" height="27" rx="5" class="a-thumb"/><path d="M182.5 99.0a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-6.5-4.5-6.5 4.5z" fill="#ec4899"/><rect x="178" y="122" width="22" height="3" rx="1.5" class="a-line"/></g>
+          <g class="a-badge"><circle cx="212" cy="126" r="22" class="a-badge-bg"/>
+            <path d="M203 114h18a2 2 0 0 1 2 2v20l-11-7-11 7v-20a2 2 0 0 1 2-2z" fill="#fff"/></g>
+        </svg>
+          <b>Bookmarks</b>
+          <small>Your own bookmarks folder becomes the start page: its sub-folders are the groups, the bookmarks in them the tiles. Changes you make here change your real bookmarks. The search field searches them.</small>
+        </label>
+      </div>
+      <div id="mode-root" class="mode-root" hidden>
+        <span id="mode-path" class="note">Choose the root folder of your bookmarks.</span>
+        <button type="button" id="mode-pick" class="pill sm">Choose folder…</button>
+      </div>
+      <div class="btns"><span class="sp"></span>
+        <button type="submit" id="mode-ok" class="primary">Continue</button></div>
     </form>
   </dialog>
 

@@ -29,6 +29,7 @@ bookmarks.
 - **Themes**: Auto (follows the browser's light / dark mode), Light, Dark, Midnight (deep navy, cyan accent), Sand (warm paper, terracotta accent) and your own custom themes (Settings > Appearance > Theme; the colours are grouped as Page, Tiles, Text & Accent, Panels & Controls). A theme also has a folder window colour that follows the page colour by default.
 - **Tile shift**: after a deletion or after moving a tile (drag & drop) the other tiles slide smoothly into their new places.
 
+- **First run**: on the very first start (and again after *Reset to Default → Settings*) a window asks for the mode: **Speed Dials** (own folder, your bookmarks untouched) or **Bookmarks** (you choose the root folder of your bookmarks; the search engine is set to *Bookmarks*). The window cannot be dismissed; nothing is created in the bookmarks before the answer.
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
 
 ## Keyboard
@@ -59,7 +60,7 @@ tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** b
 
 | Category | Options |
 |---|---|
-| Dial Source | Speed Dial / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder |
+| Mode | Speed Dials / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder. Switching to Bookmarks also sets the search engine to *Bookmarks* (it can be changed back at any time) |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
 | Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
 | Groups Bar | Top offset; max width in px and in % of the window |
@@ -83,7 +84,7 @@ touched; when *Speed Dials* is ticked the window shows the path of the folder th
 
 ## Where the data lives
 - **Speed Dial** source: bookmarks folder `root\Startiles Speed Dial` (a folder named *Modern Speed Dial* from earlier versions is found and renamed automatically). Chromium usually does not let extensions write to the
-  bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Dial Source.
+  bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Mode.
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is
   inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
 - Structure: `<root folder>` → `<group>` → link or `<folder>` → (links, nested folders…).

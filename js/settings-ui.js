@@ -51,7 +51,7 @@ const DEF = {
   animFolders: sw('Folder transitions'),
   groupsMaxPx: rng('Group Bar Max Width', 300, 3000, 'px', 10),
   groupsMaxPct: rng('Group Bar Max Width (% of window)', 30, 100, '%'),
-  source: { type: 'select', label: 'Source', options: [['speeddial', 'Speed Dial'], ['bookmarks', 'Bookmarks']], after: () => { refreshAll(); hooks.onSource?.(); } },
+  source: { type: 'select', label: 'Mode', options: [['speeddial', 'Speed Dials'], ['bookmarks', 'Bookmarks']], after: () => { refreshAll(); hooks.onSource?.(); } },
   groupsTop: rng('Groups Bar Top Offset', 0, 200),
   searchTop: rng('Search Top Offset', 0, 300),
   gridTop: rng('Speed Dial Top Offset', 0, 300),
@@ -272,7 +272,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot }
   pickRow.append(pickBtn);
   extraRefresh.push(() => { pickRow.hidden = S.get().source !== 'bookmarks'; });
   pickRow.hidden = S.get().source !== 'bookmarks';
-  dialSource.append(el('h4', null, 'Dial Source'), build('source'), pickRow, el('p', 'note storage-note'));
+  dialSource.append(el('h4', null, 'Mode'), build('source'), pickRow, el('p', 'note storage-note'));
 
   const general = pane(grid(
     [dialSource, section('Search', ['engine', 'searchSuggest'])],

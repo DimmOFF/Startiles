@@ -26,7 +26,7 @@ export async function exportSelected(o) {
   const res = {};
   if (o.settings) {
     const { bgSrc, ...settings } = cur;
-    [...THEME_KEYS, 'activeGroup'].forEach((k) => delete settings[k]);
+    [...THEME_KEYS, 'activeGroup', 'modeChosen'].forEach((k) => delete settings[k]);
     data.settings = settings;
     data.bgSrc = bgSrc || '';
   }
@@ -58,7 +58,7 @@ export async function readFile(file) {
   const old = isObj(raw.settings) ? raw.settings : null;
   const themes = isObj(raw.themes) ? raw.themes
     : old && (Array.isArray(old.customThemes) || typeof old.theme === 'string') ? { theme: old.theme, customThemes: old.customThemes || [] } : null;
-  const settings = old && Object.fromEntries(Object.entries(old).filter(([k]) => k in S.DEFAULTS && !THEME_KEYS.includes(k) && k !== 'activeGroup'));
+  const settings = old && Object.fromEntries(Object.entries(old).filter(([k]) => k in S.DEFAULTS && !THEME_KEYS.includes(k) && k !== 'activeGroup' && k !== 'modeChosen'));
   const data = {
     settings, bgSrc: typeof raw.bgSrc === 'string' ? raw.bgSrc : '',
     themes: themes && { theme: typeof themes.theme === 'string' ? themes.theme : 'auto', customThemes: cleanThemes(themes.customThemes) },
@@ -111,7 +111,7 @@ export async function importSelected(data, o) {
 
   if (o.settings && data.settings) {
     for (const k of Object.keys(S.DEFAULTS)) {
-      if (THEME_KEYS.includes(k) || k === 'v' || k === 'activeGroup') continue;
+      if (THEME_KEYS.includes(k) || k === 'v' || k === 'activeGroup' || k === 'modeChosen') continue;
       next[k] = k in data.settings ? data.settings[k] : S.DEFAULTS[k];
     }
     if (data.bgSrc) await chrome.storage.local.set({ bgSrc: data.bgSrc }); else await chrome.storage.local.remove('bgSrc');

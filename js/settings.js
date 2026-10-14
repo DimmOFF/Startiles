@@ -9,6 +9,7 @@ export const DEFAULTS = {
   gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   iconAutoRefresh: true, iconRefreshEvery: 'month',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
+  modeChosen: false,                                         // the first-run question "Speed Dials or Bookmarks?" has been answered (asked again after Reset > Settings)
   lastFit: 'cover',                                          // last used Fit of an own thumbnail image (cover | contain | icon): preselected for new ones
 };
 let cache = { ...DEFAULTS };
@@ -41,6 +42,7 @@ export async function load() {
     const OLD = { maxColumns: '0', tileWidth: 220, ratio: 1.22, gapX: 28, gapY: 28, gearSize: 48, gearOffset: 24, groupsTop: 12, searchTop: 60, gridTop: 70, addOffset: 16 };
     for (const k in OLD) if (st[k] === OLD[k]) delete st[k];
   }
+  if (r.settings && st.modeChosen === undefined) st.modeChosen = true;   // an existing installation already works in some mode: do not ask
   cache = { ...DEFAULTS, ...st, v: 7, bgSrc: r.bgSrc || '' };
   if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
     cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
