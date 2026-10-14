@@ -6,6 +6,7 @@
 import { hostOf } from './util.js';
 import * as Icons from './icons.js';
 import * as S from './settings.js';
+import * as ImgCache from './imgcache.js';
 
 let thumbs = {}, shots = {};
 const listeners = [];
@@ -14,6 +15,7 @@ export async function load() {
   const r = await chrome.storage.local.get(['thumbs', 'shots']);
   thumbs = r.thumbs || {};
   shots = r.shots || {};
+  await ImgCache.load();
 }
 chrome.storage.onChanged.addListener((ch, area) => {
   if (area === 'local' && ch.shots) { shots = ch.shots.newValue || {}; listeners.forEach((f) => f()); }   // a new page screenshot: redraw tiles
@@ -43,6 +45,12 @@ export async function rekey(oldUrl, newUrl) {
   }
 }
 export async function replaceAll(obj) { thumbs = obj; await persist(); }
+// entries taken from the bookmark titles (see dialmeta.js)
+export async function applyMany(map) {
+  const now = Date.now();
+  for (const [u, t] of Object.entries(map)) thumbs[u] = { ...t, ts: now };
+  await persist();
+}
 
 export const faviconUrl = (pageUrl, size = 64) =>
   `${chrome.runtime.getURL('/_favicon/')}?pageUrl=${encodeURIComponent(pageUrl)}&size=${size}`;
@@ -72,7 +80,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
     box.replaceChildren();
     const img = new Image();
     img.className = 'fav'; img.draggable = false; img.alt = '';
-    img.src = t.mode === 'auto' && t.icon ? t.icon : faviconUrl(pageUrl, 128);
+    img.src = t.mode === 'auto' && t.icon ? ImgCache.use(t.icon) : faviconUrl(pageUrl, 128);
     img.onerror = () => {
       const l = document.createElement('div');
       l.className = 'letter';
@@ -118,7 +126,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
     } else if (!t.icon) upgradeLogo();
     return box;
   }
-  const src = t.mode === 'file' ? t.dataUrl : t.url;
+  const src = t.mode === 'file' ? t.dataUrl : ImgCache.use(t.url || '');
   if (!src) { logo(); upgradeLogo(); return box; }
   // fit: 'cover' = fill the tile, 'contain' = whole image inside, 'icon' = like a site icon (the Icon Size setting)
   showCover(src, t.fit === 'contain' ? 'cov contain' : t.fit === 'icon' ? 'fav' : 'cov', () => { logo(); upgradeLogo(); });

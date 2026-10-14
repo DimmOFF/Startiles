@@ -2,6 +2,7 @@ import { $, el, hostOf, normalizeUrl, svg, ICON } from './util.js';
 import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as M from './model.js';
+import * as DialMeta from './dialmeta.js';
 import * as SettingsUI from './settings-ui.js';
 import { pickFolder } from './folder-picker.js';
 import * as Icons from './icons.js';
@@ -32,6 +33,7 @@ const scheduleRefresh = () => {
 };
 async function refresh() {
   root = await M.getRoot();
+  await DialMeta.hydrate(root);                                 // icons stored in the bookmark titles -> thumbnails
   byId = new Map();
   (function walk(n) { byId.set(n.id, n); (n.children || []).forEach(walk); })(root);
   renderGroups();
@@ -177,7 +179,7 @@ function tileEl(n, reuse) {
     if (!reuse?.ico) i.src = T.faviconUrl(n.url, 32);
     label.append(i, el('span'));
   }
-  label.querySelector('span').textContent = n.title || (n.url ? hostOf(n.url) : 'Folder');
+  label.querySelector('span').textContent = M.nameOf(n) || (n.url ? hostOf(n.url) : 'Folder');   // only the name, never the JSON
   if (!isF) t.dataset.sig = T.sigOf(n.url);
   card.append(isF ? folderThumb(n) : reuse?.thumb || T.renderThumb(n.url), label);
   const tools = el('div', 'tools',
@@ -537,7 +539,7 @@ function openItemDialog({ node = null, parentId = null }) {
   </form>`;
   const f = $('form', dlg), E = f.elements, prev = $('.prev', dlg);
   E.addr.value = node?.url || '';
-  E.ttl.value = node?.title || '';
+  E.ttl.value = node ? M.nameOf(node) : '';
   E.imgurl.value = st.url;
   E.fit.value = st.fit;
   f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === st.mode));
@@ -731,14 +733,20 @@ function openItemDialog({ node = null, parentId = null }) {
         return;
       }
       const ttl = title || hostOf(url);
-      if (isNew) await M.addLink(parentId || activeGroup()?.id, url, ttl);
-      else {
-        await M.update(node.id, { title: ttl, url });
-        if (url !== node.url) await T.rekey(node.url, url);
-      }
       const useImg = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
-      await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}) });
-      if (useImg && (isNew || fitTouched)) await S.set({ lastFit: st.fit });   // the next own image starts with this Fit
+      // Speed Dials mode: an icon that comes from a URL travels in the bookmark title as JSON, so it syncs with the bookmarks
+      const iconUrl = st.mode === 'url' && st.url ? st.url : st.mode === 'auto' && st.auto === 'logo' && st.icon ? st.icon : '';
+      const bmTitle = M.titleFor(ttl, iconUrl, st.mode === 'url' ? st.fit : 'icon');
+      DialMeta.hold();                                            // a refresh must not restore the old icon while we save
+      try {
+        if (isNew) await M.addLink(parentId || activeGroup()?.id, url, bmTitle);
+        else {
+          await M.update(node.id, { title: bmTitle, url });
+          if (url !== node.url) await T.rekey(node.url, url);
+        }
+        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}) });
+        if (useImg && (isNew || fitTouched)) await S.set({ lastFit: st.fit });   // the next own image starts with this Fit
+      } finally { DialMeta.release(); }
     }
     dlg.close();
     scheduleRefresh();
@@ -795,7 +803,7 @@ function bmMatches() {
   const out = [];
   (function walk(n) {
     for (const c of n.children || []) {
-      if (c.url) { const hay = ((c.title || '') + ' ' + c.url).toLowerCase(); if (words.every((w) => hay.includes(w))) out.push(c); }
+      if (c.url) { const hay = (M.nameOf(c) + ' ' + c.url).toLowerCase(); if (words.every((w) => hay.includes(w))) out.push(c); }
       else walk(c);
     }
   })(root);
@@ -1177,6 +1185,7 @@ async function reinit() {
   await M.ensureRoot(S.get());
   await refresh();
   updateStorageUI();
+  DialMeta.migrate(root).catch(() => {});
 }
 
 // caption with the full title when it does not fit into the tile
@@ -1211,6 +1220,7 @@ document.addEventListener('scroll', hideTip, true);
   await M.ensureRoot(S.get());
   await refresh();
   updateStorageUI();
+  DialMeta.migrate(root).catch(() => {});       // one time: icons chosen before this version are written into the titles
   T.onChange(scheduleRefresh);                 // e.g. a Pageview screenshot has just been captured
   const bm = chrome.bookmarks;
   [bm.onCreated, bm.onRemoved, bm.onChanged, bm.onMoved, bm.onChildrenReordered, bm.onImportEnded]

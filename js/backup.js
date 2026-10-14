@@ -9,6 +9,8 @@ import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as M from './model.js';
 import * as Icons from './icons.js';
+import * as ImgCache from './imgcache.js';
+import * as DialMeta from './dialmeta.js';
 import { PRESETS } from './themes.js';
 
 const FORMAT = 'startiles-backup';
@@ -39,7 +41,7 @@ export async function exportSelected(o) {
   if (o.userThumbs) data.thumbs = T.all();
   if (o.cache) {
     const st = await chrome.storage.local.get(['shots', 'iconCache']);
-    data.shots = st.shots || {}; data.iconCache = st.iconCache || {};
+    data.shots = st.shots || {}; data.iconCache = st.iconCache || {}; data.imgCache = ImgCache.all();
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
@@ -66,10 +68,11 @@ export async function readFile(file) {
     thumbs: isObj(raw.thumbs) ? raw.thumbs : null,
     shots: isObj(raw.shots) ? raw.shots : null,
     iconCache: isObj(raw.iconCache) ? raw.iconCache : null,
+    imgCache: isObj(raw.imgCache) ? raw.imgCache : null,
   };
   const avail = {
     settings: !!settings, themes: !!data.themes, dials: !!data.tree,
-    userThumbs: size(data.thumbs) > 0, cache: size(data.shots) + size(data.iconCache) > 0,
+    userThumbs: size(data.thumbs) > 0, cache: size(data.shots) + size(data.iconCache) + size(data.imgCache) > 0,
   };
   if (!Object.values(avail).some(Boolean)) throw new Error('the file contains nothing to import');
   return {
@@ -157,5 +160,8 @@ export async function importSelected(data, o) {
     const st = await chrome.storage.local.get(['shots']);
     if (data.shots) await chrome.storage.local.set({ shots: replace ? data.shots : { ...data.shots, ...(st.shots || {}) } });
     if (data.iconCache) await Icons.merge(data.iconCache, replace);
+    if (data.imgCache) await ImgCache.merge(data.imgCache, replace);
   }
+  // icons that come from URLs go into the titles of the imported tiles (so they sync), also for backups of older versions
+  if (o.dials.on || o.userThumbs) await DialMeta.migrate(await M.getSd(), { force: true });
 }

@@ -1,4 +1,5 @@
 // Address autocomplete: bookmarks + browsing history + built-in popular sites.
+import { nameOf } from './model.js';
 const POPULAR = [
   ['google.com','Google'],['youtube.com','YouTube'],['music.youtube.com','YouTube Music'],['gmail.com','Gmail'],
   ['mail.google.com','Gmail'],['drive.google.com','Google Drive'],['docs.google.com','Google Docs'],['maps.google.com','Google Maps'],
@@ -36,7 +37,7 @@ export async function suggest(raw) {
     if (!e || e.score < score) out.set(key, { url: href, title: title || host, score });
   };
   try {
-    (await chrome.bookmarks.search(q)).slice(0, 40).forEach((b) => b.url && add(b.url, deep ? b.title : '', 300));
+    (await chrome.bookmarks.search(q)).slice(0, 40).forEach((b) => b.url && add(b.url, deep ? nameOf(b) : '', 300));
   } catch { /* ignore */ }
   try {
     if (chrome.history?.search) {

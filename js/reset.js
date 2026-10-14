@@ -6,6 +6,8 @@ import * as S from './settings.js';
 import * as M from './model.js';
 import * as T from './thumbs.js';
 import * as Icons from './icons.js';
+import * as ImgCache from './imgcache.js';
+import * as DialMeta from './dialmeta.js';
 
 export async function dialsInfo() {
   return { sdPath: await M.sdPath(), bookmarksPath: await M.bookmarksPath(S.get()) };
@@ -19,9 +21,13 @@ export async function resetSelected({ settings, themes, dials, userThumbs, cache
     for (const c of sd.children || []) await M.remove(c);
     await M.addFolder(node.id, 'General');
   }
-  if (userThumbs) await T.replaceAll({});
+  if (userThumbs) {
+    await T.replaceAll({});
+    await DialMeta.strip(await M.getSd());                     // icon URLs kept in the bookmark titles go too, otherwise they would come back
+  }
   if (cache) {
     await Icons.clear();
+    await ImgCache.clear();
     await chrome.storage.local.remove('shots');
   }
   if (settings || themes) {

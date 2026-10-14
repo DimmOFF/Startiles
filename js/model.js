@@ -5,6 +5,7 @@
 export const ROOT_TITLE = 'Startiles Speed Dial';
 export const LEGACY_TITLES = ['Modern Speed Dial'];   // the folder of earlier versions: found and renamed, nothing is lost
 export let rootId = null;   // folder currently shown
+export let mode = 'speeddial';   // what is shown now: Speed Dials own folder, or the user's Bookmarks
 export let sdId = null;     // the "Startiles Speed Dial" folder (used by Export / Import)
 export const info = { path: '', note: '' };
 
@@ -57,6 +58,7 @@ export async function ensureSd() {
 }
 
 export async function ensureRoot(cfg = {}) {
+  mode = cfg.source === 'bookmarks' ? 'bookmarks' : 'speeddial';
   info.note = '';
   if (cfg.source === 'bookmarks') {
     let node = null;
@@ -115,3 +117,24 @@ export async function bookmarksPath(cfg = {}) {
   }
   return pathOf(node.id);
 }
+
+// ---- Speed Dials mode: the title of a link tile may be a JSON string {"name":"...","icon_url":"...","fit_mode":"..."}
+// (icon_url/fit_mode only when the tile has an icon taken from a URL). It travels with the bookmark, so the icon syncs between devices.
+const FITS = ['cover', 'contain', 'icon'];
+export function parseTitle(title) {
+  if (typeof title !== 'string' || title.charCodeAt(0) !== 123) return null;     // fast: JSON starts with "{"
+  try {
+    const o = JSON.parse(title);
+    if (!o || typeof o !== 'object' || typeof o.name !== 'string') return null;
+    return { name: o.name, icon_url: typeof o.icon_url === 'string' ? o.icon_url : '', fit_mode: FITS.includes(o.fit_mode) ? o.fit_mode : 'cover' };
+  } catch { return null; }
+}
+// { name, icon_url, fit_mode, json } of a node; in Bookmarks mode (your own bookmarks) titles are never interpreted
+export function metaOf(n) {
+  const p = mode === 'speeddial' && n.url ? parseTitle(n.title) : null;
+  return p ? { ...p, json: true } : { name: n.title || '', icon_url: '', fit_mode: '', json: false };
+}
+export const nameOf = (n) => metaOf(n).name;
+export const buildTitle = (name, iconUrl, fit) =>
+  iconUrl ? JSON.stringify({ name, icon_url: iconUrl, fit_mode: FITS.includes(fit) ? fit : 'cover' }) : name;
+export const titleFor = (name, iconUrl, fit) => (mode === 'speeddial' ? buildTitle(name, iconUrl, fit) : name);

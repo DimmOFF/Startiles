@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Startiles - Speed Dial X Bookmarks Tile",
-  "version": "1.0.30",
-  "description": "A fast, customizable new tab with speed dial tiles for your bookmarks: groups, folders, drag & drop, themes and built-in search.",
+  "version": "1.0.31",
+  "description": "Speed dial new tab that turns your bookmarks into visual tiles, with instant bookmark search, groups, folders and themes.",
   "permissions": ["bookmarks", "storage", "unlimitedStorage", "favicon", "history", "tabs"],
-  "background": { "service_worker": "background.js" },
+  "background": {"service_worker": "background.js"},
   "host_permissions": ["<all_urls>"],
-  "action": { "default_title": "Open Startiles Speed Dial in a new tab" },
-  "chrome_url_overrides": { "newtab": "newtab.html" },
-  "icons": { "16": "icons/icon16-alt.png", "32": "icons/icon32-alt.png", "48": "icons/icon48-alt.png", "128": "icons/icon128-alt.png" }
+  "action": {"default_title": "Open Startiles Speed Dial in a new tab"},
+  "chrome_url_overrides": {"newtab": "newtab.html"},
+  "icons": {"16": "icons/icon16-alt.png", "32": "icons/icon32-alt.png", "48": "icons/icon48-alt.png", "128": "icons/icon128-alt.png"}
 }

@@ -93,6 +93,15 @@ touched; when *Speed Dials* is ticked the window shows the path of the folder th
   (incl. the time each bookmark's icon was last checked) are kept in `chrome.storage.local` of the extension.
 - No cloud sync. (The earlier Google Drive sync was removed; use Export / Import to move data between browsers.)
 
+## Tile titles in Speed Dials mode (icon sync)
+In the **Speed Dials** mode a link tile whose icon comes from a web address (an image URL, or an icon picked in the Add / Edit window)
+is stored with a JSON title: `{"name":"...","icon_url":"...","fit_mode":"cover|contain|icon"}`. The title travels with the bookmark, so
+the browser's own bookmark sync carries the icon to your other devices, which show it straight from `icon_url` - no icon search is
+needed. The tile shows only `name`. The image is downloaded once and cached by its URL (in the extension, a few hundred images at most).
+Tiles without an icon URL keep a plain-text title; local images, Pageview and the automatic site icon are not stored in titles.
+In the **Bookmarks** mode titles are never changed or interpreted. Icons chosen before this feature are written into the titles
+once after the update. *Reset to Default → User previews* removes the icon URLs from the titles; *Cached previews* clears the image cache.
+
 ## Export / Import
 **Export** and **Import** open a window with check boxes (like Reset): **Settings** (incl. the background image), **Themes**,
 **Speed Dials** (groups, folders, shortcuts, order) and, under it, **User previews** and **Cached previews**. Export writes one JSON file
