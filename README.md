@@ -23,7 +23,7 @@ bookmarks.
 - **Add / Edit dialog**: address with autocomplete (bookmarks, history, popular sites), title, and the thumbnail:
   - *Automatic → Logo*: the site icon on a coloured background. If the site has several icons they appear as a picker with pixel sizes.
   - *Automatic → Pageview*: a screenshot taken when you visit the page, otherwise the page's `og:image`, otherwise the logo.
-  - *Image URL* or *Local file* (with Fill / Fit).
+  - *Image URL* or *Local file* (Fit: Fill / Fit inside / Icon size - the image is shown at the same size as site icons, following the Icon Size setting). The Fit you used last is preselected next time.
 - **Long titles**: a caption with the full title appears when a title does not fit into the tile (can be switched off).
 - **Tile deletion** plays an animation of your choice (Settings > Animation: Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof; default Disintegrate) with a live preview.
 - **Themes**: Auto (follows the browser's light / dark mode), Light, Dark, Midnight (deep navy, cyan accent), Sand (warm paper, terracotta accent) and your own custom themes (Settings > Appearance > Theme). A theme also has a folder window background that follows the page background by default.

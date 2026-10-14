@@ -500,7 +500,7 @@ function openItemDialog({ node = null, parentId = null }) {
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
-  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || 'cover', auto: t0.auto || 'logo', icon: t0.icon || '', fname: '' };
+  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || (['cover', 'contain', 'icon'].includes(S.get().lastFit) ? S.get().lastFit : 'cover'), auto: t0.auto || 'logo', icon: t0.icon || '', fname: '' };
   dlg.innerHTML = `<form class="dform">
     <h3>${isNew ? 'Add' : 'Edit'}</h3>
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
@@ -527,7 +527,7 @@ function openItemDialog({ node = null, parentId = null }) {
             <p class="note">You can also drop or paste an image.</p>
           </div>
           <div class="pane" data-modes="url file">
-            <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option></select></label>
+            <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option><option value="icon">Icon size</option></select></label>
           </div>
         </div>
       </div>
@@ -709,7 +709,8 @@ function openItemDialog({ node = null, parentId = null }) {
   };
   E.addr.onblur = closeAc;
   E.imgurl.oninput = () => { st.url = E.imgurl.value.trim(); checkImg(); upd(); };   // the mode is chosen with the radio buttons
-  E.fit.onchange = () => { st.fit = E.fit.value; upd(); };
+  let fitTouched = false;                                    // Fit was changed by hand in this window
+  E.fit.onchange = () => { st.fit = E.fit.value; fitTouched = true; upd(); };
   E.file.onchange = () => { setFile(E.file.files[0]); E.file.value = ''; };
   $('#d-cancel', dlg).onclick = () => dlg.close();
   const del = $('#d-del', dlg);
@@ -737,6 +738,7 @@ function openItemDialog({ node = null, parentId = null }) {
       }
       const useImg = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
       await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}) });
+      if (useImg && (isNew || fitTouched)) await S.set({ lastFit: st.fit });   // the next own image starts with this Fit
     }
     dlg.close();
     scheduleRefresh();

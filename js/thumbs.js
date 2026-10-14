@@ -120,7 +120,8 @@ export function renderThumbFrom(pageUrl, t, onState) {
   }
   const src = t.mode === 'file' ? t.dataUrl : t.url;
   if (!src) { logo(); upgradeLogo(); return box; }
-  showCover(src, t.fit === 'contain' ? 'cov contain' : 'cov', () => { logo(); upgradeLogo(); });
+  // fit: 'cover' = fill the tile, 'contain' = whole image inside, 'icon' = like a site icon (the Icon Size setting)
+  showCover(src, t.fit === 'contain' ? 'cov contain' : t.fit === 'icon' ? 'fav' : 'cov', () => { logo(); upgradeLogo(); });
   return box;
 }
 // Vector placeholder for an empty thumbnail (no address yet): a browser window with a globe, crisp at any size.

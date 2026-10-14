@@ -9,6 +9,7 @@ export const DEFAULTS = {
   gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   iconAutoRefresh: true, iconRefreshEvery: 'month',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
+  lastFit: 'cover',                                          // last used Fit of an own thumbnail image (cover | contain | icon): preselected for new ones
 };
 let cache = { ...DEFAULTS };
 
