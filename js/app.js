@@ -1064,7 +1064,10 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Tab' || e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return;
   if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || $('#mode-dlg').open || closing || navBusy || !root) return;
   const act = document.activeElement, list = zones();
-  const cur = list.findIndex((z) => z.has(act));
+  let cur = list.findIndex((z) => z.has(act));
+  // an arrow key shows the tile highlight but drops the focus to <body> (e.g. from the + Shortcut button):
+  // the highlighted tile is then the current position, so Shift+Tab goes to the Search field and Tab to + Shortcut
+  if (cur < 0 && kbActive && (act === document.body || act === document.documentElement)) cur = list.findIndex((z) => z.name === 'dials');
   if (cur < 0 && act && act !== document.body && act !== document.documentElement) return;   // focus is in the settings panel / Advanced window: native Tab
   const dir = e.shiftKey ? -1 : 1;
   if (cur >= 0 && list[cur].name === 'dials') kbOff();

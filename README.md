@@ -140,7 +140,7 @@ Uploaded images are scaled down so that their shorter side is at most 420 px (sm
 
 ## 🎹 Keyboard
 
-**Tab order** (cyclic): Group bar → Search field → Dials → + Shortcut → Settings → Group bar. `Shift+Tab` goes the other way. After opening a new tab the focus is in the address bar; the first `Tab` moves it to the Group bar. Empty or hidden parts are skipped. While a folder is open, `Tab` cycles inside its window: back arrow → tiles → + Shortcut → ×.
+**Tab order** (cyclic): Group bar → Search field → Dials → + Shortcut → Settings → Group bar. `Shift+Tab` goes the other way. After opening a new tab the focus is in the address bar; the first `Tab` moves it to the Group bar. Empty or hidden parts are skipped. While a folder is open, `Tab` cycles inside its window: back arrow → tiles → + Shortcut → ×. An arrow key pressed while a button (for example **+ Shortcut**) has the focus moves the highlight to the tiles, and `Tab` / `Shift+Tab` continue from there.
 
 <details>
 <summary><b>All keys</b></summary>
