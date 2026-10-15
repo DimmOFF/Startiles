@@ -23,7 +23,7 @@ const ENGINES = {
 };
 
 const gridEl = $('#grid'), layer = $('#folder-layer'), nav = $('#groups'), dlg = $('#dlg'), ctx = $('#ctx');
-let root = null, byId = new Map(), openId = null, curId = null, navStack = [], navBusy = false, dragId = null, groupDragId = null, dropState = null, closing = false;
+let root = null, byId = new Map(), openId = null, curId = null, navStack = [], navBusy = false, dragId = null, dragIds = [], groupDragId = null, dropState = null, closing = false;
 
 /* ---------- data refresh ---------- */
 let rt;
@@ -115,8 +115,8 @@ function renderGroups() {
         return;
       }
       b.classList.remove('drop');
-      const id = dragId; cleanDrag();
-      if (id) { flipBegin(); await M.move(id, g.id); flipReady(); scheduleRefresh(); }
+      const ids = dragList().slice(); cleanDrag();
+      if (ids.length) { flipBegin(); for (const id of ids) await M.move(id, g.id); flipReady(); scheduleRefresh(); if (ids.length > 1) selExit(); }
     };
     nav.append(b);
   });
@@ -206,6 +206,8 @@ function tileEl(n, reuse) {
   label.querySelector('span').textContent = M.nameOf(n) || (n.url ? hostOf(n.url) : 'Folder');   // only the name, never the JSON
   if (!isF) t.dataset.sig = T.sigOf(n.url);
   card.append(isF ? folderThumb(n) : reuse?.thumb || T.renderThumb(n.url), label);
+  t.append(el('span', 'sel-box'));
+  if (selMode && sel.has(n.id)) t.classList.add('selected');
   const tools = el('div', 'tools',
     `<button class="edit" title="Edit">${svg(ICON.pencil, 14)}</button><button class="del" title="Delete">${svg(ICON.trash, 14)}</button>`);
   t.append(card, tools);
@@ -225,6 +227,7 @@ function fillGrid(g, node, emptyText) {
   else g.replaceChildren(...kids.map(mk));
 
   kbApply();
+  if (selMode) selPaint();
   if (fl && playFlip(g, fl.rects)) {                      // the same refresh may fill several grids, so close the window a bit later
     clearTimeout(flipTimer); flipTimer = setTimeout(() => { if (flip === fl) flip = null; }, 150);
   }
@@ -295,26 +298,28 @@ function bindGrid(g, inFolder) {
     if (!t) return;
     if (g.classList.contains('search-results')) { e.preventDefault(); return; }
     dragId = t.dataset.id;
+    dragIds = selMode && sel.has(dragId) ? selIds() : [dragId];   // a selected tile drags the whole selection
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', dragId);
-    requestAnimationFrame(() => t.classList.add('dragging'));
+    if (dragIds.length > 1) { const b = el('div', 'drag-badge', dragIds.length + ' items'); document.body.append(b); e.dataTransfer.setDragImage(b, 14, 14); setTimeout(() => b.remove(), 0); }
+    requestAnimationFrame(() => dragIds.forEach((i) => document.querySelector(`.tile[data-id="${i}"]`)?.classList.add('dragging')));
   });
   g.addEventListener('dragover', (e) => {
     if (!dragId) return;
     e.preventDefault();
     let t = e.target.closest('.tile'), mode = null;
-    const D_ = byId.get(dragId);
+    const Ds = dragList().map((i) => byId.get(i)).filter(Boolean);
     if (!t) {
       const last = [...g.querySelectorAll('.tile')].filter((x) => x.dataset.id !== dragId).pop();
       if (!last || e.target !== g) return;
       const r = last.getBoundingClientRect();
       if (e.clientY > r.bottom || (e.clientY >= r.top && e.clientX > r.right)) { t = last; mode = 'after'; } else return;
     }
-    if (t.dataset.id === dragId) return;
+    if (dragList().includes(t.dataset.id)) return;
     if (!mode) {
       const r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width;
       const Tn = byId.get(t.dataset.id);
-      const canMerge = g.dataset.merge === '1' && D_ && Tn && (D_.url || (!Tn.url && !isInside(Tn.id, D_.id)));
+      const canMerge = g.dataset.merge === '1' && Tn && Ds.length && Ds.every((d) => d.url || (!Tn.url && !isInside(Tn.id, d.id)));
       mode = canMerge && x > 0.28 && x < 0.72 ? 'into' : x < 0.5 ? 'before' : 'after';
     }
     setDrop(t, mode);
@@ -341,14 +346,18 @@ function cleanDrag() {
   document.querySelectorAll('.drop').forEach((x) => x.classList.remove('drop'));
   layer.classList.remove('out-drop');
   document.querySelectorAll('.gdrag,.gdrop-before,.gdrop-after').forEach((x) => x.classList.remove('gdrag', 'gdrop-before', 'gdrop-after'));
-  dragId = null; groupDragId = null;
+  dragId = null; dragIds = []; groupDragId = null;
 }
+const dragList = () => (dragIds.length ? dragIds : dragId ? [dragId] : []);
 async function applyDrop() {
-  const st = dropState, id = dragId;
+  const st = dropState, ids = dragList();
   cleanDrag();
-  if (!st || !id) return;
-  const d = byId.get(id), t = byId.get(st.targetId);
-  if (!d || !t) return;
+  if (!st || !ids.length) return;
+  const t = byId.get(st.targetId);
+  const ds = ids.map((i) => byId.get(i)).filter((d) => d && t && d.id !== t.id);
+  if (!t || !ds.length) return;
+  if (ds.length > 1) { await dropMany(ds, t, st.mode); return; }
+  const d = ds[0];
   if (st.mode === 'into' && !t.url && isInside(t.id, d.id)) return;   // never move a folder into itself
   const ins = t.index + (st.mode === 'after' ? 1 : 0);
   if (st.mode !== 'into' && d.parentId === t.parentId && (ins === d.index || ins === d.index + 1)) return;   // nothing changes
@@ -499,10 +508,11 @@ layer.addEventListener('dragover', (e) => {
 layer.addEventListener('drop', async (e) => {
   if (!dragId || e.target.closest('.fpanel')) return;
   e.preventDefault();
-  const id = dragId; cleanDrag();
+  const ids = dragList().slice(); cleanDrag();
   const g = activeGroup();
-  if (g) { flipBegin(); await M.move(id, g.id); flipReady(); }
+  if (g) { flipBegin(); for (const id of ids) await M.move(id, g.id); flipReady(); }
   scheduleRefresh();
+  if (ids.length > 1) selExit();
 });
 
 /* ---------- dialogs ---------- */
@@ -995,6 +1005,7 @@ document.addEventListener('pointerdown', kbOff, true);          // using the mou
 function kbMove(key) {
   const tiles = kbTiles();
   if (!tiles.length) return false;
+  if (!kbActive && selMode && selLast && tiles.some((x) => x.dataset.id === selLast)) { kbId = selLast; kbActive = true; }   // selection started with the mouse: go on from the tile ticked last
   const i = tiles.findIndex((x) => x.dataset.id === kbId);
   if (!kbActive || i < 0) { kbSet(tiles[i >= 0 ? i : 0]); return true; }   // the first key press only shows the highlight
   const top0 = tiles[0].getBoundingClientRect().top;
@@ -1050,13 +1061,16 @@ function zones() {
     },
   };
   const btn = (name, getEl) => ({ name, has: (x) => x === getEl(), enter: () => { const b = getEl(); if (!shown(b)) return false; b.focus(); return true; } });
-  if (openId) return [btn('fback', () => $('#f-back', layer)), dials, btn('fadd', () => $('#f-add', layer)), btn('fclose', () => $('#f-close', layer))];
+  // the multi-select bar (only while selecting) is one Tab stop; the arrow keys move between its buttons
+  const bar = { name: 'selbar', has: (x) => selBar.contains(x),
+    enter: () => { const bs = selBtns(); if (!bs.length) return false; bs[0].focus(); return true; } };
+  if (openId) return [btn('fback', () => $('#f-back', layer)), dials, ...(selMode ? [bar] : []), btn('fadd', () => $('#f-add', layer)), btn('fclose', () => $('#f-close', layer))];
   return [
     { name: 'groups', has: (x) => nav.contains(x),
       enter: () => { const b = nav.querySelector('.group.active') || nav.querySelector('.group'); if (!b) return false; b.focus(); return true; } },
     { name: 'search', has: (x) => x === q, enter: () => { if (!shown(q)) return false; q.focus(); return true; } },
     dials,
-    btn('add', () => $('#add-btn')),
+    selMode ? bar : btn('add', () => $('#add-btn')),             // "+ Shortcut" is hidden while selecting
     btn('settings', () => $('#settings-btn')),
   ];
 }
@@ -1067,14 +1081,14 @@ document.addEventListener('keydown', (e) => {
   let cur = list.findIndex((z) => z.has(act));
   // an arrow key shows the tile highlight but drops the focus to <body> (e.g. from the + Shortcut button):
   // the highlighted tile is then the current position, so Shift+Tab goes to the Search field and Tab to + Shortcut
-  if (cur < 0 && kbActive && (act === document.body || act === document.documentElement)) cur = list.findIndex((z) => z.name === 'dials');
+  if (cur < 0 && (kbActive || selMode) && (act === document.body || act === document.documentElement)) cur = list.findIndex((z) => z.name === 'dials');   // while selecting, Tab from nowhere goes to the selection bar
   if (cur < 0 && act && act !== document.body && act !== document.documentElement) return;   // focus is in the settings panel / Advanced window: native Tab
   const dir = e.shiftKey ? -1 : 1;
   if (cur >= 0 && list[cur].name === 'dials') kbOff();
   let k = cur < 0 ? (dir > 0 ? -1 : 0) : cur;                 // from nowhere: Tab -> first zone, Shift+Tab -> last zone
   for (let n = 0; n < list.length; n++) {
     k = (k + dir + list.length) % list.length;
-    if (list[k].enter()) { e.preventDefault(); return; }
+    if (list[k].enter(dir)) { e.preventDefault(); return; }
   }
 });
 // Esc closes the Quick Settings panel opened from the keyboard and returns the focus to the gear
@@ -1123,6 +1137,224 @@ document.addEventListener('pointermove', (e) => {
   document.body.classList.toggle('gear-near', Math.hypot(dx, dy) <= s.gearRadius);   // distance to the button itself
 }, { passive: true });
 document.documentElement.addEventListener('mouseleave', () => document.body.classList.remove('gear-near'));
+
+/* ---------- multi-select ---------- */
+// Long press (left button) on a tile starts selection mode. A click or Space ticks / unticks a tile, Enter opens the
+// ticked tiles in new tabs, Esc leaves the mode. Several ticked tiles can be dragged onto a group tab, a folder or a
+// place between tiles, or moved with "Move to…". Only the tiles of the grid in front count (the folder window's or the page's).
+let selLast = null, selAnchor = null;                        // the tile ticked last (where the arrow keys start from) / the start of a Shift range
+let selMode = false, selSuppress = false, lpTimer = 0, lpX = 0, lpY = 0, mouseX = 0, mouseY = 0;
+const sel = new Set();
+const selBar = $('#selbar');
+const selTiles = () => [...(kbGrid()?.querySelectorAll('.tile') || [])];
+const selBtns = () => [...selBar.querySelectorAll('button:not(:disabled)')];
+const selIds = () => selTiles().filter((t) => sel.has(t.dataset.id)).map((t) => t.dataset.id);   // visible ones, in grid order
+function selPaint() {
+  document.querySelectorAll('.tile').forEach((t) => t.classList.toggle('selected', selMode && sel.has(t.dataset.id)));
+  const n = selIds().length;
+  $('#sel-count').textContent = n === 1 ? '1 selected' : n + ' selected';
+  selBar.querySelectorAll('[data-sel="none"],[data-sel="move"],[data-sel="open"],[data-sel="delete"]').forEach((b) => (b.disabled = !n));
+  if (selBar.contains(document.activeElement) && document.activeElement.disabled) selBar.querySelector('[data-sel="all"]').focus();   // e.g. after Clear: don't lose the keyboard focus
+}
+function selEnter(id) {
+  selMode = true; document.body.classList.add('selecting'); selBar.hidden = false;
+  kbOff(); hideTip();
+  if (id) { sel.add(id); selLast = selAnchor = id; }
+  selPaint();
+}
+function selExit() {
+  selMode = false; selLast = selAnchor = null; sel.clear(); document.body.classList.remove('selecting'); selBar.hidden = true;
+  hideCtx(); selPaint();
+}
+const selToggle = (id) => { if (sel.has(id)) sel.delete(id); else sel.add(id); selLast = selAnchor = id; selPaint(); };
+// Shift+click / Shift+Space: ticks every tile between the anchor (the tile ticked last without Shift) and this one, both included
+function selRange(id) {
+  const tiles = selTiles(), a = tiles.findIndex((t) => t.dataset.id === selAnchor), b = tiles.findIndex((t) => t.dataset.id === id);
+  if (a < 0 || b < 0) { selToggle(id); return; }                                   // no anchor in this grid yet: behaves like a plain click
+  for (let i = Math.min(a, b); i <= Math.max(a, b); i++) sel.add(tiles[i].dataset.id);
+  selLast = id;
+  selPaint();
+}
+const selAll = () => { selTiles().forEach((t) => sel.add(t.dataset.id)); selPaint(); };
+function selOpen() {
+  const urls = selIds().map((id) => byId.get(id)?.url).filter(Boolean);   // folders have nothing to open
+  if (!urls.length) return;
+  urls.forEach((url, i) => chrome.tabs.create({ url, active: i === 0 }));
+  selExit();
+}
+async function selDelete() {
+  const ids = selIds();
+  if (!ids.length) return;
+  const nodes = ids.map((id) => byId.get(id)).filter(Boolean);
+  const folders = nodes.filter((n) => !n.url && n.children?.length).length;
+  if (!confirm(`Delete ${nodes.length} selected item${nodes.length === 1 ? '' : 's'}?` + (folders ? '\n\nFolders are deleted together with everything in them.' : ''))) return;
+  const tiles = ids.map((id) => document.querySelector(`.tile[data-id="${id}"]`)).filter(Boolean);
+  if (tiles.length && S.anim('animDelete')) await Promise.all(tiles.map((t) => playDelete(S.get().deleteAnim, t)));
+  if (tiles.length) flipBegin();
+  for (const n of nodes) await M.remove(n);
+  flipReady();
+  scheduleRefresh();
+  selExit();
+}
+async function selMoveTo(dest) {
+  const ids = selIds();
+  if (!ids.length) return;
+  flipBegin();
+  for (const id of ids) await M.move(id, dest);
+  flipReady();
+  scheduleRefresh();
+  selExit();
+}
+function selMoveMenu(btn) {
+  const ids = selIds();
+  if (!ids.length) return;
+  const parents = new Set(ids.map((id) => byId.get(id)?.parentId));
+  const items = [];
+  const banned = (id) => ids.some((x) => id === x || isInside(id, x));           // never into itself or its own sub-folders
+  const add = (label, id) => { if (!(parents.size === 1 && parents.has(id))) items.push([label, () => selMoveTo(id)]); };
+  const walk = (n, depth) => (n.children || []).filter((c) => !c.url && !banned(c.id)).forEach((c) => {
+    add('\u00a0\u00a0'.repeat(depth) + '↳ ' + (M.nameOf(c) || c.title), c.id); walk(c, depth + 1);
+  });
+  groupList().forEach((g) => {
+    if (!g.virtual && banned(g.id)) return;
+    add(g.title, g.id);
+    if (!g.virtual) walk(byId.get(g.id) || g, 1);
+  });
+  if (!items.length) return;
+  const r = btn.getBoundingClientRect();
+  showCtx(r.left, r.top, items);
+  ctx.style.top = Math.max(8, r.top - ctx.offsetHeight - 8) + 'px';              // the bar is at the bottom: open upwards
+}
+// the dragged tiles (two or more) dropped on a tile or between tiles
+async function dropMany(ds, t, mode) {
+  flipBegin();
+  if (mode === 'into') {
+    const list = t.url ? ds : ds.filter((d) => !isInside(t.id, d.id));            // a folder never goes into itself
+    if (!list.length) { flip = null; return; }
+    let dest = t.id;
+    if (t.url) { const f = await M.addFolder(t.parentId, 'Folder', t.index); await M.move(t.id, f.id); dest = f.id; }   // a link: both go into a new folder
+    for (const d of list) await M.move(d.id, dest);
+  } else {
+    await reorderTo(ds, t, mode === 'after');
+  }
+  flipReady();
+  scheduleRefresh();
+  selExit();
+}
+// Puts the tiles (in their grid order) next to the target, moving only the dragged ones.
+async function reorderTo(ds, t, after) {
+  const parentId = t.parentId, sibs = (byId.get(parentId)?.children || []).map((c) => c.id);
+  if (sibs.length && ds.every((d) => d.parentId === parentId)) {
+    const ordered = sibs.filter((i) => ds.some((d) => d.id === i));
+    const others = sibs.filter((i) => !ordered.includes(i));
+    const k = others.indexOf(t.id) + (after ? 1 : 0);
+    const final = [...others.slice(0, k), ...ordered, ...others.slice(k)];
+    let list = sibs.slice();
+    for (const id of ordered) {                                                    // each one goes right after its predecessor in `final`
+      const fi = final.indexOf(id), li = list.indexOf(id), without = list.filter((i) => i !== id);
+      const tpos = fi > 0 ? without.indexOf(final[fi - 1]) + 1 : 0;
+      if (tpos === li) continue;
+      await M.move(id, parentId, tpos <= li ? tpos : tpos + 1);                    // "insert before the position as it was before the move"
+      without.splice(tpos, 0, id); list = without;
+    }
+  } else {
+    let ins = t.index + (after ? 1 : 0);
+    for (const d of ds) await M.move(d.id, parentId, ins++);
+  }
+}
+document.addEventListener('pointerdown', (e) => {
+  selSuppress = false; clearTimeout(lpTimer); lpTimer = 0;
+  if (selMode || e.button !== 0 || e.pointerType === 'touch' || dlg.open) return;
+  const tile = e.target.closest?.('.tile');
+  if (!tile || e.target.closest('.tools') || !kbGrid()?.contains(tile)) return;
+  lpX = e.clientX; lpY = e.clientY;
+  lpTimer = setTimeout(() => { lpTimer = 0; selSuppress = true; selEnter(tile.dataset.id); }, 500);   // the click that ends the press must not open the tile
+}, true);
+document.addEventListener('pointermove', (e) => {
+  mouseX = e.clientX; mouseY = e.clientY;
+  if (lpTimer && Math.hypot(e.clientX - lpX, e.clientY - lpY) > 6) { clearTimeout(lpTimer); lpTimer = 0; }
+}, true);
+['pointerup', 'pointercancel', 'dragstart'].forEach((ev) => document.addEventListener(ev, () => {
+  clearTimeout(lpTimer); lpTimer = 0;
+  if (selSuppress) setTimeout(() => (selSuppress = false), 60);                    // after the click that follows the release
+}, true));
+document.addEventListener('mousedown', (e) => {                                    // Shift+click must not select page text
+  if (selMode && e.shiftKey && e.target.closest?.('.tile')) e.preventDefault();
+}, true);
+document.addEventListener('click', (e) => {
+  if (selSuppress) { selSuppress = false; e.preventDefault(); e.stopPropagation(); return; }
+  if (!selMode) return;
+  const tile = e.target.closest?.('.tile');
+  if (!tile || !kbGrid()?.contains(tile)) return;
+  e.preventDefault(); e.stopPropagation();                                         // in selection mode a click only ticks
+  if (e.shiftKey) selRange(tile.dataset.id); else selToggle(tile.dataset.id);
+}, true);
+window.addEventListener('keydown', (e) => {
+  if (!selMode || e.altKey) return;
+  const tg = e.target;
+  if (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || $('#mode-dlg').open || tg.closest?.('#adv') || $('#settings').classList.contains('open')) return;
+  const own = tg.closest?.('#groups, #selbar, #settings, #settings-btn, #add-btn, #f-back, #f-add, #f-close');   // these keep their own Space / Enter
+  const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+  if (e.key === 'Escape') { stop(); if (!ctx.hidden) hideCtx(); else selExit(); }
+  else if (e.key === ' ' && !own && !e.ctrlKey && !e.metaKey) {
+    stop();
+    if (e.repeat) return;                                                          // a held Space (after a long press) ticks only once
+    const hover = document.elementFromPoint(mouseX, mouseY)?.closest?.('.tile');
+    const t = (kbActive && selTiles().find((x) => x.dataset.id === kbId)) || (hover && kbGrid()?.contains(hover) ? hover : null);   // the highlighted tile, else the one under the mouse
+    if (t) { if (e.shiftKey) selRange(t.dataset.id); else selToggle(t.dataset.id); }
+  } else if (e.key === 'Enter' && !own) { stop(); selOpen(); }
+  else if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey) && !own) { stop(); selAll(); }
+}, true);
+// Long press of Space starts selection mode on the highlighted tile (or the one under the mouse), like a long mouse press.
+// A short press keeps its old meaning (opens the highlighted tile), but now on key release, so that the two can be told apart.
+let spTimer = 0, spTile = null, spShort = null;
+const spCancel = () => { clearTimeout(spTimer); spTimer = 0; spTile = null; spShort = null; };
+window.addEventListener('keydown', (e) => {
+  if (e.key !== ' ' || selMode || e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented || !root) return;
+  const tg = e.target;
+  if (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName) || tg.closest?.('button, a, summary, #groups, #selbar, #settings, #adv')) return;
+  if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || $('#mode-dlg').open || closing || navBusy) return;
+  if (spTimer || spTile) { if (spTile) { e.preventDefault(); e.stopImmediatePropagation(); } return; }   // key auto-repeat
+  const hl = kbActive && kbTiles().find((x) => x.dataset.id === kbId);
+  const hover = document.elementFromPoint(mouseX, mouseY)?.closest?.('.tile');
+  const t = hl || (hover && kbGrid()?.contains(hover) ? hover : null);
+  if (!t) return;
+  spTile = t.dataset.id;
+  if (hl) { spShort = e; e.preventDefault(); e.stopImmediatePropagation(); }       // the highlighted tile is opened on release
+  spTimer = setTimeout(() => { spTimer = 0; spShort = null; selSuppress = false; selEnter(spTile); }, 500);
+}, true);
+window.addEventListener('keyup', (e) => {
+  if (e.key !== ' ' || !spTile) return;
+  const short = spTimer ? spShort : null;                                          // released before 500 ms
+  const wasLong = !spTimer;
+  spCancel();
+  if (wasLong) { e.preventDefault(); return; }
+  if (short && !selMode) { e.preventDefault(); kbEnter(short); }
+}, true);
+window.addEventListener('blur', spCancel);
+selBar.addEventListener('mousedown', (e) => e.preventDefault());                   // the bar never takes the keyboard focus
+selBar.addEventListener('keydown', (e) => {                                        // Left / Right / Home / End walk over the buttons
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const bs = selBtns(), i = bs.indexOf(document.activeElement);
+  if (i < 0) return;
+  const j = e.key === 'ArrowRight' ? Math.min(bs.length - 1, i + 1) : e.key === 'ArrowLeft' ? Math.max(0, i - 1) : e.key === 'Home' ? 0 : e.key === 'End' ? bs.length - 1 : -1;
+  if (j < 0) return;
+  e.preventDefault();
+  bs[j].focus();
+});
+selBar.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sel]');
+  if (!b) return;
+  e.stopPropagation();
+  const a = b.dataset.sel;
+  if (a === 'all') selAll();
+  else if (a === 'none') { sel.clear(); selPaint(); }
+  else if (a === 'exit') selExit();
+  else if (a === 'open') selOpen();
+  else if (a === 'delete') selDelete();
+  else if (a === 'move') selMoveMenu(b);
+});
 
 /* ---------- misc ---------- */
 $('#add-btn').onclick = () => { const g = activeGroup(); if (g) openItemDialog({ parentId: g.id }); };

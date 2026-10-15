@@ -24,6 +24,18 @@
 
   <footer id="foot"><button id="add-btn" class="pill">+ Shortcut</button></footer>
 
+  <div id="selbar" hidden>
+    <span id="sel-count">0 selected</span>
+    <button class="pill sm" data-sel="all" title="Select all (Ctrl+A)">Select all</button>
+    <button class="pill sm" data-sel="none" title="Clear the selection">Clear</button>
+    <span class="sel-sep" role="separator"></span>
+    <button class="pill sm" data-sel="move" title="Move the selected tiles to a group or folder">Move to…</button>
+    <button class="pill sm" data-sel="open" title="Open the selected tiles in new tabs (Enter)">Open</button>
+    <button class="pill sm warn" data-sel="delete" title="Delete the selected tiles">Delete</button>
+    <span class="sel-sep" role="separator"></span>
+    <button class="pill sm" data-sel="exit" title="Leave selection mode (Esc)">Exit</button>
+  </div>
+
   <div id="folder-layer" hidden></div>
   <div id="ctx" hidden></div>
   <div id="tip" hidden></div>

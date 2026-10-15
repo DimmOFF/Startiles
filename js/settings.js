@@ -44,7 +44,8 @@ export async function load() {
     for (const k in OLD) if (st[k] === OLD[k]) delete st[k];
   }
   if (r.settings && st.modeChosen === undefined) st.modeChosen = true;   // an existing installation already works in some mode: do not ask
-  cache = { ...DEFAULTS, ...st, v: 7, bgSrc: r.bgSrc || '' };
+  if ((st.v || 0) < 8 && st.groupsSticky === false) delete st.groupsSticky;   // the pinned groups bar is now on by default (the old value was only the former default)
+  cache = { ...DEFAULTS, ...st, v: 8, bgSrc: r.bgSrc || '' };
   if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
     cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
     if (cache.bgType === 'image') cache.bgType = 'url';
