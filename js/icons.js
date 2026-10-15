@@ -3,6 +3,7 @@
 //  - preview(pageUrl):   og:image for the "Pageview" thumbnail
 //  - candidates(url,cb): every usable icon variant, streamed progressively to the icon picker
 import * as S from './settings.js';
+import { netCall } from './net.js';
 const KEY = 'iconCache', TTL_FAIL = 3 * 864e5;
 const EVERY = { day: 864e5, week: 7 * 864e5, month: 30 * 864e5, year: 365 * 864e5 };
 // how long a found icon / preview stays valid: the chosen interval, forever when auto-refresh is off
@@ -27,70 +28,14 @@ const sizeOf = (s) => {
   if (/any/i.test(s)) return 1024;
   return Math.max(0, ...[...s.matchAll(/(\d+)x(\d+)/gi)].map((m) => +m[1]));
 };
-function loadImg(src, ms = 4000) {
-  return new Promise((res) => {
-    const i = new Image();
-    let done = false;
-    const fin = (v) => { if (!done) { done = true; clearTimeout(t); res(v); } };
-    const t = setTimeout(() => fin(null), ms);
-    i.onload = () => fin(i.naturalWidth || (/\.svg(\?|$)/i.test(src) ? 1024 : 0));
-    i.onerror = () => fin(null);
-    i.src = src;
-  });
-}
+// All requests to sites go through a Web Worker (js/networker.js, see js/net.js).
+// Pixel width of the image at src (SVG: 1024), or null when it is not a loadable image.
+const loadImg = (src, ms = 4000) => netCall('imgWidth', src, ms);
 // Downloads an icon, returns its real pixel width and a content hash (to detect duplicates).
-async function probe(src, ms = 4500) {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  try {
-    const r = await fetch(src, { credentials: 'omit', signal: c.signal });
-    if (!r.ok) return null;
-    const buf = await r.arrayBuffer();
-    if (!buf.byteLength) return null;
-    const type = r.headers.get('content-type') || '';
-    const blob = new Blob([buf], { type });
-    const isSvg = /svg/i.test(type) || /\.svg(\?|$)/i.test(src);
-    let w = 0;
-    try { w = (await createImageBitmap(blob)).width; }
-    catch {
-      const u = URL.createObjectURL(blob);
-      try { w = (await loadImg(u, 3000)) || (isSvg ? 1024 : 0); } finally { URL.revokeObjectURL(u); }
-    }
-    if (!w) return null;
-    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-1', buf))].map((b) => b.toString(16).padStart(2, '0')).join('');
-    return { w: isSvg ? 1024 : w, hash };
-  } catch { return null; } finally { clearTimeout(t); }
-}
-async function fetchText(url, ms = 4000) {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  try {
-    const r = await fetch(url, { credentials: 'omit', signal: c.signal });
-    if (!r.ok) return null;
-    return { text: await r.text(), url: r.url, type: r.headers.get('content-type') || '' };
-  } catch { return null; } finally { clearTimeout(t); }
-}
-// Reads only the <head> of a page (stops at </head> or 250 KB) - much faster than downloading everything.
-async function fetchHead(url, ms = 4000) {
-  const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
-  try {
-    const r = await fetch(url, { credentials: 'omit', signal: c.signal });
-    if (!r.ok) return null;
-    const type = r.headers.get('content-type') || '';
-    if (type && !/html/i.test(type)) return null;
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let text = '';
-    while (text.length < 250000) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      text += dec.decode(value, { stream: true });
-      if (/<\/head>/i.test(text)) break;
-    }
-    reader.cancel().catch(() => {});
-    return { text, url: r.url, type };
-  } catch { return null; } finally { clearTimeout(t); }
-}
+const probe = (src, ms = 4500) => netCall('probe', src, ms);
+const fetchText = (url, ms = 4000) => netCall('fetchText', url, ms);
+// Reads only the <head> of a page.
+const fetchHead = (url, ms = 4000) => netCall('fetchHead', url, ms);
 
 // Candidates that do not need the page HTML (so they can start immediately).
 function staticCands(u) {

@@ -1,6 +1,7 @@
 // Cache of tile images by their URL (icons / images that a tile takes from a web address).
 // The image is downloaded once, scaled down and kept as a data URL: later it is shown from here, without a network
 // request and without looking for an icon again - which also makes a new device fast after the bookmarks have synced.
+import { netCall } from './net.js';
 const KEY = 'imgCache', MAX = 400, SIDE = 640;
 let cache = {}, saveT;
 const pending = new Map(), failed = new Map();
@@ -40,19 +41,15 @@ export function ensure(url) {
 
 const readUrl = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
 async function fetchOne(url) {
-  const c = new AbortController(), to = setTimeout(() => c.abort(), 8000);
-  try {
-    const r = await fetch(url, { credentials: 'omit', signal: c.signal });
-    if (!r.ok) return null;
-    const blob = await r.blob();
-    if (!/^image\//.test(blob.type) || blob.size > 6e6) return null;
-    if (/svg/.test(blob.type)) return blob.size < 200000 ? readUrl(blob) : null;       // vector: kept as it is
-    const bmp = await createImageBitmap(blob);
-    const k = Math.min(1, SIDE / Math.max(bmp.width, bmp.height));
-    const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.round(bmp.width * k));
-    cv.height = Math.max(1, Math.round(bmp.height * k));
-    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
-    return cv.toDataURL('image/webp', 0.85);
-  } finally { clearTimeout(to); }
+  const got = await netCall('fetchImage', url, 8000);      // downloaded in the worker (see networker.js)
+  if (!got) return null;
+  const blob = new Blob([got.buf], { type: got.type });
+  if (/svg/.test(blob.type)) return blob.size < 200000 ? readUrl(blob) : null;       // vector: kept as it is
+  const bmp = await createImageBitmap(blob);
+  const k = Math.min(1, SIDE / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(bmp.width * k));
+  cv.height = Math.max(1, Math.round(bmp.height * k));
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  return cv.toDataURL('image/webp', 0.85);
 }
