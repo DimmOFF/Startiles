@@ -54,6 +54,7 @@ const DEF = {
   groupsMaxPct: rng('Group Bar Max Width (% of window)', 30, 100, '%'),
   source: { type: 'select', label: 'Mode', options: [['speeddial', 'Speed Dials'], ['bookmarks', 'Bookmarks']], after: () => { refreshAll(); hooks.onSource?.(); } },
   groupsTop: rng('Groups Bar Top Offset', 0, 200),
+  groupsSticky: sw('Pin Groups Bar to the top'),
   searchTop: rng('Search Top Offset', 0, 300),
   gridTop: rng('Speed Dial Top Offset', 0, 300),
   addAnchor: { type: 'select', label: '+ Shortcut Anchor', options: [['bottom', 'Bottom of page'], ['top', 'Below tiles']] },
@@ -286,7 +287,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   // Layout: left column = the page from top to bottom (each element with its own switch, position and size),
   // right column = how a tile looks, then the windows and the settings icon.
   const layout = grid(
-    [section('Groups Bar', ['groupsTop', 'groupsMaxPx', 'groupsMaxPct']),
+    [section('Groups Bar', ['groupsTop', 'groupsMaxPx', 'groupsMaxPct', 'groupsSticky']),
      section('Search Field', ['showSearch', 'searchTop']),
      section('Speed Dial Grid', ['gridTop', 'maxColumns', 'gapX', 'gapY']),
      section('+ Shortcut Button', ['showAdd', 'addAnchor', 'addOffset'])],

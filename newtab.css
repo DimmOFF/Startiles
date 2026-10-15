@@ -420,3 +420,7 @@ body.gear-switch .panel{transition:none!important}
 #mode-form .btns button{padding:9px 26px}
 #mode-form .btns button:disabled{opacity:.5;cursor:default}
 @media (max-width:640px){.mode-cols{grid-template-columns:1fr}.mode-art{max-height:150px}#mode-form{padding:18px}}
+
+/* Groups bar pinned: it stays at the top of the window while the tiles scroll under it (the strip itself lets clicks through) */
+.groups-sticky #groups-wrap{position:sticky;top:10px;z-index:10;pointer-events:none}
+.groups-sticky #groups{pointer-events:auto;background:color-mix(in srgb,var(--field) 82%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 6px 20px rgba(0,0,0,calc(var(--shadow-a) * .8))}

@@ -6,7 +6,7 @@ export const DEFAULTS = {
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
   showBmGroup: true,                                         // Bookmarks mode: show the default "Bookmarks" group (links lying directly in the root folder)
   engine: 'google', searchSuggest: true, bgType: 'color', bgUrl: '', ratio: 1.34, tileRadius: 10, source: 'speeddial', bookmarksRootId: null, showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, deleteAnim: 'dust', animReflow: true, animGroups: true, animFolders: true, hiResIcons: true,
-  groupsTop: 42, searchTop: 70, folderSize: 70, animMs: 280,
+  groupsTop: 42, groupsSticky: true, searchTop: 70, folderSize: 70, animMs: 280,
   gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   iconAutoRefresh: true, iconRefreshEvery: 'month',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
@@ -93,6 +93,7 @@ export function applyCss() {
   b.toggle('hide-del', !s.showDelete);
   b.toggle('hide-add', !s.showAdd);
   b.toggle('hide-search', !s.showSearch);
+  b.toggle('groups-sticky', !!s.groupsSticky);
   b.toggle('add-top', s.addAnchor === 'top');
   const gb = s.gearAnchor === 'bottom';
   if (b.contains('gear-bottom') !== gb) {                      // the closed Quick Settings panel must not animate between its two hidden places (it flashed)
