@@ -216,11 +216,10 @@ Ticking *Speed Dials* ticks both preview options; they can also be reset on thei
 
 ## 🔒 Data & privacy
 
-- **Speed Dials** source: bookmarks folder `root\Startiles Speed Dial` (a folder named *Modern Speed Dial* from earlier versions is found and renamed automatically). Chromium usually does not let extensions write to the bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Mode.
+- **Speed Dials** source: bookmarks folder `root\Startiles Speed Dial`. Chromium usually does not let extensions write to the bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Mode.
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
 - Structure: `<root folder>` → `<group>` → link or `<folder>` → (links, nested folders…).
 - Settings, thumbnail choices (keyed by the tile URL), custom images, background image, page screenshots and the icon cache (incl. the time each bookmark's icon was last checked) are kept in `chrome.storage.local` of the extension.
-- **No cloud sync.** (The earlier Google Drive sync was removed; use Export / Import to move data between browsers.)
 
 <details>
 <summary><b>Permissions and network use</b></summary>
