@@ -6,7 +6,8 @@
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-2fd06a.svg"></a>
   <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-4285F4?logo=googlechrome&logoColor=white">
   <img alt="Chromium browsers" src="https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Vivaldi%20%C2%B7%20Opera-supported-5b6cff">
-  <img alt="No cloud sync" src="https://img.shields.io/badge/data-stays%20in%20your%20browser-38bdf8">
+  <img alt="Data stays in your browser" src="https://img.shields.io/badge/data-stays%20in%20your%20browser-38bdf8">
+  <a href="https://dimmoff.github.io/Startiles/donate/"><img alt="Donate" src="https://img.shields.io/badge/%E2%99%A5%20Donate-support%20the%20project-e0457b"></a>
 </p>
 
 <p align="center">
@@ -23,7 +24,8 @@
   <a href="#-keyboard">Keyboard</a> ·
   <a href="#-settings">Settings</a> ·
   <a href="#-backup--reset">Backup & reset</a> ·
-  <a href="#-data--privacy">Data & privacy</a>
+  <a href="#-data--privacy">Data & privacy</a> ·
+  <a href="#-support">Support</a>
 </p>
 
 ## ✨ Highlights
@@ -37,7 +39,7 @@
   <tr>
     <td valign="top"><b>🖼️ Smart thumbnails</b><br>Site logo, page preview, your own image or file, with hi-res icons and automatic refresh.</td>
     <td valign="top"><b>✨ Smooth animations</b><br>Folders grow from the tile, tiles slide into place, seven deletion effects. All can be switched off.</td>
-    <td valign="top"><b>💾 Yours to keep</b><br>Selective Export / Import and Reset. Nothing is synced to a cloud.</td>
+    <td valign="top"><b>💾 Yours to keep</b><br>Dials are ordinary bookmarks, so your browser's own sync can carry them along. Selective Export / Import and Reset.</td>
   </tr>
 </table>
 
@@ -216,6 +218,7 @@ Ticking *Speed Dials* ticks both preview options; they can also be reset on thei
 
 ## 🔒 Data & privacy
 
+- **Privacy**: the developer collects no data; everything stays in your browser. Details: <https://dimmoff.github.io/Startiles/privacy/>
 - **Speed Dials** source: bookmarks folder `root\Startiles Speed Dial`. Chromium usually does not let extensions write to the bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Mode.
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
 - Structure: `<root folder>` → `<group>` → link or `<folder>` → (links, nested folders…).
@@ -242,6 +245,11 @@ Requests made by the page: icon services (Google favicon service, DuckDuckGo ico
 `newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage · `js/settings*.js` – settings and their UI · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search · `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker · `js/backup.js` – export / import · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
 
 </details>
+
+## 💖 Support
+
+Startiles is free and open source. If it is useful to you, you can support its development: **<https://dimmoff.github.io/Startiles/donate/>**
+(card and cryptocurrency). Starring the repository, reporting bugs and sharing the extension help just as much.
 
 ## 📄 License
 
