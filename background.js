@@ -27,7 +27,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== 'complete' || !tab.active || !/^https?:/.test(tab.url || '')) return;
   const v = await getVisit(tabId);
   setTimeout(() => capture(tabId), v ? 2000 : 1200);            // a page opened from a tile gets a little longer to paint
+  setTimeout(() => capture(tabId, true), 6000);                  // second try: single-page apps often paint late
 });
+// a page that finished loading in a background tab is captured when you switch to it
+chrome.tabs.onActivated.addListener(({ tabId }) => setTimeout(() => capture(tabId), 900));
 
 // nearly one colour (a blank white page while it is still loading) -> not worth keeping
 function lumaSpread(data) {
@@ -40,10 +43,10 @@ function lumaSpread(data) {
   return hi - lo;
 }
 
-async function capture(tabId) {
+async function capture(tabId, late = false) {
   try {
     const tab = await chrome.tabs.get(tabId);
-    if (!tab.active || !/^https?:/.test(tab.url || '')) return;
+    if (!tab.active || tab.status !== 'complete' || !/^https?:/.test(tab.url || '')) return;
     const { thumbs = {}, shots = {} } = await chrome.storage.local.get(['thumbs', 'shots']);
     const isPv = (u) => thumbs[u] && thumbs[u].mode === 'auto' && thumbs[u].auto === 'pageview';
     const visit = await getVisit(tabId);
@@ -54,7 +57,8 @@ async function capture(tabId) {
       ttl = TTL;
     }
     if (!match) return;
-    if (shots[match] && Date.now() - shots[match].ts < ttl) return;
+    const age = shots[match] ? Date.now() - shots[match].ts : Infinity;
+    if (age < ttl && !(late && age < 20e3)) return;               // fresh enough (the second try may replace the first shot of this visit)
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 80 });
     const bmp = await createImageBitmap(await (await fetch(dataUrl)).blob());
     const probe = new OffscreenCanvas(24, 24).getContext('2d');
@@ -68,7 +72,7 @@ async function capture(tabId) {
     const cur = (await chrome.storage.local.get('shots')).shots || {};
     cur[match] = { dataUrl: url, ts: Date.now() };
     await chrome.storage.local.set({ shots: cur });
-    if (visit) { visits.delete(tabId); try { sess?.remove('visit:' + tabId); } catch { /* ignore */ } }
+    if (visit && late) { visits.delete(tabId); try { sess?.remove('visit:' + tabId); } catch { /* ignore */ } }
   } catch { /* tab not capturable */ }
 }
 

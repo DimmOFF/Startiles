@@ -8,7 +8,7 @@ export const DEFAULTS = {
   engine: 'google', searchSuggest: true, bgType: 'color', bgUrl: '', ratio: 1.34, tileRadius: 10, source: 'speeddial', bookmarksRootId: null, showLongTitle: true, groupsMaxPx: 1000, groupsMaxPct: 95, animDelete: true, deleteAnim: 'dust', animReflow: true, animGroups: true, animFolders: true, hiResIcons: true,
   groupsTop: 42, groupsSticky: true, searchTop: 70, folderSize: 70, animMs: 280,
   gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
-  iconAutoRefresh: true, iconRefreshEvery: 'month',          // re-check site icons / page previews once a day | week | month | year
+  iconAutoRefresh: true, iconRefreshEvery: 'month', pvService: 'off', pvServiceUrl: '',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
   modeChosen: false,                                         // the first-run question "Speed Dials or Bookmarks?" has been answered (asked again after Reset > Settings)
   lastFit: 'cover',                                          // last used Fit of an own thumbnail image (cover | contain | icon): preselected for new ones

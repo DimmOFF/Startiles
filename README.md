@@ -95,7 +95,7 @@ The **Add / Edit** dialog has an address with autocomplete (bookmarks, history, 
 | Mode | What you get |
 |---|---|
 | **Automatic → Logo** | The site icon on a coloured background. If the site has several icons they appear as a picker with pixel sizes. |
-| **Automatic → Pageview** | A screenshot taken when you open the tile from the new tab (or visit the page), otherwise the page's own picture (`og:image`, `twitter:image`, JSON-LD image, PWA screenshots), otherwise the logo. |
+| **Automatic → Pageview** | A screenshot taken when you open the tile from the new tab (or visit the page), otherwise the page's own picture (`og:image`, `twitter:image`, JSON-LD image, PWA screenshots), otherwise - if you turn it on in *Icons & Previews → Online screenshots* - a screenshot from an online service (thum.io, Microlink or your own URL template; **off by default**, it sends the page address to that service), otherwise the logo. |
 | **Image URL** / **Local file** | Your own picture. Fit: *Fill*, *Fit inside* or *Icon size* (shown at the same size as site icons, following the Icon Size setting). The Fit you used last is preselected next time. |
 
 Uploaded images are scaled down so that their shorter side is at most 420 px (smaller ones are kept as they are). Long titles get a caption with the full text when they do not fit into the tile (can be switched off).

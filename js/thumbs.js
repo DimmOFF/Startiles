@@ -116,16 +116,24 @@ export function renderThumbFrom(pageUrl, t, onState) {
     if (t.auto === 'pageview') {
       const shot = shots[pageUrl]?.dataUrl;
       if (shot) { onState?.('found'); showCover(shot, 'cov top', upgradeLogo); }
-      else if (S.get().hiResIcons && web) {
+      else if (web && (S.get().hiResIcons || Icons.shotServiceUrl(pageUrl))) {
         onState?.('loading');
-        Icons.preview(pageUrl).then(async (src) => {
-          if (!src) { onState?.('none'); upgradeLogo(); return; }
-          // the worker downloads the picture (no Referer, so hotlink protection does not block it) and the tile shows the copy;
-          // a direct <img> is only the last resort
-          const copy = await ImgCache.get(src);
-          onState?.('found');
-          showCover(copy || src, 'cov', () => { onState?.('none'); upgradeLogo(); });
-        });
+        (async () => {
+          const src = S.get().hiResIcons ? await Icons.preview(pageUrl) : null;
+          if (src) {
+            // the worker downloads the picture (no Referer, so hotlink protection does not block it) and the tile shows the copy;
+            // a direct <img> is only the last resort
+            const copy = await ImgCache.get(src);
+            onState?.('found');
+            showCover(copy || src, 'cov', () => { onState?.('none'); upgradeLogo(); });
+            return;
+          }
+          const su = Icons.shotServiceUrl(pageUrl);          // optional online screenshot (Settings > Icons & Previews)
+          const shotCopy = su ? await ImgCache.get(su, { shot: true, maxAge: Icons.previewMaxAge() }) : null;
+          if (shotCopy) { onState?.('found'); showCover(shotCopy, 'cov top', () => { onState?.('none'); upgradeLogo(); }); return; }
+          onState?.('none');
+          upgradeLogo();
+        })();
       } else { onState?.('off'); upgradeLogo(); }
     } else if (!t.icon) upgradeLogo();
     return box;

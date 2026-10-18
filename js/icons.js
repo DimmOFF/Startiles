@@ -237,6 +237,20 @@ async function fetchPreview(pageUrl) {
   save();
   return cache[pk].src;
 }
+// Optional online screenshot service for Pageview tiles that have no picture of their own (off by default: the address of the page
+// is sent to the service). A template contains {url} (the address as it is) or {urlenc} (URL-encoded).
+const PV_PRESETS = {
+  thumio: 'https://image.thum.io/get/width/800/crop/600/noanimate/{url}',
+  microlink: 'https://api.microlink.io/?url={urlenc}&screenshot=true&meta=false&embed=screenshot.url',
+};
+export function shotServiceUrl(pageUrl) {
+  const s = S.get();
+  const tpl = s.pvService === 'custom' ? (s.pvServiceUrl || '').trim() : PV_PRESETS[s.pvService];
+  if (!tpl || !/^https:\/\//i.test(tpl) || !/\{url(enc)?\}/.test(tpl) || !/^https?:\/\//i.test(pageUrl)) return null;
+  return tpl.replace('{urlenc}', encodeURIComponent(pageUrl)).replace('{url}', pageUrl);
+}
+export const previewMaxAge = () => ttlOk();                  // how long a stored preview / screenshot is considered fresh
+
 export async function preview(pageUrl) {
   await load();
   const c = cache['p:' + pageUrl];

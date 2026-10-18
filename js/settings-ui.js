@@ -38,6 +38,7 @@ const DEF = {
   searchSuggest: sw('Search suggestions'),
   hiResIcons: sw('Try to fetch hi-res icons & previews'),
   iconAutoRefresh: { ...sw('Auto-refresh icons & previews'), after: () => refreshAll() },
+  pvService: { type: 'select', label: 'Online screenshots (Pageview)', options: [['off', 'Off'], ['thumio', 'thum.io'], ['microlink', 'Microlink'], ['custom', 'Custom URL']], after: () => refreshAll() },
   iconRefreshEvery: { type: 'select', label: 'Refresh once a', options: [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['year', 'Year']] },
   showBmGroup: { ...sw('Show default "Bookmarks" group'), after: () => hooks.onGroups?.() },
   showAdd: sw('Show Add Button'),
@@ -179,7 +180,22 @@ function buildDeleteAnim() {
   box.append(lab, stage, foot);
   return box;
 }
+// Custom screenshot service: a template with {url} or {urlenc}; shown only for "Custom URL"
+function buildPvServiceUrl() {
+  const lab = el('label', 'row col', '<span>Service URL ({url} or {urlenc})</span>');
+  const inp = el('input');
+  inp.type = 'text';
+  inp.placeholder = 'https://example.com/shot?u={urlenc}';
+  inp.value = S.get().pvServiceUrl || '';
+  inp.onchange = () => S.set({ pvServiceUrl: inp.value.trim() });
+  lab.append(inp);
+  const show = () => { lab.hidden = S.get().pvService !== 'custom'; };
+  extraRefresh.push(show); show();
+  return lab;
+}
 function build(key) {
+  if (key === 'pvServiceUrl') return buildPvServiceUrl();
+  if (key === 'pvNote') return el('p', 'note', 'Off by default. When on, the address of a Pageview tile that has no picture of its own is sent to this service to get a screenshot.');
   if (key === 'deleteAnim') return buildDeleteAnim();
   if (key === 'theme') return ThemeUI.picker((f) => extraRefresh.push(f), refreshAll);
   if (key === 'bgImage') return buildBgImage();
@@ -333,7 +349,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
 
   const general = pane(grid(
     [dialSource, section('Search', ['engine', 'searchSuggest'])],
-    [section('Icons & Previews', ['hiResIcons', 'iconAutoRefresh', 'iconRefreshEvery', 'refreshIcons'])],
+    [section('Icons & Previews', ['hiResIcons', 'iconAutoRefresh', 'iconRefreshEvery', 'pvService', 'pvServiceUrl', 'pvNote', 'refreshIcons'])],
   ));
 
   // Layout: left column = the page from top to bottom (each element with its own switch, position and size),
