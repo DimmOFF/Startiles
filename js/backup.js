@@ -61,6 +61,7 @@ export async function readFile(file) {
   const themes = isObj(raw.themes) ? raw.themes
     : old && (Array.isArray(old.customThemes) || typeof old.theme === 'string') ? { theme: old.theme, customThemes: old.customThemes || [] } : null;
   const settings = old && Object.fromEntries(Object.entries(old).filter(([k]) => k in S.DEFAULTS && !THEME_KEYS.includes(k) && k !== 'activeGroup' && k !== 'modeChosen'));
+  if (settings && old.noAnim === true && !('animMode' in settings)) settings.animMode = 'off';   // older backups: 'Disable all animations'
   const data = {
     settings, bgSrc: typeof raw.bgSrc === 'string' ? raw.bgSrc : '',
     themes: themes && { theme: typeof themes.theme === 'string' ? themes.theme : 'auto', customThemes: cleanThemes(themes.customThemes) },

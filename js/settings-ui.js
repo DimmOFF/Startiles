@@ -45,7 +45,7 @@ const DEF = {
   showTitles: sw('Speed Dial Title'),
   showDelete: sw('Show Delete Button'),
   showLongTitle: sw('Show long title caption'),
-  noAnim: { type: 'switch', label: 'Disable all animations', after: () => refreshAll() },
+  animMode: { type: 'select', label: 'Animations', options: [['auto', 'Auto'], ['on', 'ON'], ['off', 'OFF']], after: () => refreshAll() },
   animDelete: sw('Tile deletion animation'),
   animReflow: sw('Tile shift (after delete / move)'),
   animGroups: sw('Group switching (swipe)'),
@@ -69,7 +69,7 @@ const DEF = {
 };
 
 const ICON_DEP = ['iconRefreshEvery'];                       // greyed out while auto-refresh is off
-const ANIM_DEP = ['animDelete', 'animReflow', 'animGroups', 'animFolders', 'animMs'];   // greyed out while 'Disable all animations' is on
+const ANIM_DEP = ['animDelete', 'animReflow', 'animGroups', 'animFolders', 'animMs'];   // greyed out while animations are not available (OFF, or Auto without hardware acceleration)
 const syncBg = () => document.querySelectorAll('.bg-url').forEach((i) => { i.value = S.get().bgUrl || ''; });
 const syncBgState = () => document.querySelectorAll('.bg-state').forEach((n) => {
   n.textContent = S.get().bgSrc ? 'Local image is in use' : 'No image selected';
@@ -311,11 +311,25 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   appearance.querySelectorAll(':scope > div:not(.subtabs)').forEach((p) => { p.hidden = true; p.style.marginTop = '4px'; });
   makeTabs(subNav, subPanes, 'msd-adv-subtab');
 
+  // Animations: Auto / ON / OFF on top; with Auto a line says what the browser's hardware acceleration decided
+  const animHint = el('div', 'note anim-note');
+  extraRefresh.push(() => {
+    const auto = S.get().animMode !== 'on' && S.get().animMode !== 'off', on = S.hwAccel();
+    animHint.hidden = !auto;
+    const word = el('b', on ? 'on' : 'off', on ? 'ON' : 'OFF');
+    word.title = S.hwDetails();                                  // what the check saw: shown only over ON / OFF
+    animHint.replaceChildren('Hardware acceleration is ', word, on ? ', animations are working.' : ', animations are disabled.');
+  });
+  const animSec = el('section');
+  const animRow = build('animMode');
+  animRow.classList.add('strong');                           // the label is bold, like the group headings
+  animSec.append(animRow, animHint);
   const behavior = pane(grid(
-    [section('Animation', ['noAnim']), section('Tiles', ['animDelete', 'deleteAnim', 'animReflow'])],
+    [animSec, section('Tiles', ['animDelete', 'deleteAnim', 'animReflow'])],     // the list sits in the left column
     [section('Transitions', ['animGroups', 'animFolders', 'animMs'])],
   ));
-  extraRefresh.push(() => document.querySelectorAll('.anim-dep').forEach((n) => n.classList.toggle('dim', !!S.get().noAnim)));
+  document.addEventListener('msd-hw', () => refreshAll());     // the hardware probe finished (it runs when the browser is idle)
+  extraRefresh.push(() => document.querySelectorAll('.anim-dep').forEach((n) => n.classList.toggle('dim', !S.animOn())));
   extraRefresh.push(() => document.querySelectorAll('.icon-dep').forEach((n) => n.classList.toggle('dim', !S.get().iconAutoRefresh)));
 
   adv.append(general, appearance, behavior);

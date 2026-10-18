@@ -104,7 +104,7 @@ Uploaded images are scaled down so that their shorter side is at most 420 px (sm
 - **Themes**: Auto (follows the browser's light / dark mode), Light, Dark, Midnight (deep navy, cyan accent), Sand (warm paper, terracotta accent) and your own custom themes. The colours are grouped as Page, Tiles, Text & Accent, Panels & Controls, and the folder window colour follows the page colour by default.
 - **Tile deletion** plays an animation of your choice, with a live preview: *Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate* (default) *and Poof*.
 - **Tile shift**: after a deletion or a move the other tiles slide smoothly into their new places.
-- Every animation can be switched off in **Settings → Behavior**.
+- **Settings → Behavior → Animations**: *Auto* (default) shows animations only when the browser's hardware acceleration is on, *ON* always, *OFF* never. In *Auto* a line tells whether acceleration is ON or OFF. Each animation also has its own switch.
 
 ## 📸 Screenshots
 
@@ -182,7 +182,7 @@ The highlighted group, field and buttons get a focus ring, the highlighted tile 
 | Tiles | Tile size, W:H ratio (1-1.7), tile corner size, icon size in %, tile titles, long-title caption, delete button |
 | Folder Window | Size in % of the page |
 | Settings Icon | **Auto hide** (hide the icon until the mouse comes within the **Appearance distance**, default 150 px), anchor (top / bottom), size (default 50, min 32), one offset (default 12; the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
-| Behavior → Animation | Disable all animations, or switch off: tile deletion, tile shift (after delete / move), group switching, folder transitions |
+| Behavior → Animations | Auto (follows hardware acceleration) / ON / OFF; and switch off individually: tile deletion, tile shift (after delete / move), group switching, folder transitions |
 
 </details>
 

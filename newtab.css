@@ -443,3 +443,10 @@ body.selecting #foot{visibility:hidden}
 .sel-sep{align-self:stretch;width:1px;margin:2px 2px;background:var(--border)}
 .drag-badge{position:fixed;left:-400px;top:0;padding:8px 14px;border-radius:10px;background:var(--accent);color:#fff;font-weight:600}
 #ctx{max-height:70vh;overflow:auto}
+
+/* Animations: the line under the Auto / ON / OFF list */
+.anim-note{margin:2px 0 10px}
+.anim-note b{font-weight:700}
+.anim-note b.on{color:#2fb36a}
+.anim-note b.off{color:#e5484d}
+.row.strong>span{font-weight:700}

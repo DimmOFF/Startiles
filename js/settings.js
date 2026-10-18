@@ -1,7 +1,7 @@
 import * as Themes from './themes.js';
 
 export const DEFAULTS = {
-  theme: 'auto', customThemes: [], noAnim: false,
+  theme: 'auto', customThemes: [], animMode: 'auto',   // animMode: auto (follow hardware acceleration) | on | off
   tileWidth: 228, iconSize: 50, maxColumns: '6', gridTop: 80, addAnchor: 'bottom', addOffset: 44, v: 3, gapX: 38, gapY: 36,
   showTitles: true, showDelete: true, showAdd: true, showSearch: true,
   showBmGroup: true,                                         // Bookmarks mode: show the default "Bookmarks" group (links lying directly in the root folder)
@@ -45,7 +45,8 @@ export async function load() {
   }
   if (r.settings && st.modeChosen === undefined) st.modeChosen = true;   // an existing installation already works in some mode: do not ask
   if ((st.v || 0) < 8 && st.groupsSticky === false) delete st.groupsSticky;   // the pinned groups bar is now on by default (the old value was only the former default)
-  cache = { ...DEFAULTS, ...st, v: 8, bgSrc: r.bgSrc || '' };
+  if ('noAnim' in st) { if (st.noAnim === true) st.animMode = 'off'; delete st.noAnim; }   // 'Disable all animations' became the Animations list: Auto / ON / OFF
+  cache = { ...DEFAULTS, ...st, v: 9, bgSrc: r.bgSrc || '' };
   if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
     cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
     if (cache.bgType === 'image') cache.bgType = 'url';
@@ -53,6 +54,7 @@ export async function load() {
     const { bgSrc, ...rest } = cache;
     chrome.storage.local.set({ settings: rest });
   }
+  scheduleHwProbe();
   return cache;
 }
 export const get = () => cache;
@@ -89,7 +91,7 @@ export function applyCss() {
   const n = Number(s.maxColumns) || 0;
   st.setProperty('--grid-max', n ? `calc(${n} * var(--tile-w) + ${n - 1} * var(--gap-x) + 80px)` : 'none');
   const b = document.body.classList;
-  b.toggle('no-anim', !!s.noAnim);
+  b.toggle('no-anim', !animOn());
   b.toggle('hide-titles', !s.showTitles);
   b.toggle('hide-del', !s.showDelete);
   b.toggle('hide-add', !s.showAdd);
@@ -109,5 +111,53 @@ export function applyCss() {
   document.querySelectorAll('[data-bg]').forEach((x) => (x.hidden = x.dataset.bg !== s.bgType));
 }
 
-// Is the animation `key` (animDelete, animReflow, animGroups, animFolders) on? Everything is off when 'Disable all animations' is set.
-export const anim = (key) => !cache.noAnim && !!cache[key];
+// ---- hardware acceleration ----
+// Without it (switched off in the browser, or a blocklisted GPU) the page is drawn by the CPU and animations stutter.
+// A WebGL context that refuses to be created on a software renderer tells it. The probe runs once, when the browser is idle;
+// its last result is remembered, so the very first paint already knows it.
+let hw = true, hwInfo = null;
+try { hw = localStorage.getItem('msd-hw') !== '0'; } catch { /* keep the default */ }
+const FAIL = { failIfMajorPerformanceCaveat: true };
+const SOFT = /swiftshader|llvmpipe|softpipe|software|basic render/i;
+async function detectHw() {
+  const info = { webgl: 'unavailable', renderer: '', webgpu: 'not supported', result: false };
+  let ok = false;
+  try {                                                         // WebGL: refused on a software renderer, and the renderer's name says it too
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2', FAIL) || c.getContext('webgl', FAIL);
+    if (gl) {
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      info.renderer = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '') : '';
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      ok = !SOFT.test(info.renderer);
+      info.webgl = ok ? 'ok' : 'software renderer';
+    }
+  } catch { info.webgl = 'error'; }
+  try {                                                         // WebGPU: a "fallback" adapter is the software one
+    if (navigator.gpu) {
+      const ad = await navigator.gpu.requestAdapter();
+      if (!ad) info.webgpu = 'no adapter';
+      else if (ad.isFallbackAdapter ?? ad.info?.isFallbackAdapter) { info.webgpu = 'fallback (software) adapter'; ok = false; }
+      else info.webgpu = 'hardware adapter';
+    }
+  } catch { info.webgpu = 'error'; }
+  info.result = ok;
+  return info;
+}
+function scheduleHwProbe() {
+  const run = async () => {
+    hwInfo = await detectHw();
+    console.info('[Startiles] hardware acceleration probe', hwInfo);
+    try { localStorage.setItem('msd-hw', hwInfo.result ? '1' : '0'); } catch { /* ignore */ }
+    if (hwInfo.result !== hw) { hw = hwInfo.result; applyCss(); }
+    document.dispatchEvent(new Event('msd-hw'));                // the settings page shows the result
+  };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 2000 }); else setTimeout(run, 300);
+}
+export const hwAccel = () => hw;
+// What the probe saw (shown as a tooltip on the hint in the settings): for finding out why a browser is judged the way it is.
+export const hwDetails = () => (hwInfo ? `WebGL: ${hwInfo.webgl}${hwInfo.renderer ? ' (' + hwInfo.renderer + ')' : ''}. WebGPU: ${hwInfo.webgpu}.` : 'The check has not finished yet.');
+// Are animations available at all? ON: yes, OFF: no, Auto: when hardware acceleration is on.
+export const animOn = () => cache.animMode === 'on' || (cache.animMode !== 'off' && hw);
+// Is the animation `key` (animDelete, animReflow, animGroups, animFolders) on? It needs its own switch and animOn().
+export const anim = (key) => animOn() && !!cache[key];
