@@ -11,7 +11,7 @@ export const DEFAULTS = {
   iconAutoRefresh: true, iconRefreshEvery: 'month',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
   modeChosen: false,                                         // the first-run question "Speed Dials or Bookmarks?" has been answered (asked again after Reset > Settings)
-  lastFit: 'cover',                                          // last used Fit of an own thumbnail image (cover | contain | icon): preselected for new ones
+  lastFit: 'cover',                                          // last used Fit of an own thumbnail image (cover | contain | icon | wide): preselected for new ones
 };
 let cache = { ...DEFAULTS };
 

@@ -120,7 +120,7 @@ export async function bookmarksPath(cfg = {}) {
 
 // ---- Speed Dials mode: the title of a link tile may be a JSON string {"name":"...","icon_url":"...","fit_mode":"..."}
 // (icon_url/fit_mode only when the tile has an icon taken from a URL). It travels with the bookmark, so the icon syncs between devices.
-const FITS = ['cover', 'contain', 'icon'];
+const FITS = ['cover', 'contain', 'icon', 'wide'];
 export function parseTitle(title) {
   if (typeof title !== 'string' || title.charCodeAt(0) !== 123) return null;     // fast: JSON starts with "{"
   try {

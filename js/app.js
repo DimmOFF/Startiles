@@ -536,7 +536,7 @@ function openItemDialog({ node = null, parentId = null }) {
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
-  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || (['cover', 'contain', 'icon'].includes(S.get().lastFit) ? S.get().lastFit : 'cover'), auto: t0.auto || 'logo', icon: t0.icon || '', fname: '' };
+  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || (['cover', 'contain', 'icon', 'wide'].includes(S.get().lastFit) ? S.get().lastFit : 'cover'), auto: t0.auto || 'logo', icon: t0.auto === 'wide' ? '' : t0.icon || '', wideIcon: t0.auto === 'wide' ? t0.icon || '' : '', fname: '' };
   dlg.innerHTML = `<form class="dform">
     <h3>${isNew ? 'Add' : 'Edit'}</h3>
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
@@ -553,7 +553,7 @@ function openItemDialog({ node = null, parentId = null }) {
             <label class="r"><input type="radio" name="mode" value="file"> Local file</label>
           </div>
           <div class="pane" data-modes="auto">
-            <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
+            <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="wide" title="A wide (rectangular) logo of the site">Wide icon</button><button type="button" data-ak="pageview">Pageview</button></div>
             <p class="note" id="aknote" hidden>Uses the site's preview image, or a screenshot taken when you visit the page.</p>
           </div>
           <div class="pane" data-modes="url"><input name="imgurl" placeholder="https://…/image.png" autocomplete="off" spellcheck="false"><p class="note err-note" id="imgerr" hidden>This image could not be loaded.</p></div>
@@ -563,7 +563,7 @@ function openItemDialog({ node = null, parentId = null }) {
             <p class="note">You can also drop or paste an image.</p>
           </div>
           <div class="pane" data-modes="url file">
-            <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option><option value="icon">Icon size</option></select></label>
+            <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option><option value="icon">Icon size</option><option value="wide">Wide icon</option></select></label>
           </div>
         </div>
       </div>
@@ -584,9 +584,15 @@ function openItemDialog({ node = null, parentId = null }) {
     found: "Uses the site's preview image, or a screenshot taken when you visit the page.",
     loading: 'Looking for a preview image…',
     none: 'No preview image found for this site. A screenshot will be taken after you visit it.',
-    off: 'Turn on “Fetch hi-res icons & previews” in Advanced Settings to look up preview images.',
+    off: 'Turn on “Try to fetch hi-res icons & previews” in Advanced Settings to look up preview images.',
   };
-  const setNote = (s) => { $('#aknote', dlg).textContent = NOTES[s] || NOTES.found; };
+  const WNOTES = {
+    found: 'Uses a wide logo of the site.',
+    loading: 'Looking for a wide icon…',
+    none: 'No wide icon found for this site. The regular icon is used.',
+    off: 'Turn on “Try to fetch hi-res icons & previews” in Advanced Settings to look for wide icons.',
+  };
+  const setNote = (s) => { const N = st.auto === 'wide' ? WNOTES : NOTES; $('#aknote', dlg).textContent = N[s] || N.found; };
   const renderPrev = () => {
     const tok = ++updTok;
     const addr = normalizeUrl(E.addr.value);
@@ -602,38 +608,44 @@ function openItemDialog({ node = null, parentId = null }) {
   // icon picker: shown when the site offers several icon variants
   const icp = $('#icopick', dlg);
   let cands = [], lastUrl = null, ct, searching = false;
+  let wcands = [], wlast = null, wt, wsearching = false;          // the same for the wide icons
   const shown = new Set();
   const syncAk = () => {
     f.querySelectorAll('.pane').forEach((p) => (p.hidden = !p.dataset.modes.split(' ').includes(st.mode)));
-    $('#aknote', dlg).hidden = !(st.mode === 'auto' && st.auto === 'pageview');
+    $('#aknote', dlg).hidden = !(st.mode === 'auto' && (st.auto === 'pageview' || st.auto === 'wide'));
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
     // the picker area stays put (icons, skeleton or a note) as long as it is relevant, so the window height never jumps
-    icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && E.addr.value.trim() && (lastUrl !== null || st.icon));
+    icp.classList.toggle('wide', st.auto === 'wide');
+    icp.hidden = !(st.mode === 'auto' && (st.auto === 'logo' || st.auto === 'wide') && E.addr.value.trim()
+      && (st.auto === 'wide' ? wlast !== null || st.wideIcon : lastUrl !== null || st.icon));
   };
   const renderIcons = () => {
+    const wide = st.auto === 'wide';
+    const sel = wide ? st.wideIcon : st.icon, busy = wide ? wsearching : searching;
     icp.replaceChildren();
-    const list = [...cands];
-    if (st.icon && !list.some((c) => c.src === st.icon)) list.unshift({ src: st.icon, w: 0 });
-    const auto = el('button', 'ic auto' + (st.icon ? '' : ' on'), 'Auto');
-    auto.type = 'button'; auto.title = 'Best available icon';
-    auto.onclick = () => { st.icon = ''; renderIcons(); upd(); };
+    const list = wide ? [...wcands] : cands.filter((c) => !Icons.isWide(c));          // square icons here, wide logos in their own picker
+    if (sel && !list.some((c) => c.src === sel)) list.unshift({ src: sel, w: 0 });
+    const auto = el('button', 'ic auto' + (sel ? '' : ' on'), 'Auto');
+    auto.type = 'button'; auto.title = wide ? 'Best wide icon' : 'Best available icon';
+    auto.onclick = () => { if (wide) st.wideIcon = ''; else st.icon = ''; renderIcons(); upd(); };
     icp.append(auto);
     list.forEach((c) => {
-      const b = el('button', 'ic' + (st.icon === c.src ? ' on' : ''));
+      const b = el('button', 'ic' + (sel === c.src ? ' on' : ''));
       if (!shown.has(c.src)) { shown.add(c.src); b.classList.add('pop'); }
       b.type = 'button';
-      b.title = (c.w ? (c.w >= 1024 ? 'vector' : c.w + 'px') + ' · ' : '') + c.src;
+      const vec = c.v ?? c.w >= 1024, dim = vec ? 'svg' : wide && c.h ? c.w + '×' + c.h : c.w;
+      b.title = (c.w ? (vec ? 'vector' : dim + 'px') + ' · ' : '') + c.src;
       const im = new Image(); im.src = c.src; im.alt = ''; im.draggable = false;
       b.append(im);
-      if (c.w) { const s = el('small'); s.textContent = c.w >= 1024 ? 'svg' : c.w; b.append(s); }
-      b.onclick = () => { st.icon = c.src; renderIcons(); upd(); };
+      if (c.w) { const s = el('small'); s.textContent = dim; b.append(s); }
+      b.onclick = () => { if (wide) st.wideIcon = c.src; else st.icon = c.src; renderIcons(); upd(); };
       icp.append(b);
     });
-    if (searching) {
+    if (busy) {
       for (let i = 0; i < 2; i++) icp.append(el('div', 'ic sk'));
-      icp.append(el('small', 'sk-note', 'Searching icons…'));
-    } else if (cands.length < 2 && !st.icon) {
-      icp.replaceChildren(el('small', 'sk-note', 'No other icons found for this site.'));
+      icp.append(el('small', 'sk-note', wide ? 'Searching wide icons…' : 'Searching icons…'));
+    } else if (list.length < (wide ? 1 : 2) && !sel) {
+      icp.replaceChildren(el('small', 'sk-note', wide ? 'No wide icons found for this site.' : 'No other icons found for this site.'));
     }
   };
   const loadCands = (delay = 250) => {
@@ -649,8 +661,21 @@ function openItemDialog({ node = null, parentId = null }) {
     };
     if (delay) ct = setTimeout(run, delay); else run();   // delay 0: run now, before the window is shown
   };
-  ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; syncAk(); upd(); }));
-  const setMode = (m) => { st.mode = m; syncAk(); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
+  const loadWide = (delay = 250) => {
+    clearTimeout(wt);
+    const run = () => {
+      const url = normalizeUrl(E.addr.value);
+      if (st.mode !== 'auto' || st.auto !== 'wide' || !S.get().hiResIcons || !/^https?:/i.test(url) || url === wlast) return;
+      if (wlast !== null) { st.wideIcon = ''; upd(); }
+      wlast = url; wcands = []; wsearching = true; shown.clear();
+      renderIcons(); syncAk();
+      Icons.wideCandidates(url, (list) => { if (wlast === url) { wcands = list; renderIcons(); syncAk(); } })
+        .then((list) => { if (wlast === url) { wcands = list; wsearching = false; renderIcons(); syncAk(); } });
+    };
+    if (delay) wt = setTimeout(run, delay); else run();
+  };
+  ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; renderIcons(); syncAk(); upd(); loadWide(0); }));
+  const setMode = (m) => { st.mode = m; syncAk(); loadWide(0); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
 
   f.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => {
     kind = b.dataset.kind;
@@ -721,11 +746,11 @@ function openItemDialog({ node = null, parentId = null }) {
     if (!s) return;
     E.addr.value = s.url;
     if (!E.ttl.value.trim()) E.ttl.value = s.title;
-    closeAc(); upd(); loadCands(0); titlePh(); E.addr.classList.remove('err');
+    closeAc(); upd(); loadCands(0); loadWide(0); titlePh(); E.addr.classList.remove('err');
   };
   E.addr.oninput = () => {
     E.addr.classList.remove('err');
-    titlePh(); upd(); loadCands();
+    titlePh(); upd(); loadCands(); loadWide();
     clearTimeout(acT);
     acT = setTimeout(async () => {
       const q = E.addr.value;
@@ -769,8 +794,9 @@ function openItemDialog({ node = null, parentId = null }) {
       const ttl = title || hostOf(url);
       const useImg = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
       // Speed Dials mode: an icon that comes from a URL travels in the bookmark title as JSON, so it syncs with the bookmarks
-      const iconUrl = st.mode === 'url' && st.url ? st.url : st.mode === 'auto' && st.auto === 'logo' && st.icon ? st.icon : '';
-      const bmTitle = M.titleFor(ttl, iconUrl, st.mode === 'url' ? st.fit : 'icon');
+      const pick = st.mode === 'auto' ? (st.auto === 'logo' ? st.icon : st.auto === 'wide' ? st.wideIcon : '') : '';   // the icon picked in a picker
+      const iconUrl = st.mode === 'url' && st.url ? st.url : pick;
+      const bmTitle = M.titleFor(ttl, iconUrl, st.mode === 'url' ? st.fit : st.auto === 'wide' ? 'wide' : 'icon');
       DialMeta.hold();                                            // a refresh must not restore the old icon while we save
       try {
         if (isNew) await M.addLink(parentId || activeGroup()?.id, url, bmTitle);
@@ -778,14 +804,14 @@ function openItemDialog({ node = null, parentId = null }) {
           await M.update(node.id, { title: bmTitle, url });
           if (url !== node.url) await T.rekey(node.url, url);
         }
-        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}) });
+        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}), ...(st.auto === 'wide' && st.wideIcon ? { icon: st.wideIcon } : {}) });
         if (useImg && (isNew || fitTouched)) await S.set({ lastFit: st.fit });   // the next own image starts with this Fit
       } finally { DialMeta.release(); }
     }
     dlg.close();
     scheduleRefresh();
   };
-  showKind(); renderIcons(); syncAk(); upd(true); loadCands(0);
+  showKind(); renderIcons(); syncAk(); upd(true); loadCands(0); loadWide(0);
   dlg.showModal();
   (isNew ? E.addr : E.ttl).focus();
 }

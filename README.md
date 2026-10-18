@@ -37,7 +37,7 @@
     <td width="33%" valign="top"><b>🎨 Themes</b><br>Auto, Light, Dark, Midnight, Sand &ndash; or build and save your own.</td>
   </tr>
   <tr>
-    <td valign="top"><b>🖼️ Smart thumbnails</b><br>Site logo, page preview, your own image or file, with hi-res icons and automatic refresh.</td>
+    <td valign="top"><b>🖼️ Smart thumbnails</b><br>Site logo, wide logo, page preview, your own image or file, with hi-res icons and automatic refresh.</td>
     <td valign="top"><b>✨ Smooth animations</b><br>Folders grow from the tile, tiles slide into place, seven deletion effects. All can be switched off.</td>
     <td valign="top"><b>💾 Yours to keep</b><br>Dials are ordinary bookmarks, so your browser's own sync can carry them along. Selective Export / Import and Reset.</td>
   </tr>
@@ -94,9 +94,10 @@ The **Add / Edit** dialog has an address with autocomplete (bookmarks, history, 
 
 | Mode | What you get |
 |---|---|
-| **Automatic → Logo** | The site icon on a coloured background. If the site has several icons they appear as a picker with pixel sizes. |
+| **Automatic → Logo** | The site icon on a coloured background. If the site has several square icons they appear as a picker with pixel sizes. |
+| **Automatic → Wide icon** | A wide (rectangular) logo of the site, found automatically: the wide Windows tile image (`msapplication-wide310x150logo` and `browserconfig.xml`), the `logo` of the site's JSON-LD markup, `og:logo`, the logo image in the page header, and the wide icons the page declares. Every candidate is downloaded and must really be wide (at least 1.5:1). A picker lists all the wide variants that were found; if the site has none, the regular icon is shown. It is shown 1.6 times as wide as a square icon and follows the Icon Size setting. |
 | **Automatic → Pageview** | A screenshot taken when you visit the page, otherwise the page's `og:image`, otherwise the logo. |
-| **Image URL** / **Local file** | Your own picture. Fit: *Fill*, *Fit inside* or *Icon size* (shown at the same size as site icons, following the Icon Size setting). The Fit you used last is preselected next time. |
+| **Image URL** / **Local file** | Your own picture. Fit: *Fill*, *Fit inside*, *Icon size* (shown at the same size as site icons, following the Icon Size setting) or *Wide icon* (like a wide site logo). The Fit you used last is preselected next time. |
 
 Uploaded images are scaled down so that their shorter side is at most 420 px (smaller ones are kept as they are). Long titles get a caption with the full text when they do not fit into the tile (can be switched off).
 
