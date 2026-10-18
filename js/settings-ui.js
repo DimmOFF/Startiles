@@ -228,6 +228,58 @@ function section(title, keys) {
   return s;
 }
 
+// ----- About tab: icon, version, project links, support -----
+const REPO = 'https://github.com/dimmoff/Startiles', SITE = 'https://dimmoff.github.io/Startiles';
+const ABOUT_ICON = {        // 24x24 line icons
+  github: '<path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>',
+  tag: '<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
+  bug: '<path d="M8 2l1.9 1.9M14.1 3.9L16 2M9 7.1v-1a3 3 0 1 1 6 0v1M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6zM12 20v-9M6.5 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M21 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+};
+const aboutIcon = (n) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ABOUT_ICON[n]}</svg>`;
+function aboutCard(cls, icon, title, sub, href) {
+  const a = el('a', 'about-card ' + cls, `<span class="ac-ico">${aboutIcon(icon)}</span><span class="ac-txt"><b></b><small></small></span>`);
+  a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  a.querySelector('b').textContent = title;
+  a.querySelector('small').textContent = sub;
+  return a;
+}
+function buildAbout() {
+  const m = chrome.runtime.getManifest();
+  const box = el('div', 'about');
+  const hero = el('div', 'about-hero');
+  const logo = new Image();
+  logo.src = chrome.runtime.getURL('icons/icon128-alt.png'); logo.alt = ''; logo.draggable = false;
+  const name = el('h2'), tag = el('p', 'about-tag'), ver = el('span', 'about-ver');
+  name.textContent = 'Startiles';
+  tag.textContent = 'Speed Dial X Bookmarks Tile';
+  ver.textContent = 'Version ' + m.version;
+  hero.append(logo, name, tag, ver);
+
+  const links = el('div', 'about-links');
+  links.append(
+    aboutCard('', 'github', 'GitHub', 'Source code, star the project', REPO),
+    aboutCard('', 'tag', 'What\'s new', 'Releases and changelog', REPO + '/releases'),
+    aboutCard('', 'bug', 'Report a problem', 'Bugs and ideas: open an issue', REPO + '/issues'),
+    aboutCard('', 'shield', 'Privacy', 'Your data stays local', SITE + '/privacy/'),
+    aboutCard('donate', 'heart', 'Support Startiles', 'Free and open source. Card or cryptocurrency: every bit helps', SITE + '/donate/'),
+  );
+
+  const foot = el('div', 'about-foot');
+  const who = el('span'); who.textContent = 'Made by DimmOFF · MIT License';
+  const copy = el('button', 'pill sm', 'Copy debug info'); copy.type = 'button';
+  copy.title = 'Version, browser and mode: handy to attach to a bug report';
+  copy.onclick = async () => {
+    const text = `Startiles ${m.version}\n${navigator.userAgent}\nMode: ${S.get().source}, theme: ${S.get().theme}`;
+    try { await navigator.clipboard.writeText(text); copy.textContent = 'Copied ✓'; } catch { copy.textContent = 'Copy failed'; }
+    setTimeout(() => { copy.textContent = 'Copy debug info'; }, 1600);
+  };
+  foot.append(who, copy);
+  box.append(hero, links, foot);
+  return box;
+}
+
 // Tab strip: nav gets one button per [id, label, pane]; the choice is remembered in localStorage under `key`.
 function makeTabs(nav, items, key) {
   const btns = [];
@@ -332,8 +384,9 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   extraRefresh.push(() => document.querySelectorAll('.anim-dep').forEach((n) => n.classList.toggle('dim', !S.animOn())));
   extraRefresh.push(() => document.querySelectorAll('.icon-dep').forEach((n) => n.classList.toggle('dim', !S.get().iconAutoRefresh)));
 
-  adv.append(general, appearance, behavior);
-  makeTabs($('#adv-tabs'), [['general', 'General', general], ['appearance', 'Appearance', appearance], ['behavior', 'Behavior', behavior]], 'msd-adv-tab');
+  const about = pane(buildAbout());
+  adv.append(general, appearance, behavior, about);
+  makeTabs($('#adv-tabs'), [['general', 'General', general], ['appearance', 'Appearance', appearance], ['behavior', 'Behavior', behavior], ['about', 'About', about]], 'msd-adv-tab');
   refreshAll();
   syncBg();
   syncBgState();

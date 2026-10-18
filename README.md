@@ -182,6 +182,7 @@ The highlighted group, field and buttons get a focus ring, the highlighted tile 
 | Tiles | Tile size, W:H ratio (1-1.8), tile corner size, icon size in %, tile titles, long-title caption, delete button |
 | Folder Window | Size in % of the page |
 | Settings Icon | **Auto hide** (hide the icon until the mouse comes within the **Appearance distance**, default 150 px), anchor (top / bottom), size (default 50, min 32), one offset (default 12; the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
+| About | App icon and version, links to the GitHub repository, releases, issue tracker, privacy policy and donation page, **Copy debug info** (version, browser, mode) for bug reports |
 | Behavior → Animations | Auto (follows hardware acceleration) / ON / OFF; and switch off individually: tile deletion, tile shift (after delete / move), group switching, folder transitions |
 
 </details>
