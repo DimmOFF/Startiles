@@ -1021,6 +1021,26 @@ function kbMove(key) {
   if (j !== i) kbSet(tiles[j]);
   return true;
 }
+// Shift + arrow on a highlighted tile: starts selection mode with that tile and ticks the tiles up to the new one;
+// in selection mode the highlight keeps moving and the range follows it (going back shrinks it).
+// Ctrl + arrow (op 'del', selection mode only): the tiles passed over are unticked instead.
+function kbShiftMove(key, op = 'add') {
+  const tiles = kbTiles();
+  if (!tiles.length) return false;
+  if (!selMode) {
+    if (op === 'del') return false;
+    const id = kbActive && tiles.some((x) => x.dataset.id === kbId) ? kbId : null;
+    if (!id) return false;                                       // no highlight yet: a plain move shows it first
+    selEnter(id);
+    kbActive = true; kbId = id; kbApply();                       // selEnter hides the highlight (mouse start); here it stays
+  } else if (!kbActive && selLast && tiles.some((x) => x.dataset.id === selLast)) { kbId = selLast; kbActive = true; }   // the mouse started it: go on from the tile ticked last
+  if (selBase && selBaseOp !== op) selBase = null;               // Shift and Ctrl alternate: each starts its own sequence
+  if (!selBase) selAnchor = kbId;                                // a new sequence starts at the highlighted tile
+  selBaseOp = op;
+  kbMove(key);
+  selExtend(kbId, op);
+  return true;
+}
 function kbEnter(e) {
   const t = kbTiles().find((x) => x.dataset.id === kbId), node = byId.get(kbId);
   if (!t || !node) return false;
@@ -1035,7 +1055,11 @@ document.addEventListener('keydown', (e) => {
   const tg = e.target;
   if (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
   if (dlg.open || $('#picker').open || $('#reset-dlg').open || $('#bk-dlg').open || $('#mode-dlg').open || tg.closest?.('#adv') || tg.closest?.('#groups') || closing || navBusy) return;
-  if (KB_MOVE.has(e.key) && !e.ctrlKey && !e.metaKey) {
+  const mod = e.shiftKey && !e.ctrlKey && !e.metaKey ? 'add' : e.ctrlKey && !e.shiftKey && !e.metaKey ? 'del' : null;   // Meta stays with the browser (Cmd+arrows)
+  if (KB_MOVE.has(e.key) && mod && !tg.closest?.('#selbar') && kbShiftMove(e.key, mod)) {
+    e.preventDefault();
+    if (tg.matches?.('button')) tg.blur();
+  } else if (KB_MOVE.has(e.key) && !e.ctrlKey && !e.metaKey) {
     if (kbMove(e.key)) {
       e.preventDefault();
       if (tg.matches?.('button')) tg.blur();                    // so that Enter acts on the tile, not on the last clicked button
@@ -1142,6 +1166,7 @@ document.documentElement.addEventListener('mouseleave', () => document.body.clas
 // Long press (left button) on a tile starts selection mode. A click or Space ticks / unticks a tile, Enter opens the
 // ticked tiles in new tabs, Esc leaves the mode. Several ticked tiles can be dragged onto a group tab, a folder or a
 // place between tiles, or moved with "Move to…". Only the tiles of the grid in front count (the folder window's or the page's).
+let selBase = null, selBaseOp = 'add';                        // the selection before the current Shift / Ctrl+arrow sequence (so that going back shrinks the range) and what the sequence does
 let selLast = null, selAnchor = null;                        // the tile ticked last (where the arrow keys start from) / the start of a Shift range
 let selMode = false, selSuppress = false, lpTimer = 0, lpX = 0, lpY = 0, mouseX = 0, mouseY = 0;
 const sel = new Set();
@@ -1159,23 +1184,38 @@ function selPaint() {
 function selEnter(id) {
   selMode = true; document.body.classList.add('selecting'); selBar.hidden = false;
   kbOff(); hideTip();
+  selBase = null;
   if (id) { sel.add(id); selLast = selAnchor = id; }
   selPaint();
 }
 function selExit() {
-  selMode = false; selLast = selAnchor = null; sel.clear(); document.body.classList.remove('selecting'); selBar.hidden = true;
+  selMode = false; selLast = selAnchor = selBase = null; sel.clear(); document.body.classList.remove('selecting'); selBar.hidden = true;
   hideCtx(); selPaint();
 }
-const selToggle = (id) => { if (sel.has(id)) sel.delete(id); else sel.add(id); selLast = selAnchor = id; selPaint(); };
+const selToggle = (id) => { if (sel.has(id)) sel.delete(id); else sel.add(id); selLast = selAnchor = id; selBase = null; selPaint(); };
 // Shift+click / Shift+Space: ticks every tile between the anchor (the tile ticked last without Shift) and this one, both included
 function selRange(id) {
+  selBase = null;
   const tiles = selTiles(), a = tiles.findIndex((t) => t.dataset.id === selAnchor), b = tiles.findIndex((t) => t.dataset.id === id);
   if (a < 0 || b < 0) { selToggle(id); return; }                                   // no anchor in this grid yet: behaves like a plain click
   for (let i = Math.min(a, b); i <= Math.max(a, b); i++) sel.add(tiles[i].dataset.id);
   selLast = id;
   selPaint();
 }
-const selAll = () => { selTiles().forEach((t) => sel.add(t.dataset.id)); selPaint(); };
+// Shift+arrow: the selection is what it was before the sequence plus every tile from the anchor to the highlighted one;
+// Ctrl+arrow (op 'del'): the same tiles are taken out of it instead
+function selExtend(id, op = 'add') {
+  const tiles = selTiles(), a = tiles.findIndex((t) => t.dataset.id === selAnchor), b = tiles.findIndex((t) => t.dataset.id === id);
+  if (a < 0 || b < 0) return;
+  if (!selBase) selBase = new Set(sel);
+  sel.clear(); selBase.forEach((x) => sel.add(x));
+  for (let i = Math.min(a, b); i <= Math.max(a, b); i++) { if (op === 'del') sel.delete(tiles[i].dataset.id); else sel.add(tiles[i].dataset.id); }
+  selLast = id;
+  selPaint();
+}
+const selAll = () => { selBase = null; selTiles().forEach((t) => sel.add(t.dataset.id)); selPaint(); };
+window.addEventListener('keyup', (e) => { if (e.key === 'Shift' || e.key === 'Control') selBase = null; }, true);   // releasing Shift / Ctrl ends the sequence
+window.addEventListener('blur', () => { selBase = null; });
 function selOpen() {
   const urls = selIds().map((id) => byId.get(id)?.url).filter(Boolean);   // folders have nothing to open
   if (!urls.length) return;

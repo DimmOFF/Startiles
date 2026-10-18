@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Startiles - Speed Dial X Bookmarks Tile",
-  "version": "1.0.42",
+  "version": "1.0.44",
   "description": "Speed dial new tab that turns your bookmarks into visual tiles, with instant bookmark search, groups, folders and themes.",
   "permissions": ["bookmarks", "storage", "unlimitedStorage", "favicon", "history", "tabs"],
   "background": {"service_worker": "background.js"},
