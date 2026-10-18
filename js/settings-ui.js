@@ -30,7 +30,7 @@ const DEF = {
   bgImage: { type: 'bgimage' },
   tileWidth: rng('Tile Size', 120, 420, 'px', 2),
   tileRadius: rng('Tile Corner Size', 0, 32, 'px'),
-  ratio: rng('Tile Ratio (W:H)', 1, 1.7, '', 0.01),
+  ratio: rng('Tile Ratio (W:H)', 1, 1.8, '', 0.01),
   maxColumns: { type: 'select', label: 'Maximum Columns', options: MAXCOLS },
   iconSize: rng('Icon Size in Thumbnail', 15, 80, '%'),
   gapX: rng('Horizontal Gap', 0, 80),
