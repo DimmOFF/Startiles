@@ -286,6 +286,7 @@ function bindGrid(g, inFolder) {
     if (e.target.closest('.edit')) return openItemDialog({ node });
     if (e.target.closest('.del')) return deleteNode(node);
     if (!node.url) return inFolder ? enterFolder(node.id) : openFolder(node.id, tile);
+    { const th = T.getT(node.url); if (th.mode === 'auto' && th.auto === 'pageview') chrome.runtime.sendMessage({ msd: 'visit', url: node.url }).catch(() => {}); }   // the background screenshots the page that opens in this tab
     if (inFolder) {
       // The link opens now. Do not call history.back() for the folder's history entry here: while the target page
       // is still loading it would cancel the navigation, so the entry is simply left behind.

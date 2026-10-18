@@ -95,7 +95,7 @@ The **Add / Edit** dialog has an address with autocomplete (bookmarks, history, 
 | Mode | What you get |
 |---|---|
 | **Automatic → Logo** | The site icon on a coloured background. If the site has several icons they appear as a picker with pixel sizes. |
-| **Automatic → Pageview** | A screenshot taken when you visit the page, otherwise the page's `og:image`, otherwise the logo. |
+| **Automatic → Pageview** | A screenshot taken when you open the tile from the new tab (or visit the page), otherwise the page's own picture (`og:image`, `twitter:image`, JSON-LD image, PWA screenshots), otherwise the logo. |
 | **Image URL** / **Local file** | Your own picture. Fit: *Fill*, *Fit inside* or *Icon size* (shown at the same size as site icons, following the Icon Size setting). The Fit you used last is preselected next time. |
 
 Uploaded images are scaled down so that their shorter side is at most 420 px (smaller ones are kept as they are). Long titles get a caption with the full text when they do not fit into the tile (can be switched off).
@@ -234,7 +234,7 @@ Ticking *Speed Dials* ticks both preview options; they can also be reset on thei
 | `storage`, `unlimitedStorage` | settings, thumbnails, screenshots, cache |
 | `favicon` | the browser's own favicon cache |
 | `history` | address autocomplete in the Add dialog |
-| `tabs` + all sites (`<all_urls>`) | Pageview screenshots (background.js, only for tiles set to Pageview, at most every 6 h); reading the `<head>` of pages to find the best icon and `og:image`; search suggestions |
+| `tabs` + all sites (`<all_urls>`) | Pageview screenshots (background.js, only for tiles set to Pageview; a tile opened from the new tab is captured again at most every 30 min, other visits every 6 h; blank pages are skipped); reading the `<head>` of pages to find the best icon and `og:image`; search suggestions |
 
 Requests made by the page: icon services (Google favicon service, DuckDuckGo icons) for icons of search engines and sites; the selected search engine's public suggest endpoint while you type (switch **Search suggestions** off to stop this); the tiles' own sites for icons and previews (switch **Try to fetch hi-res icons & previews** off to stop this; **Auto-refresh** controls how often they are re-checked).
 

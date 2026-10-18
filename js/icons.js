@@ -14,7 +14,7 @@ let active = 0;
 
 const load = async () => { if (!cache) cache = (await chrome.storage.local.get(KEY))[KEY] || {}; };
 const save = () => { clearTimeout(saveT); saveT = setTimeout(() => chrome.storage.local.set({ [KEY]: cache }), 500); };
-export async function clear() { cache = {}; inflight.clear(); candCache.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
+export async function clear() { cache = {}; inflight.clear(); candCache.clear(); previewFail.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
 // Import: replace the cache or merge an imported one into it (existing entries win)
 export async function merge(obj, replace) {
   await load();
@@ -160,35 +160,79 @@ export function resolve(pageUrl) {
 }
 
 // Page preview image (og:image / twitter:image) for the "Pageview" automatic thumbnail.
+// Pictures a page may offer for itself, best first: og:image, twitter:image, itemprop, <meta name=thumbnail>,
+// <link rel=image_src>, JSON-LD "image", apple-touch-startup-image.
+function ldImages(html) {
+  const out = [];
+  const take = (x) => {
+    if (typeof x === 'string') out.push(x);
+    else if (Array.isArray(x)) x.forEach(take);
+    else if (x && typeof x === 'object' && typeof x.url === 'string') out.push(x.url);
+  };
+  const walk = (v, depth) => {
+    if (!v || typeof v !== 'object' || depth > 6) return;
+    if (Array.isArray(v)) { v.forEach((x) => walk(x, depth + 1)); return; }
+    take(v.image); take(v.thumbnailUrl);
+    Object.values(v).forEach((x) => walk(x, depth + 1));
+  };
+  const re = /<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi;
+  let m;
+  while ((m = re.exec(html))) { try { walk(JSON.parse(m[1].trim()), 0); } catch { /* not valid JSON */ } }
+  return out;
+}
+function previewHrefs(html) {
+  const metas = tags(html, 'meta'), links = tags(html, 'link');
+  const pick = (keys, attr) => {
+    for (const k of keys) {
+      const x = metas.find((m) => (m[attr] || '').toLowerCase() === k && m.content);
+      if (x) return x.content;
+    }
+    return null;
+  };
+  const rel = (name) => links.find((l) => new RegExp('(^|\\s)' + name + '(\\s|$)', 'i').test(l.rel || '') && l.href)?.href;
+  const og = ['og:image', 'og:image:url', 'og:image:secure_url'], tw = ['twitter:image', 'twitter:image:src'];
+  return [...new Set([
+    pick(og, 'property') || pick(og, 'name'),
+    pick(tw, 'name') || pick(tw, 'property'),
+    pick(['image'], 'itemprop'),
+    pick(['thumbnail'], 'name'),
+    rel('image_src'),
+    ...ldImages(html),
+    rel('apple-touch-startup-image'),
+  ].filter(Boolean))];
+}
+// PWA manifest "screenshots": big pictures of the app, used when the page has no picture of its own
+async function manifestShots(html, base) {
+  const href = tags(html, 'link').find((l) => /(^|\s)manifest(\s|$)/i.test(l.rel || '') && l.href)?.href;
+  if (!href) return [];
+  try {
+    const m = await fetchText(new URL(href, base).href, 3000);
+    return (JSON.parse(m.text).screenshots || []).map((x) => { try { return new URL(x.src, m.url).href; } catch { return null; } }).filter(Boolean);
+  } catch { return []; }
+}
+
+const previewFail = new Map();                               // pk -> time until which an unreachable page is not asked again (this session)
 async function fetchPreview(pageUrl) {
   const pk = 'p:' + pageUrl;
-  let transient = false;                                     // the page itself could not be loaded: do not remember the failure
+  let transient = false;                                     // the page itself could not be loaded: do not remember the failure for long
   const src = await schedule(async () => {
     const page = await fetchHead(pageUrl);
     if (!page) { transient = true; return null; }
-    const metas = tags(page.text, 'meta');
-    const pick = (keys, attr) => {
-      for (const k of keys) {
-        const e = metas.find((x) => (x[attr] || '').toLowerCase() === k && x.content);
-        if (e) return e.content;
+    const seen = new Set();
+    const firstLarge = async (hrefs) => {                    // first candidate that really loads as a large enough image
+      for (const href of hrefs) {
+        let abs;
+        try { abs = new URL(href, page.url).href; } catch { continue; }
+        if (seen.has(abs)) continue;
+        seen.add(abs);
+        const w = await loadImg(abs, 8000);
+        if (w && w >= 160) return abs;
       }
       return null;
     };
-    const cands = [
-      pick(['og:image', 'og:image:url', 'og:image:secure_url'], 'property') || pick(['og:image', 'og:image:url', 'og:image:secure_url'], 'name'),
-      pick(['twitter:image', 'twitter:image:src'], 'name') || pick(['twitter:image', 'twitter:image:src'], 'property'),
-      pick(['image'], 'itemprop'),
-      tags(page.text, 'link').find((l) => /(^|\s)image_src(\s|$)/i.test(l.rel || '') && l.href)?.href,
-    ].filter(Boolean);
-    for (const href of cands) {                              // first candidate that really loads as a large enough image
-      let abs;
-      try { abs = new URL(href, page.url).href; } catch { continue; }
-      const w = await loadImg(abs, 6000);
-      if (w && w >= 160) return abs;
-    }
-    return null;
+    return (await firstLarge(previewHrefs(page.text))) || (await firstLarge(await manifestShots(page.text, page.url)));
   });
-  if (transient) return cache[pk]?.src || null;
+  if (transient) { previewFail.set(pk, Date.now() + 10 * 60e3); return cache[pk]?.src || null; }
   cache[pk] = { src: src || cache[pk]?.src || null, w: 0, ts: Date.now() };   // a failed refresh keeps the old preview
   save();
   return cache[pk].src;
@@ -198,6 +242,7 @@ export async function preview(pageUrl) {
   const c = cache['p:' + pageUrl];
   if (c && Date.now() - c.ts < (c.src ? ttlOk() : TTL_FAIL)) return c.src;
   if (c?.src) { fetchPreview(pageUrl).catch(() => {}); return c.src; }                 // stale: show it, refresh in the background
+  if ((previewFail.get('p:' + pageUrl) || 0) > Date.now()) return null;                // could not be reached a moment ago
   return fetchPreview(pageUrl);
 }
 

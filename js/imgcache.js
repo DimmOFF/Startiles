@@ -30,6 +30,15 @@ export function use(url) {
   ensure(url);
   return url;
 }
+// Like use(), but waits for the download: the cached data URL, or null when the image could not be fetched.
+export async function get(url) {
+  if (!url || !/^https?:/i.test(url)) return null;
+  const c = cache[url];
+  if (c) { c.t = Date.now(); return c.d; }
+  ensure(url);
+  await pending.get(url);
+  return cache[url]?.d || null;
+}
 export function ensure(url) {
   if (cache[url] || pending.has(url) || (failed.get(url) || 0) > Date.now()) return;
   const p = fetchOne(url)

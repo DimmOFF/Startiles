@@ -22,7 +22,7 @@ async function fetchText(url, ms = 4000) {
   } catch { return null; } finally { t.done(); }
 }
 
-// Reads only the <head> of a page (stops at </head> or 250 KB) - much faster than downloading everything.
+// Reads only the <head> of a page (stops at </head> or 600 KB) - much faster than downloading everything.
 async function fetchHead(url, ms = 4000) {
   const t = timeout(ms);
   try {
@@ -32,7 +32,7 @@ async function fetchHead(url, ms = 4000) {
     if (type && !/html/i.test(type)) return null;
     const reader = r.body.getReader(), dec = new TextDecoder();
     let text = '';
-    while (text.length < 250000) {
+    while (text.length < 600000) {
       const { done, value } = await reader.read();
       if (done) break;
       text += dec.decode(value, { stream: true });

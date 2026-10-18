@@ -118,9 +118,13 @@ export function renderThumbFrom(pageUrl, t, onState) {
       if (shot) { onState?.('found'); showCover(shot, 'cov top', upgradeLogo); }
       else if (S.get().hiResIcons && web) {
         onState?.('loading');
-        Icons.preview(pageUrl).then((src) => {
-          onState?.(src ? 'found' : 'none');
-          if (src) showCover(src, 'cov', upgradeLogo); else upgradeLogo();
+        Icons.preview(pageUrl).then(async (src) => {
+          if (!src) { onState?.('none'); upgradeLogo(); return; }
+          // the worker downloads the picture (no Referer, so hotlink protection does not block it) and the tile shows the copy;
+          // a direct <img> is only the last resort
+          const copy = await ImgCache.get(src);
+          onState?.('found');
+          showCover(copy || src, 'cov', () => { onState?.('none'); upgradeLogo(); });
         });
       } else { onState?.('off'); upgradeLogo(); }
     } else if (!t.icon) upgradeLogo();
