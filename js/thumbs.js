@@ -70,7 +70,7 @@ export function setSiteIcon(img, pageUrl, size = 32) {
   img.src = srcs[0];
 }
 
-// onState (optional) reports the Pageview / Wide icon lookup: 'loading' | 'found' | 'none' | 'off'
+// onState (optional) reports the Pageview / Logo lookup: 'loading' | 'found' | 'none' | 'off'
 export function renderThumbFrom(pageUrl, t, onState) {
   const box = document.createElement('div');
   box.className = 'thumb';

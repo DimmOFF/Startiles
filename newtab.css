@@ -474,8 +474,12 @@ body.selecting #foot{visibility:hidden}
 .about-card.donate:hover{border-color:#e0457b;background:color-mix(in srgb,#e0457b 15%,transparent)}
 .about-card.donate .ac-ico{background:color-mix(in srgb,#e0457b 22%,transparent);color:#e0457b}
 .about-foot{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px}
-/* the picker of wide icons: two per row, 2:1 */
+/* the picker of logos (wide icons): two per row, 2:1 */
 #icopick.wide{grid-template-columns:repeat(2,minmax(0,1fr))}
 #icopick.wide .ic{aspect-ratio:2/1;min-width:0;overflow:hidden;padding:4px}
 #icopick.wide .ic img{width:100%;height:100%;object-fit:contain}
 #icopick.wide .ic.auto{aspect-ratio:auto;min-height:36px}
+/* Logo thumbnail: find more logos (online search, Google Images) */
+.widetools{margin-top:10px}
+.widetools .wt-row{display:flex;flex-wrap:wrap;gap:8px}
+.widetools .note{margin:8px 0 0}

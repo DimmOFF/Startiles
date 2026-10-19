@@ -2,7 +2,7 @@
 //  - resolve(pageUrl):   best icon for a tile (cached per origin)
 //  - preview(pageUrl):   og:image for the "Pageview" thumbnail
 //  - candidates(url,cb): every usable icon variant, streamed progressively to the icon picker
-//  - wide(pageUrl):      a wide (rectangular) logo for the "Wide icon" thumbnail; wideCandidates(url,cb) feeds its picker
+//  - wide(pageUrl):      a wide (rectangular) logo for the "Logo" thumbnail; wideCandidates(url,cb) feeds its picker
 import * as S from './settings.js';
 import { netCall } from './net.js';
 const KEY = 'iconCache', TTL_FAIL = 3 * 864e5;
@@ -15,7 +15,7 @@ let active = 0;
 
 const load = async () => { if (!cache) cache = (await chrome.storage.local.get(KEY))[KEY] || {}; };
 const save = () => { clearTimeout(saveT); saveT = setTimeout(() => chrome.storage.local.set({ [KEY]: cache }), 500); };
-export async function clear() { cache = {}; inflight.clear(); candCache.clear(); wideCache.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
+export async function clear() { cache = {}; inflight.clear(); candCache.clear(); wideCache.clear(); webCache.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
 // Import: replace the cache or merge an imported one into it (existing entries win)
 export async function merge(obj, replace) {
   await load();
@@ -355,3 +355,75 @@ export async function wideCandidates(pageUrl, onUpdate) {
   wideCache.set(u.origin, out);
   return out;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Online search for wide logos - only on an explicit request ("Search online" in the Add / Edit dialog), never automatically.
+// Wikidata knows the logo (P154) and the official website (P856) of many companies and sites; an item whose official website
+// is the site itself is the best match. Wikimedia Commons file search adds more candidates. No API key is needed.
+// What is sent: the site name (title / domain label) to wikidata.org and commons.wikimedia.org.
+// ---------------------------------------------------------------------------------------------------------------------
+const WD_API = 'https://www.wikidata.org/w/api.php', COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
+// a Commons file as a PNG of at most 640px (SVG logos are rendered): light to download and always measurable
+const commonsUrl = (file) => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(file.replace(/^File:/i, '').replace(/ /g, '_')) + '?width=640';
+async function apiJson(base, params) {
+  const r = await fetchText(base + '?' + new URLSearchParams({ format: 'json', origin: '*', ...params }), 7000);
+  try { return r ? JSON.parse(r.text) : null; } catch { return null; }
+}
+const bareHost = (h) => h.toLowerCase().replace(/^www\./, '');
+const sameSite = (url, host) => {                                                // the official website belongs to this site (or its parent domain)
+  try { const h = bareHost(new URL(url).hostname); return h === host || h.endsWith('.' + host) || host.endsWith('.' + h); } catch { return false; }
+};
+const webCache = new Map();
+export async function webLogos(names, pageUrl, onUpdate) {
+  let host;
+  try { host = bareHost(new URL(pageUrl).hostname); } catch { return []; }
+  names = [...new Set(names.map((n) => (n || '').trim()).filter((n) => n.length >= 2))].slice(0, 2);
+  if (!names.length) return [];
+  const key = host + '|' + names.join('|').toLowerCase();
+  const hit = webCache.get(key);
+  if (hit) { onUpdate?.(hit); return hit; }
+  const cands = new Map();                                                       // url -> { d, label }
+  const add = (url, d, label) => { const c = cands.get(url); if (!c || c.d < d) cands.set(url, { d, label }); };
+
+  // 1. Wikidata: items with these names, their logo images
+  const ids = [];
+  await Promise.all(names.map(async (name) => {
+    const j = await apiJson(WD_API, { action: 'wbsearchentities', search: name, language: 'en', type: 'item', limit: '6' });
+    (j?.search || []).forEach((x) => { if (!ids.includes(x.id)) ids.push(x.id); });
+  }));
+  if (ids.length) {
+    const j = await apiJson(WD_API, { action: 'wbgetentities', ids: ids.slice(0, 12).join('|'), props: 'claims|labels', languages: 'en' });
+    for (const e of Object.values(j?.entities || {})) {
+      const claims = e.claims || {}, label = e.labels?.en?.value || '';
+      const siteMatch = (claims.P856 || []).some((c) => sameSite(c.mainsnak?.datavalue?.value || '', host));
+      const exact = names.some((n) => n.toLowerCase() === label.toLowerCase());
+      const d = siteMatch ? 100 : exact ? 40 : 0;
+      if (!d) continue;                                                          // neither the site nor the name: noise
+      const all = (claims.P154 || []).filter((c) => c.rank !== 'deprecated');
+      const current = all.filter((c) => !c.qualifiers?.P582);                   // P582 = end time: an old logo
+      (current.length ? current : all).sort((a, b) => (b.rank === 'preferred') - (a.rank === 'preferred')).slice(0, 3).forEach((c, i) => {
+        const f = c.mainsnak?.datavalue?.value;
+        if (typeof f === 'string') add(commonsUrl(f), d - i, label || 'Wikidata');
+      });
+    }
+  }
+  // 2. Wikimedia Commons: files whose name says "logo"
+  await Promise.all(names.map(async (name) => {
+    const j = await apiJson(COMMONS_API, { action: 'query', list: 'search', srsearch: name + ' logo', srnamespace: '6', srlimit: '8' });
+    (j?.query?.search || []).forEach((x, i) => {
+      if (/logo|wordmark/i.test(x.title) && !/icon|favicon|\.(ogg|oga|webm|pdf|tiff?|gif)$/i.test(x.title)) add(commonsUrl(x.title), 20 - i, 'Wikimedia Commons');
+    });
+  }));
+  // 3. download and measure: only wide images count
+  const out = [], seen = new Set();
+  await Promise.all([...cands].sort((a, b) => b[1].d - a[1].d).slice(0, 14).map(([src, c]) => probe(src, 9000).then((r) => {
+    if (!wideOk(r) || seen.has(r.hash)) return;
+    seen.add(r.hash);
+    out.push({ src, d: c.d, label: c.label, o: true, ...r });
+    onUpdate?.(byRank(out));
+  })));
+  const list = byRank(out);
+  if (list.length) webCache.set(key, list);                                      // an empty result is not remembered: the next try asks again
+  return list;
+}
+
