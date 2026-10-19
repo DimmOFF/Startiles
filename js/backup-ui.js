@@ -1,7 +1,7 @@
 // Export / Import window: check boxes choose what is exported / imported (same look as Reset to Default).
 // Import additionally offers Add / Replace for Themes and Speed Dials (the previews follow the Speed Dials choice).
 import * as Backup from './backup.js';
-import { $, el } from './util.js';
+import { $, el, closeOnBackdrop } from './util.js';
 
 const ITEMS = [
   { k: 'settings', t: 'Settings', d: 'All options except themes, including the page background image.' },
@@ -78,7 +78,7 @@ export function init({ status }) {
     } catch (e) { status.textContent = 'Import failed: ' + e.message; }
   };
   $('#bk-cancel').onclick = () => dlg.close();
-  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  closeOnBackdrop(dlg);
   form.onsubmit = async (e) => {
     e.preventDefault();
     const on = (k) => chk(k).checked;

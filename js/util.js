@@ -22,3 +22,25 @@ export const ICON = {
   trash: '<path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
   back: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
 };
+
+// Closes a modal <dialog> when the user clicks the dark backdrop around it.
+// The press AND the release must both happen on the backdrop. A plain 'click' listener is not enough: if you press inside a
+// text field and release the mouse outside the window (e.g. while selecting text), the browser reports the click on the dialog
+// itself - the nearest common ancestor - and the dialog would close. The dialog's own padding does not count as backdrop either.
+const backdropDone = new WeakSet();
+export function closeOnBackdrop(dlg) {
+  if (backdropDone.has(dlg)) return;
+  backdropDone.add(dlg);
+  const onBackdrop = (e) => {
+    if (e.target !== dlg) return false;
+    const r = dlg.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  let downOn = false, upOn = false;
+  dlg.addEventListener('pointerdown', (e) => { downOn = onBackdrop(e); upOn = false; }, true);
+  dlg.addEventListener('pointerup', (e) => { upOn = onBackdrop(e); }, true);
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg && downOn && upOn) dlg.close();
+    downOn = upOn = false;
+  });
+}

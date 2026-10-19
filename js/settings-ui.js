@@ -4,7 +4,7 @@ import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as BackupUI from './backup-ui.js';
 import * as Reset from './reset.js';
-import { $, el, svg, ICON } from './util.js';
+import { $, el, svg, ICON, closeOnBackdrop } from './util.js';
 import { DELETE_ANIMS, DEFAULT_ANIM, startDelete } from './delete-anims.js';
 import * as ThemeUI from './theme-ui.js';
 
@@ -441,7 +441,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   });
   $('#reset-btn').onclick = () => { rform.reset(); refreshReset(); showNote(); rdlg.showModal(); };
   $('#reset-cancel').onclick = () => rdlg.close();
-  rdlg.addEventListener('click', (e) => { if (e.target === rdlg) rdlg.close(); });
+  closeOnBackdrop(rdlg);
   rform.onsubmit = async (e) => {
     e.preventDefault();
     const o = Object.fromEntries(RK.map((k) => [k, chk(k).checked]));

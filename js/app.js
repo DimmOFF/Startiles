@@ -1,4 +1,4 @@
-import { $, el, hostOf, normalizeUrl, svg, ICON } from './util.js';
+import { $, el, hostOf, normalizeUrl, svg, ICON, closeOnBackdrop } from './util.js';
 import * as S from './settings.js';
 import * as T from './thumbs.js';
 import * as M from './model.js';
@@ -517,7 +517,7 @@ layer.addEventListener('drop', async (e) => {
 });
 
 /* ---------- dialogs ---------- */
-dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+closeOnBackdrop(dlg);                      // closes only when the press and the release are both on the backdrop
 function promptText(title, value = '') {
   return new Promise((res) => {
     let out = null;

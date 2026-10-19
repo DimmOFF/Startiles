@@ -17,6 +17,10 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm"><img alt="Get it from the Chrome Web Store" src="https://img.shields.io/badge/Chrome%20Web%20Store-Add%20to%20Chrome-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white"></a>
+</p>
+
+<p align="center">
   <a href="#-install">Install</a> ·
   <a href="#-two-modes">Two modes</a> ·
   <a href="#-features">Features</a> ·
@@ -44,6 +48,10 @@
 </table>
 
 ## 🚀 Install
+
+**From the Chrome Web Store (recommended):** open the [Startiles page in the Chrome Web Store](https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm) and click **Add to Chrome**. Edge, Brave, Vivaldi, Opera and other Chromium browsers can install it from the same page. Updates arrive automatically.
+
+**From source (for developers):**
 
 1. Download or clone this repository.
 2. Open `chrome://extensions` and enable **Developer mode**.
@@ -86,7 +94,7 @@ On the very first start (and again after *Reset to Default → Settings*) a wind
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
 
 ### Search
-- A selectable engine: Google, Bing, DuckDuckGo, Yandex, Brave, Ecosia, Yahoo, Startpage, with optional query suggestions. Typing an address opens it directly.
+- Pick your favourite search engine from a list of popular ones, with optional query suggestions. Typing an address opens it directly.
 - The **Bookmarks** engine is not a web search: while you type, the tiles of all groups (and their folders) are filtered by title and address. `Enter` opens the first match, `Esc` or the **×** in the field clears it, a click on a group tab leaves the results.
 
 ### Thumbnails
@@ -251,7 +259,7 @@ Requests made by the page: the **Search online** button of the Logo thumbnail as
 ## 💖 Support
 
 Startiles is free and open source. If it is useful to you, you can support its development: **<https://dimmoff.github.io/Startiles/donate/>**
-(card and cryptocurrency). Starring the repository, reporting bugs and sharing the extension help just as much.
+(card and cryptocurrency). Starring the repository, reporting bugs, sharing the extension and leaving a review in the [Chrome Web Store](https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm) help just as much.
 
 ## 📄 License
 
