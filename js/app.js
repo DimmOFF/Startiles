@@ -750,11 +750,14 @@ function openItemDialog({ node = null, parentId = null }) {
   f.addEventListener('paste', (e) => {
     const it = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
     if (it) { e.preventDefault(); setFile(it.getAsFile()); return; }
-    // "Copy image address" from Google Images: an address pasted outside the text fields is taken as the image address
+    // "Copy image address" from Google Images: an address pasted while the cursor is neither in Address nor in Title
+    // (nor already in the Image URL field) is taken as the image address, from any mode
     const text = (e.clipboardData?.getData('text') || '').trim();
-    if (st.mode === 'auto' && st.auto === 'wide' && /^https?:\/\/\S+$/i.test(text) && !e.target.closest?.('input, textarea')) {
+    const t = e.target;
+    if (/^https?:\/\/\S+$/i.test(text) && t !== E.addr && t !== E.ttl && t !== E.imgurl && !t.closest?.('textarea, input[type=text], input:not([type])')) {
       e.preventDefault();
-      st.url = text; E.imgurl.value = text; st.fit = 'wide'; E.fit.value = 'wide'; fitTouched = true;
+      st.url = text; E.imgurl.value = text;
+      if (st.mode === 'auto' && st.auto === 'wide') { st.fit = 'wide'; E.fit.value = 'wide'; fitTouched = true; }
       setMode('url'); checkImg();
     }
   });

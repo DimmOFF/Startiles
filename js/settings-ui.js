@@ -193,7 +193,7 @@ function buildPvServiceUrl() {
   extraRefresh.push(show); show();
   return lab;
 }
-function build(key) {
+function build(key, asSlider = false) {
   if (key === 'pvServiceUrl') return buildPvServiceUrl();
   if (key === 'pvNote') return el('p', 'note', 'Off by default. When on, the address of a Pageview tile that has no picture of its own is sent to this service to get a screenshot.');
   if (key === 'deleteAnim') return buildDeleteAnim();
@@ -225,6 +225,29 @@ function build(key) {
   } else { inp = el('input'); inp.type = 'color'; }
   inp.dataset.unit = d.unit || '';
   lab.append(inp);
+  if (asSlider && d.type === 'select') {                         // a sliding switch instead of the dropdown (the select stays as the hidden value holder)
+    inp.hidden = true;
+    const n = d.options.length;
+    const track = el('div', 'tslider');
+    track.style.setProperty('--n', n);
+    track.append(el('span', 'tthumb'));
+    const btns = d.options.map(([v, t]) => {
+      const b = el('button', 'topt'); b.type = 'button'; b.textContent = t; b.dataset.v = v;
+      b.onclick = () => { if (inp.value === v) return; inp.value = v; inp.dispatchEvent(new Event('input')); };
+      track.append(b);
+      return b;
+    });
+    const paintSlider = () => {
+      const i = Math.max(0, d.options.findIndex(([v]) => v === inp.value));
+      track.style.setProperty('--i', i);
+      btns.forEach((b, k) => b.classList.toggle('on', k === i));
+    };
+    inp.addEventListener('input', paintSlider);
+    extraRefresh.push(paintSlider);
+    lab.classList.add('slider-row');
+    lab.append(track);
+    requestAnimationFrame(paintSlider);
+  }
   const arr = controls.get(key) || [];
   arr.push(inp);
   controls.set(key, arr);
@@ -323,7 +346,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   const quick = $('#quick-body'), adv = $('#adv-body');
 
   quick.append(
-    section('Start Page', ['source', 'theme', 'engine']),     // Mode first (the root folder button is only in Advanced Settings)
+    section('Start Page', [build('source', true), 'theme', 'engine']),     // Mode first (the root folder button is only in Advanced Settings)
     section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize']),
   );
   const more = el('div', 'row');

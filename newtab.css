@@ -485,3 +485,12 @@ body.selecting #foot{visibility:hidden}
 .widetools .note{margin:8px 0 0}
 /* Quick Settings: drop-down rows that follow each other (Mode, Theme) need some air */
 #quick-body label.row:has(select){margin:6px 0}
+
+/* Quick Settings: Mode as a sliding switch */
+.row.slider-row{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+.row.slider-row .tslider{flex:none;width:210px}
+.tslider{position:relative;display:flex;background:var(--field);border:1px solid var(--border);border-radius:9px;padding:3px;isolation:isolate}
+.tslider .tthumb{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / var(--n,2));border-radius:7px;background:var(--accent);transform:translateX(calc(var(--i,0) * 100%));transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.tslider .topt{flex:1;border:0;background:none;padding:6px 8px;border-radius:7px;cursor:pointer;color:var(--muted);transition:color .2s;white-space:nowrap}
+.tslider .topt.on{color:#fff}
+@media (prefers-reduced-motion:reduce){.tslider .tthumb,.tslider .topt{transition:none}}
