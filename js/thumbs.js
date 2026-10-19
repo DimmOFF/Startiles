@@ -32,7 +32,7 @@ export const onChange = (f) => listeners.push(f);
 const persist = () => chrome.storage.local.set({ thumbs });
 
 export async function setT(url, t) {
-  if (!t || (t.mode === 'auto' && t.auto !== 'pageview' && !t.icon)) delete thumbs[url];
+  if (!t || (t.mode === 'auto' && (t.auto === 'logo' || !t.auto) && !t.icon)) delete thumbs[url];
   else thumbs[url] = { ...t, ts: Date.now() };
   await persist();
   listeners.forEach((f) => f());
@@ -70,7 +70,7 @@ export function setSiteIcon(img, pageUrl, size = 32) {
   img.src = srcs[0];
 }
 
-// onState (optional) reports the Pageview lookup: 'loading' | 'found' | 'none' | 'off'
+// onState (optional) reports the Pageview / Logo lookup: 'loading' | 'found' | 'none' | 'off'
 export function renderThumbFrom(pageUrl, t, onState) {
   const box = document.createElement('div');
   box.className = 'thumb';
@@ -80,7 +80,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
     box.replaceChildren();
     const img = new Image();
     img.className = 'fav'; img.draggable = false; img.alt = '';
-    img.src = t.mode === 'auto' && t.icon ? ImgCache.use(t.icon) : faviconUrl(pageUrl, 128);
+    img.src = t.mode === 'auto' && t.auto !== 'wide' && t.icon ? ImgCache.use(t.icon) : faviconUrl(pageUrl, 128);
     img.onerror = () => {
       const l = document.createElement('div');
       l.className = 'letter';
@@ -135,13 +135,25 @@ export function renderThumbFrom(pageUrl, t, onState) {
           upgradeLogo();
         })();
       } else { onState?.('off'); upgradeLogo(); }
+    } else if (t.auto === 'wide') {
+      // a wide (rectangular) logo of the site; until it is found - and when the site has none - the usual icon is shown
+      const showWide = (src) => showCover(ImgCache.use(src), 'wide', upgradeLogo);
+      if (t.icon) { onState?.('found'); showWide(t.icon); }
+      else if (S.get().hiResIcons && web) {
+        onState?.('loading');
+        Icons.wide(pageUrl).then((src) => {
+          onState?.(src ? 'found' : 'none');
+          if (src) showWide(src); else upgradeLogo();
+        });
+      } else { onState?.('off'); upgradeLogo(); }
     } else if (!t.icon) upgradeLogo();
     return box;
   }
   const src = t.mode === 'file' ? t.dataUrl : ImgCache.use(t.url || '');
   if (!src) { logo(); upgradeLogo(); return box; }
-  // fit: 'cover' = fill the tile, 'contain' = whole image inside, 'icon' = like a site icon (the Icon Size setting)
-  showCover(src, t.fit === 'contain' ? 'cov contain' : t.fit === 'icon' ? 'fav' : 'cov', () => { logo(); upgradeLogo(); });
+  // fit: 'cover' = fill the tile, 'contain' = whole image inside, 'icon' = like a site icon (the Icon Size setting),
+  // 'wide' = like a wide site logo
+  showCover(src, t.fit === 'contain' ? 'cov contain' : t.fit === 'icon' ? 'fav' : t.fit === 'wide' ? 'wide' : 'cov', () => { logo(); upgradeLogo(); });
   return box;
 }
 // Vector placeholder for an empty thumbnail (no address yet): a browser window with a globe, crisp at any size.

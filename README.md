@@ -37,7 +37,7 @@
     <td width="33%" valign="top"><b>🎨 Themes</b><br>Auto, Light, Dark, Midnight, Sand &ndash; or build and save your own.</td>
   </tr>
   <tr>
-    <td valign="top"><b>🖼️ Smart thumbnails</b><br>Site logo, page preview, your own image or file, with hi-res icons and automatic refresh.</td>
+    <td valign="top"><b>🖼️ Smart thumbnails</b><br>Site icon, logo, page preview, your own image or file, with hi-res icons and automatic refresh.</td>
     <td valign="top"><b>✨ Smooth animations</b><br>Folders grow from the tile, tiles slide into place, seven deletion effects. All can be switched off.</td>
     <td valign="top"><b>💾 Yours to keep</b><br>Dials are ordinary bookmarks, so your browser's own sync can carry them along. Selective Export / Import and Reset.</td>
   </tr>
@@ -94,9 +94,10 @@ The **Add / Edit** dialog has an address with autocomplete (bookmarks, history, 
 
 | Mode | What you get |
 |---|---|
-| **Automatic → Logo** | The site icon on a coloured background. If the site has several icons they appear as a picker with pixel sizes. |
-| **Automatic → Pageview** | A screenshot taken when you open the tile from the new tab (or visit the page), otherwise the page's own picture (`og:image`, `twitter:image`, JSON-LD image, PWA screenshots), otherwise - if you turn it on in *Icons & Previews → Online screenshots* - a screenshot from an online service (thum.io, Microlink or your own URL template; **off by default**, it sends the page address to that service), otherwise the logo. |
-| **Image URL** / **Local file** | Your own picture. Fit: *Fill*, *Fit inside* or *Icon size* (shown at the same size as site icons, following the Icon Size setting). The Fit you used last is preselected next time. |
+| **Automatic → Icon** | The site icon on a coloured background. If the site has several square icons they appear as a picker with pixel sizes. |
+| **Automatic → Logo** | A wide (rectangular) logo of the site, found automatically: the wide Windows tile image (`msapplication-wide310x150logo` and `browserconfig.xml`), the `logo` of the site's JSON-LD markup, `og:logo`, the logo image in the page header, and the wide icons the page declares. Every candidate is downloaded and must really be wide (at least 1.5:1). A picker lists all the wide variants that were found; if the site has none, the regular icon is shown. It is shown 1.6 times as wide as a square icon and follows the Icon Size setting. When the site has no suitable logo, **Search online** looks on Wikidata and Wikimedia Commons (only when you press the button; the site name is sent to those services), and **Google Images ↗** opens an image search for wide, transparent logos: copy an image there and press `Ctrl+V` in the dialog (an image address pasted outside the text fields works too) and it is used as a wide icon. |
+| **Automatic → Pageview** | A screenshot taken when you visit the page, otherwise the page's `og:image`, otherwise the icon. |
+| **Image URL** / **Local file** | Your own picture. Fit: *Fill*, *Fit inside*, *Icon size* (shown at the same size as site icons, following the Icon Size setting) or *Logo size* (like a wide site logo). The Fit you used last is preselected next time. |
 
 Uploaded images are scaled down so that their shorter side is at most 420 px (smaller ones are kept as they are). Long titles get a caption with the full text when they do not fit into the tile (can be switched off).
 
@@ -236,7 +237,7 @@ Ticking *Speed Dials* ticks both preview options; they can also be reset on thei
 | `history` | address autocomplete in the Add dialog |
 | `tabs` + all sites (`<all_urls>`) | Pageview screenshots (background.js, only for tiles set to Pageview; a tile opened from the new tab is captured again at most every 30 min, other visits every 6 h; blank pages are skipped); reading the `<head>` of pages to find the best icon and `og:image`; search suggestions |
 
-Requests made by the page: icon services (Google favicon service, DuckDuckGo icons) for icons of search engines and sites; the selected search engine's public suggest endpoint while you type (switch **Search suggestions** off to stop this); the tiles' own sites for icons and previews (switch **Try to fetch hi-res icons & previews** off to stop this; **Auto-refresh** controls how often they are re-checked).
+Requests made by the page: the **Search online** button of the Logo thumbnail asks wikidata.org and commons.wikimedia.org for logos (only when you press it, the site name is sent); icon services (Google favicon service, DuckDuckGo icons) for icons of search engines and sites; the selected search engine's public suggest endpoint while you type (switch **Search suggestions** off to stop this); the tiles' own sites for icons and previews (switch **Try to fetch hi-res icons & previews** off to stop this; **Auto-refresh** controls how often they are re-checked).
 
 </details>
 

@@ -2,6 +2,7 @@
 //  - resolve(pageUrl):   best icon for a tile (cached per origin)
 //  - preview(pageUrl):   og:image for the "Pageview" thumbnail
 //  - candidates(url,cb): every usable icon variant, streamed progressively to the icon picker
+//  - wide(pageUrl):      a wide (rectangular) logo for the "Logo" thumbnail; wideCandidates(url,cb) feeds its picker
 import * as S from './settings.js';
 import { netCall } from './net.js';
 const KEY = 'iconCache', TTL_FAIL = 3 * 864e5;
@@ -14,12 +15,12 @@ let active = 0;
 
 const load = async () => { if (!cache) cache = (await chrome.storage.local.get(KEY))[KEY] || {}; };
 const save = () => { clearTimeout(saveT); saveT = setTimeout(() => chrome.storage.local.set({ [KEY]: cache }), 500); };
-export async function clear() { cache = {}; inflight.clear(); candCache.clear(); previewFail.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
+export async function clear() { cache = {}; inflight.clear(); candCache.clear(); wideCache.clear(); webCache.clear(); previewFail.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
 // Import: replace the cache or merge an imported one into it (existing entries win)
 export async function merge(obj, replace) {
   await load();
   cache = replace ? { ...obj } : { ...obj, ...cache };
-  inflight.clear(); candCache.clear();
+  inflight.clear(); candCache.clear(); wideCache.clear();
   await chrome.storage.local.set({ [KEY]: cache });
 }
 
@@ -32,10 +33,12 @@ const sizeOf = (s) => {
 // Pixel width of the image at src (SVG: 1024), or null when it is not a loadable image.
 const loadImg = (src, ms = 4000) => netCall('imgWidth', src, ms);
 // Downloads an icon, returns its real pixel width and a content hash (to detect duplicates).
-const probe = (src, ms = 4500) => netCall('probe', src, ms);
+const probe = (src, ms = 4500) => netCall('probe', src, ms);   // -> { w, h, v (vector), hash } | null
 const fetchText = (url, ms = 4000) => netCall('fetchText', url, ms);
 // Reads only the <head> of a page.
 const fetchHead = (url, ms = 4000) => netCall('fetchHead', url, ms);
+// The first ~150 KB of a page (to look for the logo in the page header).
+const fetchTop = (url, ms = 5000) => netCall('fetchTop', url, ms);
 
 // Candidates that do not need the page HTML (so they can start immediately).
 function staticCands(u) {
@@ -71,8 +74,8 @@ function tags(html, name) {
 }
 
 // Candidates declared by the page: <link rel=icon|apple-touch-icon> and web manifest icons.
-async function pageCands(pageUrl, add) {
-  const page = await fetchHead(pageUrl);
+async function pageCands(pageUrl, add, pre) {
+  const page = pre || await fetchHead(pageUrl);
   if (!page) return;
   const links = tags(page.text, 'link');
   for (const a of links) {
@@ -292,3 +295,194 @@ export async function candidates(pageUrl, onUpdate) {
   candCache.set(u.origin, out);
   return out;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Wide icons. Besides the square icons many sites have a rectangular (wide) logo. It is looked for in these places
+// (the number is the priority, a higher one wins), and every candidate is downloaded and measured: only images that are
+// really wide (width / height >= 1.5) count.
+//   300  <meta name="msapplication-wide310x150logo">          the wide Windows tile
+//   290  browserconfig.xml  <wide310x150logo src="...">
+//   280  JSON-LD  "logo"                                       (Organization / WebSite markup)
+//   270  <meta property="og:logo">, itemprop="logo", <link rel="logo">
+//   200  <img> with "logo" in its src / alt / class / id near the top of the page (the first three)
+//   0-10 the icons the page declares (<link rel=icon>, apple-touch-icon, web manifest) - some of them are wide
+// ---------------------------------------------------------------------------------------------------------------------
+const WIDE_AR = 1.5;
+export const isWide = (r) => !!r && !!r.h && r.w / r.h >= WIDE_AR;
+const wideOk = (r) => isWide(r) && (r.v || r.w >= 120);                       // not a tiny strip
+
+function logosIn(node, out = [], depth = 0) {                                 // "logo" values of a JSON-LD document
+  if (!node || depth > 5) return out;
+  if (Array.isArray(node)) { node.forEach((n) => logosIn(n, out, depth + 1)); return out; }
+  if (typeof node !== 'object') return out;
+  for (const [k, v] of Object.entries(node)) {
+    if (k === 'logo') {
+      for (const x of [].concat(v)) { const u = typeof x === 'string' ? x : x?.url || x?.contentUrl; if (typeof u === 'string') out.push(u); }
+    } else if (typeof v === 'object') logosIn(v, out, depth + 1);
+  }
+  return out;
+}
+async function wideCands(page, add) {
+  const rel = (h, base = page.url) => { try { return new URL(h, base).href; } catch { return null; } };
+  const metas = tags(page.text, 'meta'), links = tags(page.text, 'link');
+  const meta = (k) => metas.find((m) => (m.name || m.property || m.itemprop || '').toLowerCase() === k && m.content)?.content;
+  const w = meta('msapplication-wide310x150logo');
+  if (w) add(rel(w), 300);
+  const og = meta('og:logo') || meta('logo');
+  if (og) add(rel(og), 270);
+  const lk = links.find((l) => /(^|\s)logo(\s|$)/i.test(l.rel || '') && l.href);
+  if (lk) add(rel(lk.href), 270);
+  for (const m of page.text.matchAll(/<script\b[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    try { logosIn(JSON.parse(m[1].trim())).forEach((u) => add(rel(u), 280)); } catch { /* not valid JSON */ }
+  }
+  await Promise.all([
+    (async () => {                                                            // browserconfig.xml
+      const cfg = meta('msapplication-config');
+      if (cfg && /^none$/i.test(cfg.trim())) return;
+      const c = await fetchText(rel(cfg || '/browserconfig.xml'), 3000);
+      const m = c && /<wide310x150logo\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i.exec(c.text);
+      if (m) add(rel(m[1], c.url), 290);
+    })(),
+    (async () => {                                                            // the logo image in the page header
+      const top = await fetchTop(page.url);
+      if (!top) return;
+      let n = 0;
+      for (const a of tags(top.text, 'img')) {
+        const src = a.src || a['data-src'] || a['data-lazy-src'];
+        if (!src || /^data:/i.test(src)) continue;
+        const hay = [a.src, a.alt, a.class, a.id].join(' ');
+        if (!/logo/i.test(hay) || /partner|client|sponsor|customer|footer|social|payment|award|testimonial/i.test(hay)) continue;
+        add(rel(src, top.url), 200 - n);
+        if (++n >= 3) break;
+      }
+    })(),
+  ]);
+}
+const byRank = (list) => [...list].sort((a, b) => b.d - a.d || b.w - a.w);
+
+// Finds, downloads and measures the candidates; onUpdate(list) is called whenever another wide image is verified.
+async function wideSearch(pageUrl, onUpdate) {
+  const page = await fetchHead(pageUrl);
+  if (!page) return [];
+  const cands = new Map();
+  const add = (href, d) => { if (href && /^https?:/i.test(href) && (cands.get(href) ?? -1) < d) cands.set(href, d); };
+  await Promise.all([pageCands(pageUrl, (h, s) => add(h, Math.min(s, 1024) / 100), page), wideCands(page, add)]);
+  const out = [], seen = new Set();
+  await Promise.all([...cands].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([src, d]) => probe(src).then((r) => {
+    if (!wideOk(r) || seen.has(r.hash)) return;
+    seen.add(r.hash);
+    out.push({ src, d, ...r });
+    onUpdate?.(byRank(out));
+  })));
+  return byRank(out);
+}
+
+// The best wide logo of the site for a tile ('' when the site has none); cached per site like the other icons.
+const wideRefreshing = new Map();
+function refreshWide(pageUrl, origin) {
+  if (wideRefreshing.has(origin)) return wideRefreshing.get(origin);
+  const k = 'w:' + origin;
+  const p = (async () => {
+    const list = await schedule(() => wideSearch(pageUrl));
+    cache[k] = { src: list?.[0]?.src || '', w: list?.[0]?.w || 0, ts: Date.now() };   // '' = checked, the site has none
+    save();
+    return cache[k].src;
+  })().finally(() => wideRefreshing.delete(origin));
+  wideRefreshing.set(origin, p);
+  return p;
+}
+export async function wide(pageUrl) {
+  let origin;
+  try { origin = new URL(pageUrl).origin; } catch { return null; }
+  if (!/^https?:/.test(origin)) return null;
+  await load();
+  const c = cache['w:' + origin];
+  if (c && Date.now() - c.ts < (c.src ? ttlOk() : TTL_FAIL)) return c.src || null;
+  if (c?.src) { refreshWide(pageUrl, origin).catch(() => {}); return c.src; }            // stale: show it, check again in the background
+  return (await refreshWide(pageUrl, origin)) || null;
+}
+
+// Picker of the wide variants (Add / Edit dialog), streamed like candidates().
+const wideCache = new Map();
+export async function wideCandidates(pageUrl, onUpdate) {
+  let u;
+  try { u = new URL(pageUrl); } catch { return []; }
+  if (!/^https?:$/.test(u.protocol)) return [];
+  const hit = wideCache.get(u.origin);
+  if (hit) { onUpdate?.(hit); return hit; }
+  const out = await wideSearch(pageUrl, onUpdate);
+  wideCache.set(u.origin, out);
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Online search for wide logos - only on an explicit request ("Search online" in the Add / Edit dialog), never automatically.
+// Wikidata knows the logo (P154) and the official website (P856) of many companies and sites; an item whose official website
+// is the site itself is the best match. Wikimedia Commons file search adds more candidates. No API key is needed.
+// What is sent: the site name (title / domain label) to wikidata.org and commons.wikimedia.org.
+// ---------------------------------------------------------------------------------------------------------------------
+const WD_API = 'https://www.wikidata.org/w/api.php', COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
+// a Commons file as a PNG of at most 640px (SVG logos are rendered): light to download and always measurable
+const commonsUrl = (file) => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(file.replace(/^File:/i, '').replace(/ /g, '_')) + '?width=640';
+async function apiJson(base, params) {
+  const r = await fetchText(base + '?' + new URLSearchParams({ format: 'json', origin: '*', ...params }), 7000);
+  try { return r ? JSON.parse(r.text) : null; } catch { return null; }
+}
+const bareHost = (h) => h.toLowerCase().replace(/^www\./, '');
+const sameSite = (url, host) => {                                                // the official website belongs to this site (or its parent domain)
+  try { const h = bareHost(new URL(url).hostname); return h === host || h.endsWith('.' + host) || host.endsWith('.' + h); } catch { return false; }
+};
+const webCache = new Map();
+export async function webLogos(names, pageUrl, onUpdate) {
+  let host;
+  try { host = bareHost(new URL(pageUrl).hostname); } catch { return []; }
+  names = [...new Set(names.map((n) => (n || '').trim()).filter((n) => n.length >= 2))].slice(0, 2);
+  if (!names.length) return [];
+  const key = host + '|' + names.join('|').toLowerCase();
+  const hit = webCache.get(key);
+  if (hit) { onUpdate?.(hit); return hit; }
+  const cands = new Map();                                                       // url -> { d, label }
+  const add = (url, d, label) => { const c = cands.get(url); if (!c || c.d < d) cands.set(url, { d, label }); };
+
+  // 1. Wikidata: items with these names, their logo images
+  const ids = [];
+  await Promise.all(names.map(async (name) => {
+    const j = await apiJson(WD_API, { action: 'wbsearchentities', search: name, language: 'en', type: 'item', limit: '6' });
+    (j?.search || []).forEach((x) => { if (!ids.includes(x.id)) ids.push(x.id); });
+  }));
+  if (ids.length) {
+    const j = await apiJson(WD_API, { action: 'wbgetentities', ids: ids.slice(0, 12).join('|'), props: 'claims|labels', languages: 'en' });
+    for (const e of Object.values(j?.entities || {})) {
+      const claims = e.claims || {}, label = e.labels?.en?.value || '';
+      const siteMatch = (claims.P856 || []).some((c) => sameSite(c.mainsnak?.datavalue?.value || '', host));
+      const exact = names.some((n) => n.toLowerCase() === label.toLowerCase());
+      const d = siteMatch ? 100 : exact ? 40 : 0;
+      if (!d) continue;                                                          // neither the site nor the name: noise
+      const all = (claims.P154 || []).filter((c) => c.rank !== 'deprecated');
+      const current = all.filter((c) => !c.qualifiers?.P582);                   // P582 = end time: an old logo
+      (current.length ? current : all).sort((a, b) => (b.rank === 'preferred') - (a.rank === 'preferred')).slice(0, 3).forEach((c, i) => {
+        const f = c.mainsnak?.datavalue?.value;
+        if (typeof f === 'string') add(commonsUrl(f), d - i, label || 'Wikidata');
+      });
+    }
+  }
+  // 2. Wikimedia Commons: files whose name says "logo"
+  await Promise.all(names.map(async (name) => {
+    const j = await apiJson(COMMONS_API, { action: 'query', list: 'search', srsearch: name + ' logo', srnamespace: '6', srlimit: '8' });
+    (j?.query?.search || []).forEach((x, i) => {
+      if (/logo|wordmark/i.test(x.title) && !/icon|favicon|\.(ogg|oga|webm|pdf|tiff?|gif)$/i.test(x.title)) add(commonsUrl(x.title), 20 - i, 'Wikimedia Commons');
+    });
+  }));
+  // 3. download and measure: only wide images count
+  const out = [], seen = new Set();
+  await Promise.all([...cands].sort((a, b) => b[1].d - a[1].d).slice(0, 14).map(([src, c]) => probe(src, 9000).then((r) => {
+    if (!wideOk(r) || seen.has(r.hash)) return;
+    seen.add(r.hash);
+    out.push({ src, d: c.d, label: c.label, o: true, ...r });
+    onUpdate?.(byRank(out));
+  })));
+  const list = byRank(out);
+  if (list.length) webCache.set(key, list);                                      // an empty result is not remembered: the next try asks again
+  return list;
+}
+

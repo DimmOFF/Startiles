@@ -7,7 +7,7 @@ import * as M from './model.js';
 import * as T from './thumbs.js';
 
 const FLAG = 'titleMetaDone';
-const FITS = ['cover', 'contain', 'icon'];
+const FITS = ['cover', 'contain', 'icon', 'wide'];
 const fitOf = (m) => (FITS.includes(m) ? m : 'cover');
 let held = 0;
 export const hold = () => { held++; };                              // while the edit dialog saves: do not hydrate from half-written data
@@ -17,7 +17,7 @@ export const release = () => { held = Math.max(0, held - 1); };
 export function metaOfThumb(t) {
   if (!t) return null;
   if (t.mode === 'url' && t.url) return { icon_url: t.url, fit_mode: fitOf(t.fit) };
-  if (t.mode === 'auto' && t.auto !== 'pageview' && t.icon) return { icon_url: t.icon, fit_mode: 'icon' };   // a picked site icon is shown like an "Icon size" image
+  if (t.mode === 'auto' && t.auto !== 'pageview' && t.icon) return { icon_url: t.icon, fit_mode: t.auto === 'wide' ? 'wide' : 'icon' };   // a picked site icon is shown like an "Icon size" (or logo) image
   return null;
 }
 function links(root) {

@@ -537,7 +537,7 @@ function openItemDialog({ node = null, parentId = null }) {
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
-  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || (['cover', 'contain', 'icon'].includes(S.get().lastFit) ? S.get().lastFit : 'cover'), auto: t0.auto || 'logo', icon: t0.icon || '', fname: '' };
+  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || (['cover', 'contain', 'icon', 'wide'].includes(S.get().lastFit) ? S.get().lastFit : 'cover'), auto: t0.auto || 'logo', icon: t0.auto === 'wide' ? '' : t0.icon || '', wideIcon: t0.auto === 'wide' ? t0.icon || '' : '', fname: '' };
   dlg.innerHTML = `<form class="dform">
     <h3>${isNew ? 'Add' : 'Edit'}</h3>
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
@@ -554,8 +554,15 @@ function openItemDialog({ node = null, parentId = null }) {
             <label class="r"><input type="radio" name="mode" value="file"> Local file</label>
           </div>
           <div class="pane" data-modes="auto">
-            <div class="seg sm" id="ak"><button type="button" data-ak="logo">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
+            <div class="seg sm" id="ak"><button type="button" data-ak="logo">Icon</button><button type="button" data-ak="wide" title="A wide (rectangular) logo of the site">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
             <p class="note" id="aknote" hidden>Uses the site's preview image, or a screenshot taken when you visit the page.</p>
+            <div class="widetools" id="widetools" hidden>
+              <div class="wt-row">
+                <button type="button" class="pill sm" id="wt-online" title="Looks for logos on Wikidata and Wikimedia Commons. The site name is sent to those services.">Search online</button>
+                <button type="button" class="pill sm" id="wt-google" title="Opens Google Images (wide, transparent) in a new tab. Copy an image there and press Ctrl+V in this window.">Google Images ↗</button>
+              </div>
+              <p class="note" id="wt-note">Nothing suitable? Search online, or find an image on Google Images, copy it and press <b>Ctrl+V</b> in this window.</p>
+            </div>
           </div>
           <div class="pane" data-modes="url"><input name="imgurl" placeholder="https://…/image.png" autocomplete="off" spellcheck="false"><p class="note err-note" id="imgerr" hidden>This image could not be loaded.</p></div>
           <div class="pane" data-modes="file">
@@ -564,7 +571,7 @@ function openItemDialog({ node = null, parentId = null }) {
             <p class="note">You can also drop or paste an image.</p>
           </div>
           <div class="pane" data-modes="url file">
-            <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option><option value="icon">Icon size</option></select></label>
+            <label class="r">Fit <select name="fit"><option value="cover">Fill</option><option value="contain">Fit inside</option><option value="icon">Icon size</option><option value="wide">Logo size</option></select></label>
           </div>
         </div>
       </div>
@@ -585,16 +592,24 @@ function openItemDialog({ node = null, parentId = null }) {
     found: "Uses the site's preview image, or a screenshot taken when you visit the page.",
     loading: 'Looking for a preview image…',
     none: 'No preview image found for this site. A screenshot will be taken after you visit it.',
-    off: 'Turn on “Fetch hi-res icons & previews” in Advanced Settings to look up preview images.',
+    off: 'Turn on “Try to fetch hi-res icons & previews” in Advanced Settings to look up preview images.',
   };
-  const setNote = (s) => { $('#aknote', dlg).textContent = NOTES[s] || NOTES.found; };
+  const WNOTES = {
+    found: 'Uses a wide logo of the site.',
+    loading: 'Looking for a logo…',
+    none: 'No wide logo found for this site. The regular icon is used.',
+    off: 'Turn on “Try to fetch hi-res icons & previews” in Advanced Settings to look for logos.',
+  };
+  const setNote = (s) => { const N = st.auto === 'wide' ? WNOTES : NOTES; $('#aknote', dlg).textContent = N[s] || N.found; };
   const renderPrev = () => {
     const tok = ++updTok;
     const addr = normalizeUrl(E.addr.value);
     const custom = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
     setNote('found');
+    // the logo (wide icon) picked in the picker lives in st.wideIcon: the thumbnail reads it as `icon`
+    const t = st.mode === 'auto' && st.auto === 'wide' ? { ...st, icon: st.wideIcon } : st;
     prev.replaceChildren(addr || custom
-      ? T.renderThumbFrom(addr || 'https://example.com', st, (s) => { if (tok === updTok) setNote(s); })
+      ? T.renderThumbFrom(addr || 'https://example.com', t, (s) => { if (tok === updTok) setNote(s); })
       : T.placeholderThumb());
   };
   // now = true: draw immediately (used for the first render, so the window never changes height after opening)
@@ -603,38 +618,48 @@ function openItemDialog({ node = null, parentId = null }) {
   // icon picker: shown when the site offers several icon variants
   const icp = $('#icopick', dlg);
   let cands = [], lastUrl = null, ct, searching = false;
+  let wcands = [], wlast = null, wt, wsearching = false;          // the same for the logos (wide icons)
+  let ocands = [], osearching = false, otok = 0;                  // wide logos found online (Wikidata / Wikimedia Commons) on request
   const shown = new Set();
   const syncAk = () => {
     f.querySelectorAll('.pane').forEach((p) => (p.hidden = !p.dataset.modes.split(' ').includes(st.mode)));
-    $('#aknote', dlg).hidden = !(st.mode === 'auto' && st.auto === 'pageview');
+    $('#aknote', dlg).hidden = !(st.mode === 'auto' && (st.auto === 'pageview' || st.auto === 'wide'));
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
     // the picker area stays put (icons, skeleton or a note) as long as it is relevant, so the window height never jumps
-    icp.hidden = !(st.mode === 'auto' && st.auto === 'logo' && E.addr.value.trim() && (lastUrl !== null || st.icon));
+    icp.classList.toggle('wide', st.auto === 'wide');
+    icp.hidden = !(st.mode === 'auto' && (st.auto === 'logo' || st.auto === 'wide') && E.addr.value.trim()
+      && (st.auto === 'wide' ? wlast !== null || st.wideIcon || ocands.length || osearching : lastUrl !== null || st.icon));
+    $('#widetools', dlg).hidden = !(st.mode === 'auto' && st.auto === 'wide');
   };
   const renderIcons = () => {
+    const wide = st.auto === 'wide';
+    const sel = wide ? st.wideIcon : st.icon, busy = wide ? wsearching : searching;
     icp.replaceChildren();
-    const list = [...cands];
-    if (st.icon && !list.some((c) => c.src === st.icon)) list.unshift({ src: st.icon, w: 0 });
-    const auto = el('button', 'ic auto' + (st.icon ? '' : ' on'), 'Auto');
-    auto.type = 'button'; auto.title = 'Best available icon';
-    auto.onclick = () => { st.icon = ''; renderIcons(); upd(); };
+    const list = wide ? [...wcands, ...ocands] : cands.filter((c) => !Icons.isWide(c));   // square icons here, wide logos in their own picker
+    let divider = false;
+    if (sel && !list.some((c) => c.src === sel)) list.unshift({ src: sel, w: 0 });
+    const auto = el('button', 'ic auto' + (sel ? '' : ' on'), 'Auto');
+    auto.type = 'button'; auto.title = wide ? 'Best logo' : 'Best available icon';
+    auto.onclick = () => { if (wide) st.wideIcon = ''; else st.icon = ''; renderIcons(); upd(); };
     icp.append(auto);
     list.forEach((c) => {
-      const b = el('button', 'ic' + (st.icon === c.src ? ' on' : ''));
+      if (c.o && !divider) { divider = true; icp.append(el('small', 'sk-note', 'From Wikimedia')); }
+      const b = el('button', 'ic' + (sel === c.src ? ' on' : ''));
       if (!shown.has(c.src)) { shown.add(c.src); b.classList.add('pop'); }
       b.type = 'button';
-      b.title = (c.w ? (c.w >= 1024 ? 'vector' : c.w + 'px') + ' · ' : '') + c.src;
+      const vec = c.v ?? c.w >= 1024, dim = vec ? 'svg' : wide && c.h ? c.w + '×' + c.h : c.w;
+      b.title = (c.w ? (vec ? 'vector' : dim + 'px') + ' · ' : '') + (c.label ? c.label + ' · ' : '') + c.src;
       const im = new Image(); im.src = c.src; im.alt = ''; im.draggable = false;
       b.append(im);
-      if (c.w) { const s = el('small'); s.textContent = c.w >= 1024 ? 'svg' : c.w; b.append(s); }
-      b.onclick = () => { st.icon = c.src; renderIcons(); upd(); };
+      if (c.w) { const s = el('small'); s.textContent = dim; b.append(s); }
+      b.onclick = () => { if (wide) st.wideIcon = c.src; else st.icon = c.src; renderIcons(); upd(); };
       icp.append(b);
     });
-    if (searching) {
+    if (busy || (wide && osearching)) {
       for (let i = 0; i < 2; i++) icp.append(el('div', 'ic sk'));
-      icp.append(el('small', 'sk-note', 'Searching icons…'));
-    } else if (cands.length < 2 && !st.icon) {
-      icp.replaceChildren(el('small', 'sk-note', 'No other icons found for this site.'));
+      icp.append(el('small', 'sk-note', wide ? (osearching ? 'Searching online…' : 'Searching logos…') : 'Searching icons…'));
+    } else if (list.length < (wide ? 1 : 2) && !sel) {
+      icp.replaceChildren(el('small', 'sk-note', wide ? 'No logos found for this site. Try “Search online”.' : 'No other icons found for this site.'));
     }
   };
   const loadCands = (delay = 250) => {
@@ -650,8 +675,47 @@ function openItemDialog({ node = null, parentId = null }) {
     };
     if (delay) ct = setTimeout(run, delay); else run();   // delay 0: run now, before the window is shown
   };
-  ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; syncAk(); upd(); }));
-  const setMode = (m) => { st.mode = m; syncAk(); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
+  const loadWide = (delay = 250) => {
+    clearTimeout(wt);
+    const run = () => {
+      const url = normalizeUrl(E.addr.value);
+      if (st.mode !== 'auto' || st.auto !== 'wide' || !S.get().hiResIcons || !/^https?:/i.test(url) || url === wlast) return;
+      if (wlast !== null) { st.wideIcon = ''; upd(); }
+      wlast = url; wcands = []; ocands = []; otok++; osearching = false; wsearching = true; shown.clear();
+      renderIcons(); syncAk();
+      Icons.wideCandidates(url, (list) => { if (wlast === url) { wcands = list; renderIcons(); syncAk(); } })
+        .then((list) => { if (wlast === url) { wcands = list; wsearching = false; renderIcons(); syncAk(); } });
+    };
+    if (delay) wt = setTimeout(run, delay); else run();
+  };
+  // names a site is known by: the title typed in the dialog and the domain's main label (github.com -> github)
+  const siteNames = (url) => {
+    const host = hostOf(url).replace(/^www\./, ''), parts = host.split('.');
+    const n = parts.length > 2 && parts[parts.length - 1].length === 2 && ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac'].includes(parts[parts.length - 2]) ? 3 : 2;
+    return [E.ttl.value.trim(), parts.length >= n ? parts[parts.length - n] : parts[0]].filter(Boolean);
+  };
+  const wtNote = $('#wt-note', dlg);
+  $('#wt-online', dlg).onclick = async () => {
+    const url = normalizeUrl(E.addr.value);
+    if (!/^https?:/i.test(url)) { wtNote.textContent = 'Enter the address of the site first.'; return; }
+    const tok = ++otok;
+    ocands = []; osearching = true; shown.clear();
+    wtNote.textContent = 'Searching Wikidata and Wikimedia Commons…';
+    renderIcons(); syncAk();
+    const done = (list) => { if (tok !== otok) return false; ocands = list; return true; };
+    const list = await Icons.webLogos(siteNames(url), url, (l) => { if (done(l)) renderIcons(); });
+    if (!done(list)) return;
+    osearching = false;
+    wtNote.textContent = list.length ? 'Pick one of the wide logos found online.' : 'Nothing found online. Try Google Images: copy an image there and press Ctrl+V in this window.';
+    renderIcons(); syncAk();
+  };
+  $('#wt-google', dlg).onclick = () => {
+    const name = siteNames(normalizeUrl(E.addr.value))[0] || hostOf(normalizeUrl(E.addr.value)) || '';
+    window.open('https://www.google.com/search?tbm=isch&tbs=' + encodeURIComponent('ic:trans,iar:w') + '&q=' + encodeURIComponent((name + ' logo').trim()), '_blank', 'noopener');
+    wtNote.innerHTML = 'Copy the image you like (right-click → Copy image) and press <b>Ctrl+V</b> in this window.';
+  };
+  ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; renderIcons(); syncAk(); upd(); loadWide(0); }));
+  const setMode = (m) => { st.mode = m; syncAk(); loadWide(0); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
 
   f.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => {
     kind = b.dataset.kind;
@@ -670,8 +734,10 @@ function openItemDialog({ node = null, parentId = null }) {
   };
   const setFile = async (file) => {
     if (!file || !/^image\//.test(file.type)) return;
+    const fromWide = st.mode === 'auto' && st.auto === 'wide';        // pasted / dropped while "Logo" is selected
     st.dataUrl = await T.previewDataUrl(file);   // shorter side -> 420px
     st.fname = file.name || 'Pasted image';
+    if (fromWide) { st.fit = 'wide'; E.fit.value = 'wide'; fitTouched = true; }
     syncFile(); setMode('file');
   };
   syncFile();
@@ -683,7 +749,14 @@ function openItemDialog({ node = null, parentId = null }) {
   drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('dragover'); setFile(e.dataTransfer.files[0]); });
   f.addEventListener('paste', (e) => {
     const it = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
-    if (it) { e.preventDefault(); setFile(it.getAsFile()); }
+    if (it) { e.preventDefault(); setFile(it.getAsFile()); return; }
+    // "Copy image address" from Google Images: an address pasted outside the text fields is taken as the image address
+    const text = (e.clipboardData?.getData('text') || '').trim();
+    if (st.mode === 'auto' && st.auto === 'wide' && /^https?:\/\/\S+$/i.test(text) && !e.target.closest?.('input, textarea')) {
+      e.preventDefault();
+      st.url = text; E.imgurl.value = text; st.fit = 'wide'; E.fit.value = 'wide'; fitTouched = true;
+      setMode('url'); checkImg();
+    }
   });
   // Image URL: tell the user when the link does not give an image
   const imgerr = $('#imgerr', dlg);
@@ -722,11 +795,11 @@ function openItemDialog({ node = null, parentId = null }) {
     if (!s) return;
     E.addr.value = s.url;
     if (!E.ttl.value.trim()) E.ttl.value = s.title;
-    closeAc(); upd(); loadCands(0); titlePh(); E.addr.classList.remove('err');
+    closeAc(); upd(); loadCands(0); loadWide(0); titlePh(); E.addr.classList.remove('err');
   };
   E.addr.oninput = () => {
     E.addr.classList.remove('err');
-    titlePh(); upd(); loadCands();
+    titlePh(); upd(); loadCands(); loadWide();
     clearTimeout(acT);
     acT = setTimeout(async () => {
       const q = E.addr.value;
@@ -770,8 +843,9 @@ function openItemDialog({ node = null, parentId = null }) {
       const ttl = title || hostOf(url);
       const useImg = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
       // Speed Dials mode: an icon that comes from a URL travels in the bookmark title as JSON, so it syncs with the bookmarks
-      const iconUrl = st.mode === 'url' && st.url ? st.url : st.mode === 'auto' && st.auto === 'logo' && st.icon ? st.icon : '';
-      const bmTitle = M.titleFor(ttl, iconUrl, st.mode === 'url' ? st.fit : 'icon');
+      const pick = st.mode === 'auto' ? (st.auto === 'logo' ? st.icon : st.auto === 'wide' ? st.wideIcon : '') : '';   // the icon picked in a picker
+      const iconUrl = st.mode === 'url' && st.url ? st.url : pick;
+      const bmTitle = M.titleFor(ttl, iconUrl, st.mode === 'url' ? st.fit : st.auto === 'wide' ? 'wide' : 'icon');
       DialMeta.hold();                                            // a refresh must not restore the old icon while we save
       try {
         if (isNew) await M.addLink(parentId || activeGroup()?.id, url, bmTitle);
@@ -779,14 +853,14 @@ function openItemDialog({ node = null, parentId = null }) {
           await M.update(node.id, { title: bmTitle, url });
           if (url !== node.url) await T.rekey(node.url, url);
         }
-        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}) });
+        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}), ...(st.auto === 'wide' && st.wideIcon ? { icon: st.wideIcon } : {}) });
         if (useImg && (isNew || fitTouched)) await S.set({ lastFit: st.fit });   // the next own image starts with this Fit
       } finally { DialMeta.release(); }
     }
     dlg.close();
     scheduleRefresh();
   };
-  showKind(); renderIcons(); syncAk(); upd(true); loadCands(0);
+  showKind(); renderIcons(); syncAk(); upd(true); loadCands(0); loadWide(0);
   dlg.showModal();
   (isNew ? E.addr : E.ttl).focus();
 }
