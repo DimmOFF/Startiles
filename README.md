@@ -61,7 +61,7 @@
 
 ## 🧭 Two modes
 
-On the very first start (and again after *Reset to Default → Settings*) a window asks where your tiles should live. You can change it any time in **Settings → Mode**.
+On the very first start (and again after *Reset to Default → Settings*) a window asks where your tiles should live. You can change it any time with the **Mode** list in Quick Settings or in **Advanced Settings → Mode**. The window for choosing the root bookmarks folder appears when you switch to Bookmarks for the first time (or when the folder chosen earlier no longer exists); afterwards the mode just switches back, and **Choose root folder…** changes the folder.
 
 <table>
   <tr>
@@ -172,7 +172,7 @@ The highlighted group, field and buttons get a focus ring, the highlighted tile 
 
 ## 🔧 Settings
 
-**Quick Settings** (the gear icon): theme, search engine, tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** button.
+**Quick Settings** (the gear icon): mode (Speed Dials / Bookmarks), theme, search engine, tile size, ratio, maximum columns, icon size, and the **Advanced Settings…** button.
 
 **Advanced Settings** is a movable window with three tabs: **General**, **Appearance** (Layout / Theme) and **Behavior**. It closes on a click outside or `Esc`.
 
@@ -181,7 +181,7 @@ The highlighted group, field and buttons get a focus ring, the highlighted tile 
 
 | Category | Options |
 |---|---|
-| Mode | Speed Dials / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder. Switching to Bookmarks also sets the search engine to *Bookmarks* (it can be changed back at any time) |
+| Mode | Speed Dials / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder. Each mode remembers its own search engine and brings it back when you switch (in Bookmarks mode it starts as *Bookmarks*) |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
 | Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
 | Groups Bar | Top offset; max width in px and in % of the window |

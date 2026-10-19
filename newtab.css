@@ -483,3 +483,5 @@ body.selecting #foot{visibility:hidden}
 .widetools{margin-top:10px}
 .widetools .wt-row{display:flex;flex-wrap:wrap;gap:8px}
 .widetools .note{margin:8px 0 0}
+/* Quick Settings: drop-down rows that follow each other (Mode, Theme) need some air */
+#quick-body label.row:has(select){margin:6px 0}

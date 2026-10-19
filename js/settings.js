@@ -10,6 +10,7 @@ export const DEFAULTS = {
   gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   iconAutoRefresh: true, iconRefreshEvery: 'month', pvService: 'off', pvServiceUrl: '',          // re-check site icons / page previews once a day | week | month | year
   activeGroup: null,
+  engineByMode: { speeddial: 'google', bookmarks: 'bookmarks' },   // the search engine of each mode: switching the mode brings its own back
   modeChosen: false,                                         // the first-run question "Speed Dials or Bookmarks?" has been answered (asked again after Reset > Settings)
   lastFit: 'cover',                                          // last used Fit of an own thumbnail image (cover | contain | icon | wide): preselected for new ones
 };
@@ -46,6 +47,8 @@ export async function load() {
   if (r.settings && st.modeChosen === undefined) st.modeChosen = true;   // an existing installation already works in some mode: do not ask
   if ((st.v || 0) < 8 && st.groupsSticky === false) delete st.groupsSticky;   // the pinned groups bar is now on by default (the old value was only the former default)
   if ('noAnim' in st) { if (st.noAnim === true) st.animMode = 'off'; delete st.noAnim; }   // 'Disable all animations' became the Animations list: Auto / ON / OFF
+  st.engineByMode = { ...DEFAULTS.engineByMode, ...(st.engineByMode || {}) };
+  if (st.engine) st.engineByMode[st.source === 'bookmarks' ? 'bookmarks' : 'speeddial'] = st.engine;   // the engine in use belongs to the mode in use
   cache = { ...DEFAULTS, ...st, v: 9, bgSrc: r.bgSrc || '' };
   if (cache.bgSrc && !cache.bgSrc.startsWith('data:')) {      // older versions kept a URL in bgSrc
     cache.bgUrl = cache.bgSrc; cache.bgSrc = '';
@@ -59,6 +62,16 @@ export async function load() {
 }
 export const get = () => cache;
 export async function set(patch) {
+  patch = { ...patch };
+  const modeOf = (s) => (s === 'bookmarks' ? 'bookmarks' : 'speeddial');
+  const from = modeOf(cache.source), to = 'source' in patch ? modeOf(patch.source) : from;
+  if ('engine' in patch) {                                       // an engine chosen now is remembered for the mode it is chosen in
+    patch.engineByMode = { ...cache.engineByMode, [to]: patch.engine };
+  } else if (to !== from) {                                      // another mode: its own engine comes back
+    const m = { ...cache.engineByMode, [from]: cache.engine };
+    patch.engineByMode = m;
+    patch.engine = m[to] || DEFAULTS.engineByMode[to];
+  }
   Object.assign(cache, patch);
   applyCss();
   const { bgSrc, ...rest } = cache;                              // the big background image is stored separately

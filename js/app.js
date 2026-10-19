@@ -1500,23 +1500,18 @@ window.addEventListener('mouseup', (e) => {
   if (navStack.length) goBack(); else closeFolder(true);
 }, true);
 
-// Bookmarks mode: the search field searches the bookmarks. It is only a default - the engine can be changed back afterwards.
-async function useBookmarksEngine() {
-  if (S.get().engine === 'bookmarks') return;
-  await S.set({ engine: 'bookmarks' });
-  updateSearch();
-  SettingsUI.syncControls();
-}
+// Each mode has its own search engine (Settings.set swaps it when the mode changes; Bookmarks starts with the Bookmarks search).
+const showEngine = () => { updateSearch(); SettingsUI.syncControls(); };
 // switching Speed Dials <-> Bookmarks
 async function changeSource() {
+  showEngine();
   if (S.get().source === 'bookmarks') {
     const had = await M.isFolder(S.get().bookmarksRootId);
-    const ok = await pickRoot();
-    if (ok) { await useBookmarksEngine(); return; }
-    if (!had) {                                  // cancelled and nothing chosen before: stay on Speed Dials
-      await S.set({ source: 'speeddial' });
-      SettingsUI.syncControls();
-    } else await useBookmarksEngine();
+    if (!had) {                                   // the first time (or the chosen folder is gone): ask for the root folder
+      if (await pickRoot()) return;               // (pickRoot has set everything up)
+      await S.set({ source: 'speeddial' });       // cancelled and nothing chosen: stay on Speed Dials, with its own engine
+      showEngine();
+    }                                             // else the root folder was chosen before: just use it (the button changes it)
   }
   await reinit();
 }

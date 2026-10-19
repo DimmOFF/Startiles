@@ -323,7 +323,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   const quick = $('#quick-body'), adv = $('#adv-body');
 
   quick.append(
-    section('Start Page', ['theme', 'engine']),
+    section('Start Page', ['source', 'theme', 'engine']),     // Mode first (the root folder button is only in Advanced Settings)
     section('Speed Dials', ['tileWidth', 'ratio', 'maxColumns', 'iconSize']),
   );
   const more = el('div', 'row');
