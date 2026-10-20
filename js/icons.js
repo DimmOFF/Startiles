@@ -14,6 +14,12 @@ const queue = [], inflight = new Map();
 let active = 0;
 
 const load = async () => { if (!cache) cache = (await chrome.storage.local.get(KEY))[KEY] || {}; };
+export const preload = load;                                  // the icon cache is read once at start, so peek() can answer at once
+// The best icon already known for the site of pageUrl, or null: synchronous (only the in-memory cache), so a tile can start with it
+export function peek(pageUrl) {
+  if (!cache) return null;
+  try { return cache[new URL(pageUrl).origin]?.src || null; } catch { return null; }
+}
 const save = () => { clearTimeout(saveT); saveT = setTimeout(() => chrome.storage.local.set({ [KEY]: cache }), 500); };
 export async function clear() { cache = {}; inflight.clear(); candCache.clear(); wideCache.clear(); webCache.clear(); previewFail.clear(); await chrome.storage.local.set({ [KEY]: {} }); }
 // Import: replace the cache or merge an imported one into it (existing entries win)

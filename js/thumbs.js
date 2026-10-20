@@ -24,6 +24,7 @@ export async function load() {
     await chrome.storage.local.set({ thumbs, cardMig: 1 });
   }
   await ImgCache.load();
+  await Icons.preload();       // tiles start with the hi-res icon that is already known (no low-res icon first)
 }
 chrome.storage.onChanged.addListener((ch, area) => {
   if (area === 'local' && ch.shots) { shots = ch.shots.newValue || {}; listeners.forEach((f) => f()); }   // a new page screenshot: redraw tiles
@@ -129,12 +130,18 @@ export function renderThumbFrom(pageUrl, t, onState) {
     else box.classList.toggle('busy', on);
   };
 
+  let shownHi = null;                                       // the hi-res icon the tile started with (upgradeLogo does not swap it again)
   const logo = () => {
     box.replaceChildren();
     const img = new Image();
     img.className = 'fav'; img.draggable = false; img.alt = '';
-    img.src = t.mode === 'auto' && t.auto !== 'wide' && t.icon ? ImgCache.use(t.icon) : faviconUrl(pageUrl, 128);
+    const own = t.mode === 'auto' && t.auto !== 'wide' && t.icon;
+    // an icon of the site that is already known: it is shown from the start, instead of the small browser favicon that was replaced a moment later
+    shownHi = !own && web && S.get().hiResIcons ? Icons.peek(pageUrl) : null;
+    let triedFav = !shownHi;
+    img.src = own ? ImgCache.use(t.icon) : shownHi ? ImgCache.use(shownHi) : faviconUrl(pageUrl, 128);
     img.onerror = () => {
+      if (!triedFav) { triedFav = true; shownHi = null; img.src = faviconUrl(pageUrl, 128); return; }
       const l = document.createElement('div');
       l.className = 'letter';
       l.textContent = (hostOf(pageUrl)[0] || '?').toUpperCase();
@@ -145,7 +152,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
   const upgradeLogo = () => {
     if (!S.get().hiResIcons || !web) return;
     Icons.resolve(pageUrl).then((hi) => {
-      if (!hi) return;
+      if (!hi || hi === shownHi) return;                      // the tile already shows it
       const big = new Image();
       big.onload = () => {
         const first = box.firstElementChild;
@@ -153,7 +160,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
         big.className = 'fav'; big.draggable = false; big.alt = '';
         first ? first.replaceWith(big) : box.append(big);
       };
-      big.src = hi;
+      big.src = ImgCache.use(hi);                             // the stored copy when there is one (appears at once next time)
     });
   };
   // o.fit: the Cover fit chosen for the tile (pageview pictures); o.kind / o.shot: what the picture is; o.badge: 'yt' | 'play'
