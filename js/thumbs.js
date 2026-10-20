@@ -45,6 +45,16 @@ export async function setT(url, t) {
   await persist();
   listeners.forEach((f) => f());
 }
+// several entries at once (Batch modify): the same rule as setT, one write and one notification
+export async function setMany(map) {
+  const now = Date.now();
+  for (const [url, t] of Object.entries(map)) {
+    if (!t || (t.mode === 'auto' && (t.auto === 'logo' || !t.auto) && !t.icon)) delete thumbs[url];
+    else thumbs[url] = { ...t, ts: now };
+  }
+  await persist();
+  listeners.forEach((f) => f());
+}
 export async function rekey(oldUrl, newUrl) {
   if (thumbs[oldUrl] && oldUrl !== newUrl) {
     thumbs[newUrl] = thumbs[oldUrl];
@@ -110,7 +120,14 @@ export function renderThumbFrom(pageUrl, t, onState) {
   const box = document.createElement('div');
   box.className = 'thumb';
   const web = /^https?:/i.test(pageUrl);
-  const busy = (on) => box.classList.toggle('busy', on);   // the preview is being looked up / built: the thumbnail shimmers (CSS)
+  // the preview is being looked up / built: the thumbnail shimmers (CSS). `delay`: only if it takes longer than that, so a picture
+  // that is already cached appears at once, without a placeholder blink
+  let busyT = 0;
+  const busy = (on, delay = 0) => {
+    clearTimeout(busyT);
+    if (on && delay) busyT = setTimeout(() => box.classList.add('busy'), delay);
+    else box.classList.toggle('busy', on);
+  };
 
   const logo = () => {
     box.replaceChildren();
@@ -156,16 +173,19 @@ export function renderThumbFrom(pageUrl, t, onState) {
   };
 
   if (t.mode === 'auto') {
-    logo();
-    if (t.auto === 'pageview' || t.auto === 'card') {
+    const isCover = t.auto === 'pageview' || t.auto === 'card';
+    // Pageview / Card: no logo up front (it blinked before the picture came); the logo is only the fallback when there is no picture
+    const fallback = () => { logo(); upgradeLogo(); };
+    if (!isCover) logo();
+    if (isCover) {
       // Pageview: the page's preview image or a screenshot. Card: the picture of the ITEM itself (video cover, movie poster, book cover,
       // product photo - see Icons.previewInfo), never a screenshot, with a play badge on a video
       const card = t.auto === 'card', hi = S.get().hiResIcons, fit = t.cfit || 'auto';
       const shot = card ? null : shots[pageUrl]?.dataUrl;
-      if (shot) { onState?.('found'); showCover(shot, 'cov top', upgradeLogo, { fit, shot: true }); }
+      if (shot) { onState?.('found'); showCover(shot, 'cov top', fallback, { fit, shot: true }); }
       else if (web && (hi || (!card && Icons.shotServiceUrl(pageUrl)))) {
         onState?.('loading');
-        busy(true);
+        busy(true, 120);
         (async () => {
           const info = hi ? await Icons.previewInfo(pageUrl, { item: card, needKind: !!onState }) : null;
           const src = info?.src, kind = info?.kind || null;
@@ -175,17 +195,17 @@ export function renderThumbFrom(pageUrl, t, onState) {
             const copy = await ImgCache.get(src);
             onState?.('found', kind);
             const badge = card && kind === 'video' ? (Icons.ytVideoId(pageUrl) ? 'yt' : 'play') : null;
-            showCover(copy || src, 'cov', () => { onState?.('none', kind); upgradeLogo(); }, { fit, kind: card ? kind : null, badge });
+            showCover(copy || src, 'cov', () => { onState?.('none', kind); fallback(); }, { fit, kind: card ? kind : null, badge });
             return;
           }
           const su = card ? null : Icons.shotServiceUrl(pageUrl);   // optional online screenshot (Settings > Icons & Previews)
           const shotCopy = su ? await ImgCache.get(su, { shot: true, maxAge: Icons.previewMaxAge() }) : null;
-          if (shotCopy) { onState?.('found', kind); showCover(shotCopy, 'cov top', () => { onState?.('none', kind); upgradeLogo(); }, { fit, shot: true }); return; }
+          if (shotCopy) { onState?.('found', kind); showCover(shotCopy, 'cov top', () => { onState?.('none', kind); fallback(); }, { fit, shot: true }); return; }
           busy(false);
           onState?.('none', kind);
-          upgradeLogo();
-        })().catch(() => busy(false));
-      } else { onState?.('off'); upgradeLogo(); }
+          fallback();
+        })().catch(() => { busy(false); fallback(); });
+      } else { onState?.('off'); fallback(); }
     } else if (t.auto === 'wide') {
       // a wide (rectangular) logo of the site; until it is found - and when the site has none - the usual icon is shown
       const showWide = (src) => showCover(ImgCache.use(src), 'wide', upgradeLogo);

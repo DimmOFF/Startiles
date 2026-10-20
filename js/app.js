@@ -520,6 +520,7 @@ layer.addEventListener('drop', async (e) => {
 closeOnBackdrop(dlg);                      // closes only when the press and the release are both on the backdrop
 function promptText(title, value = '') {
   return new Promise((res) => {
+    if (dlg.open) { batchEnd?.(); dlg.close(); }
     let out = null;
     dlg.innerHTML = `<form class="dform"><h3></h3><label class="f"><input name="v"></label>
       <div class="btns"><span class="sp"></span><button type="button" id="c">Cancel</button><button class="primary">OK</button></div></form>`;
@@ -534,6 +535,7 @@ function promptText(title, value = '') {
 }
 
 function openItemDialog({ node = null, parentId = null }) {
+  if (dlg.open) { batchEnd?.(); dlg.close(); }
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
@@ -1386,6 +1388,7 @@ function selPaint() {
   const n = selIds().length;
   $('#sel-count').textContent = n === 1 ? '1 selected' : n + ' selected';
   selBar.querySelectorAll('[data-sel="none"],[data-sel="move"],[data-sel="open"],[data-sel="delete"]').forEach((b) => (b.disabled = !n));
+  selBar.querySelector('[data-sel="edit"]').disabled = !selIds().some((id) => byId.get(id)?.url);   // folders have no title style / thumbnail
   if (selBar.contains(document.activeElement) && document.activeElement.disabled) selBar.querySelector('[data-sel="all"]').focus();   // e.g. after Clear: don't lose the keyboard focus
 }
 function selEnter(id) {
@@ -1442,6 +1445,153 @@ async function selDelete() {
   flipReady();
   scheduleRefresh();
   selExit();
+}
+// Batch modify: the Add / Edit window for many shortcuts at once. Only what is the same for all of them can be set (Title style, the automatic
+// thumbnail mode, Cover fit); the Address, the Title itself and the thumbnail picture are different for every tile, so they are not offered.
+// Every setting starts as "Don't change". The window floats (no dimming, movable by its title) and every change is applied at once, so the tiles
+// behind it show the result; Discard puts everything back, OK just closes the window.
+let batchEnd = null;                                           // closes the Batch modify window that is open (null: none)
+function selModify() {
+  const nodes = selIds().map((id) => byId.get(id)).filter((n) => n?.url);
+  if (!nodes.length) return;
+  if (dlg.open) { batchEnd?.(); dlg.close(); }
+  const skipped = selIds().length - nodes.length;
+  const seg = (name, items) => `<div class="seg" data-seg="${name}">${items.map(([v, t, tip]) => `<button type="button" data-v="${v}"${tip ? ` title="${tip}"` : ''}>${t}</button>`).join('')}</div>`;
+  dlg.innerHTML = `<form class="dform bform">
+    <header class="bhead"><h3>Batch modify</h3></header>
+    <p class="note" style="margin:-6px 0 0">${nodes.length} shortcut${nodes.length === 1 ? '' : 's'} selected${skipped ? ` (${skipped} folder${skipped === 1 ? '' : 's'} skipped)` : ''}. Changes are applied at once; settings left on “Don't change” stay as they are.</p>
+    <section class="tcat">
+      <h4>Title</h4>
+      ${seg('title', [['', "Don't change"], ['url', 'Site URL'], ['site', 'Site name'], ['item', 'Page title']])}
+      <p class="note" id="b-tnote" hidden>Each title is replaced by the address, the site name or the page title of its own site.</p>
+    </section>
+    <section class="tcat">
+      <h4>Thumbnail</h4>
+      ${seg('auto', [['', "Don't change"], ['logo', 'Icon'], ['wide', 'Logo', 'A wide (rectangular) logo of the site'], ['pageview', 'Pageview'], ['card', 'Card', 'The picture of the item itself: video cover, movie poster, book cover, product photo']])}
+      <p class="note" id="b-anote" hidden>The shortcuts switch to Automatic. Own images (Image URL / Local file) are replaced.</p>
+      <label class="r" style="margin-top:10px">Cover fit <select name="cfit">
+        <option value="">Don't change</option><option value="auto">Auto</option><option value="fill">Fill</option><option value="top">Fill, from the top</option>
+        <option value="inside">Fit inside</option><option value="blur">Fit inside + blurred background</option></select></label>
+      <p class="note" id="b-cnote">Applies to the shortcuts in Pageview or Card mode.</p>
+    </section>
+    <p class="note" id="b-status" hidden></p>
+    <div class="btns"><span class="sp"></span><button type="button" id="b-discard" disabled title="Undo every change made in this window">Discard</button><button type="button" class="primary" id="b-ok">OK</button></div>
+  </form>`;
+  const f = $('form', dlg), cfit = f.elements.cfit, discard = $('#b-discard', dlg), status = $('#b-status', dlg);
+  const pick = { title: '', auto: '' };
+  // what every tile was when the window opened: all changes are computed from this, so going back to "Don't change" restores it
+  const snap = nodes.map((n) => ({ id: n.id, url: n.url, title: n.title, name: M.nameOf(n), meta: M.metaOf(n), thumb: T.all()[n.url] ? { ...T.all()[n.url] } : null }));
+  const base = (x) => x.thumb || { mode: 'auto', auto: 'logo' };
+  const lastT = new Map(snap.map((x) => [x.id, JSON.stringify(base(x))]));    // what is applied now (to skip writes that change nothing)
+  const lastTitle = new Map(snap.map((x) => [x.id, x.title]));
+  const names = new Map();                                                    // url -> { site, item } read from the page (kept while the window is open)
+
+  const sync = () => {
+    f.querySelectorAll('.seg').forEach((sg) => sg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === pick[sg.dataset.seg])));
+    $('#b-tnote', dlg).hidden = !pick.title;
+    $('#b-anote', dlg).hidden = !pick.auto;
+    const noCover = pick.auto === 'logo' || pick.auto === 'wide';             // Icon / Logo have no cover to fit
+    cfit.disabled = noCover; if (noCover) cfit.value = '';
+    $('#b-cnote', dlg).textContent = noCover ? 'Cover fit is only for Pageview and Card.' : pick.auto ? 'Applies to all selected shortcuts.' : 'Applies to the shortcuts in Pageview or Card mode.';
+    discard.disabled = !(pick.title || pick.auto || cfit.value);
+  };
+
+  const applyOnce = async () => {
+    const p = { title: pick.title, auto: pick.auto, cfit: cfit.value };       // the state at the moment this run starts
+    const titles = new Map();
+    if (p.title && p.title !== 'url') {
+      const need = snap.filter((x) => /^https?:/i.test(x.url) && !names.has(x.url));
+      let done = 0;
+      if (need.length) {
+        status.hidden = false; status.textContent = `Reading titles… 0/${need.length}`;
+        await Promise.all(need.map(async (x) => {
+          names.set(x.url, (await Promise.race([Icons.pageNames(x.url), new Promise((res) => setTimeout(() => res(null), 8000))])) || {});
+          status.textContent = `Reading titles… ${++done}/${need.length}`;
+        }));
+        status.hidden = true;
+      }
+    }
+    for (const x of snap) {
+      if (!p.title) continue;
+      const host = hostOf(x.url), bare = host.replace(/^www\./, ''), r = names.get(x.url) || {};
+      titles.set(x.id, p.title === 'url' ? host : p.title === 'site' ? r.site || bare || host : r.item || r.site || bare || host);   // the same fallbacks as the Edit window
+    }
+    const map = {}, upd = [];
+    for (const x of snap) {
+      const cur = base(x);
+      let t = cur;
+      if (p.auto && !(cur.mode === 'auto' && cur.auto === p.auto)) t = { mode: 'auto', auto: p.auto };   // already in that mode: its picked icon stays
+      if (p.cfit && t.mode === 'auto' && (t.auto === 'pageview' || t.auto === 'card')) {
+        const { cfit: _drop, ...rest } = t;
+        t = p.cfit === 'auto' ? rest : { ...rest, cfit: p.cfit };
+      }
+      const js = JSON.stringify(t);
+      if (js !== lastT.get(x.id)) { map[x.url] = t; lastT.set(x.id, js); }
+      // Speed Dials mode keeps a picked / URL icon in the bookmark title: it follows the thumbnail, or a refresh would bring the old icon back
+      const m = t !== cur ? DialMeta.metaOfThumb(t) : x.meta.icon_url ? { icon_url: x.meta.icon_url, fit_mode: x.meta.fit_mode } : null;
+      const title = M.titleFor(titles.get(x.id) ?? x.name, m?.icon_url || '', m?.fit_mode);
+      if (title !== lastTitle.get(x.id)) { upd.push([x.id, title]); lastTitle.set(x.id, title); }
+    }
+    if (!Object.keys(map).length && !upd.length) return;
+    DialMeta.hold();
+    try {
+      if (Object.keys(map).length) await T.setMany(map);
+      for (const [id, title] of upd) { try { await M.update(id, { title }); } catch { /* the bookmark is gone */ } }
+    } finally { DialMeta.release(); }
+    scheduleRefresh();
+  };
+  let chain = Promise.resolve();                                              // runs one after another, each with the latest settings
+  const apply = () => (chain = chain.then(applyOnce).catch(() => {}));
+
+  f.querySelectorAll('.seg button').forEach((b) => (b.onclick = () => { pick[b.closest('.seg').dataset.seg] = b.dataset.v; sync(); apply(); }));
+  cfit.onchange = () => { sync(); apply(); };
+
+  // --- a floating window: no dimming, movable by its title ---
+  const pos = { x: 0, y: 0 };
+  const place = () => {
+    pos.x = Math.min(Math.max(pos.x, 0), innerWidth - 80);
+    pos.y = Math.min(Math.max(pos.y, 0), innerHeight - 40);
+    dlg.style.left = pos.x + 'px'; dlg.style.top = pos.y + 'px';
+  };
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(); } };
+  const onResize = () => place();
+  const end = () => {                                                         // the window is over: put the shared dialog back to normal
+    if (batchEnd !== end) return;
+    batchEnd = null;
+    dlg.classList.remove('float'); dlg.style.left = dlg.style.top = '';
+    document.body.classList.remove('batching');
+    document.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('resize', onResize);
+  };
+  const finish = () => { end(); dlg.close(); };
+  batchEnd = end;
+  dlg.addEventListener('close', end, { once: true });
+  $('#b-ok', dlg).onclick = finish;
+  discard.onclick = async () => {
+    pick.title = pick.auto = ''; cfit.value = ''; sync();
+    discard.disabled = true; $('#b-ok', dlg).disabled = true;
+    await apply();                                                            // everything back to what it was
+    finish();
+  };
+  f.onsubmit = (ev) => { ev.preventDefault(); };
+  document.body.classList.add('batching');
+  dlg.classList.add('float');
+  dlg.show();
+  const r = dlg.getBoundingClientRect();
+  pos.x = Math.max(12, (innerWidth - r.width) / 2); pos.y = Math.max(12, (innerHeight - r.height) / 2);   // centered; the user moves it where it suits
+  place();
+  document.addEventListener('keydown', onKey, true);
+  window.addEventListener('resize', onResize);
+  const head = $('.bhead', dlg);
+  head.addEventListener('pointerdown', (e) => {
+    head.setPointerCapture(e.pointerId);
+    head.classList.add('dragging');
+    const dx = e.clientX - pos.x, dy = e.clientY - pos.y;
+    const move = (ev) => { pos.x = ev.clientX - dx; pos.y = ev.clientY - dy; place(); };
+    const up = () => { head.classList.remove('dragging'); head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', up); head.removeEventListener('pointercancel', up); };
+    head.addEventListener('pointermove', move); head.addEventListener('pointerup', up); head.addEventListener('pointercancel', up);
+  });
+  sync();
 }
 async function selMoveTo(dest) {
   const ids = selIds();
@@ -1601,6 +1751,7 @@ selBar.addEventListener('click', (e) => {
   else if (a === 'open') selOpen();
   else if (a === 'delete') selDelete();
   else if (a === 'move') selMoveMenu(b);
+  else if (a === 'edit') selModify();
 });
 
 /* ---------- misc ---------- */
