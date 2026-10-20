@@ -988,12 +988,29 @@ function openItemDialog({ node = null, parentId = null }) {
       const bmTitle = M.titleFor(ttl, iconUrl, st.mode === 'url' ? st.fit : st.auto === 'wide' ? 'wide' : 'icon');
       DialMeta.hold();                                            // a refresh must not restore the old icon while we save
       try {
-        if (isNew) await M.addLink(parentId || activeGroup()?.id, url, bmTitle);
-        else {
+        // the thumbnail settings are stored under the address the BOOKMARK has: the browser rewrites what was typed
+        // (https://example.com -> https://example.com/, host in lower case...), and a tile looks its thumbnail up by its bookmark's address
+        const entry = useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...((st.auto === 'pageview' || st.auto === 'card') && st.cfit !== 'auto' ? { cfit: st.cfit } : {}), ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}), ...(st.auto === 'wide' && st.wideIcon ? { icon: st.wideIcon } : {}) };
+        // The thumbnail is stored BEFORE the bookmark is created / changed, so the tile is drawn once, with its final thumbnail (it used to be
+        // drawn first with the default icon and rebuilt a moment later, which looked like the preview being generated again)
+        if (isNew) {
+          let pre = url;
+          try { pre = new URL(url).href; } catch { /* keep as typed */ }   // the address the browser is going to store
+          const prev = T.all()[pre] || null;
+          await T.setT(pre, entry);
+          let made;
+          try { made = await M.addLink(parentId || activeGroup()?.id, url, bmTitle); }
+          catch (e) { await T.setT(pre, prev); throw e; }
+          const key = made?.url || url;
+          if (key !== pre) { await T.setT(key, entry); await T.setT(pre, prev); }   // the browser stored another form after all
+        } else if (url === node.url) {
+          await T.setT(url, entry);
           await M.update(node.id, { title: bmTitle, url });
-          if (url !== node.url) await T.rekey(node.url, url);
+        } else {
+          const key = (await M.update(node.id, { title: bmTitle, url }))?.url || url;
+          if (key !== node.url) await T.rekey(node.url, key);
+          await T.setT(key, entry);
         }
-        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...((st.auto === 'pageview' || st.auto === 'card') && st.cfit !== 'auto' ? { cfit: st.cfit } : {}), ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}), ...(st.auto === 'wide' && st.wideIcon ? { icon: st.wideIcon } : {}) });
         if (useImg && (isNew || fitTouched)) await S.set({ lastFit: st.fit });   // the next own image starts with this Fit
       } finally { DialMeta.release(); }
     }

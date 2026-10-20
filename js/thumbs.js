@@ -39,9 +39,12 @@ chrome.storage.onChanged.addListener((ch, area) => {
 // when the grid is rebuilt (e.g. after a deletion), so icons do not flash. bump() forces a rebuild (refresh icons).
 let gen = 0;
 export const bump = () => { gen++; };
-export const sigOf = (url) => [gen, url, S.get().hiResIcons ? 1 : 0, JSON.stringify(thumbs[url] || null), shots[url]?.dataUrl?.length || 0].join('|');
+// The entry of an address. Tiles saved by older versions may sit under the address as it was typed (https://example.com) while the
+// bookmark has what the browser made of it (https://example.com/): the bare-site address is also tried without its closing slash.
+const entry = (url) => thumbs[url] || (/^https?:\/\/[^/?#]+\/$/i.test(url || '') ? thumbs[url.slice(0, -1)] : undefined);
+export const sigOf = (url) => [gen, url, S.get().hiResIcons ? 1 : 0, JSON.stringify(entry(url) || null), shots[url]?.dataUrl?.length || 0].join('|');
 export const all = () => thumbs;
-export const getT = (url) => thumbs[url] || { mode: 'auto', auto: 'logo' };
+export const getT = (url) => entry(url) || { mode: 'auto', auto: 'logo' };
 export const onChange = (f) => listeners.push(f);
 const persist = () => chrome.storage.local.set({ thumbs });
 let seenT = 0;
@@ -226,6 +229,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
       const shot = card ? null : shots[pageUrl]?.dataUrl;
       if (shot) { onState?.('found'); showCover(shot, 'cov top', fallback, { fit, shot: true }); }
       else if (web && (hi || (!card && Icons.shotServiceUrl(pageUrl)))) {
+        const lookup = () => {
         onState?.('loading');
         busy(true, 120);
         (async () => {
@@ -247,6 +251,14 @@ export function renderThumbFrom(pageUrl, t, onState) {
           onState?.('none', kind);
           fallback();
         })().catch(() => { busy(false); fallback(); });
+        };
+        // a tile whose preview is already stored shows it at once (no shimmer, no icon in between); the stored one is refreshed in the background
+        const known = hi && !onState ? Icons.peekPreview(pageUrl, { item: card }) : null;
+        if (known) {
+          const badge = card && known.kind === 'video' ? (Icons.ytVideoId(pageUrl) ? 'yt' : 'play') : null;
+          showCover(ImgCache.use(known.src), 'cov', lookup, { fit, kind: card ? known.kind : null, badge });   // it cannot be shown: the full lookup
+          Icons.previewInfo(pageUrl, { item: card }).catch(() => {});
+        } else lookup();
       } else { onState?.('off'); fallback(); }
     } else if (t.auto === 'wide') {
       // a wide (rectangular) logo of the site; until it is found - and when the site has none - the usual icon is shown

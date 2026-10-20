@@ -454,8 +454,19 @@ export function shotServiceUrl(pageUrl) {
 }
 export const previewMaxAge = () => ttlOk();                  // how long a stored preview / screenshot is considered fresh
 
+// The preview already stored for a page, or null: synchronous (memory only, no freshness check), so a tile can show it at once
+export function peekPreview(pageUrl, opts = {}) {
+  if (!cache) return null;
+  try { pageUrl = new URL(pageUrl).href; } catch { /* keep as is */ }
+  const noItem = !opts.item, c = cache[(noItem ? 'p:' : 'pc:') + pageUrl];
+  if (!c?.src) return null;
+  if (!noItem && isEbay(pageUrl) && !EBAY_PIC.test(c.src)) return null;                          // the same cases previewInfo looks up again
+  if (!noItem && c.v !== PV_VER && itemKind(pageUrl) && !coverKind(pageUrl)) return null;
+  return { src: c.src, kind: c.kind || itemKind(pageUrl) || null };
+}
 // What a page's preview is: { src, kind }. opts.item: the Card mode (the item's own picture), otherwise Pageview; opts.needKind: refresh an entry stored without a kind
 export async function previewInfo(pageUrl, opts = {}) {
+  try { pageUrl = new URL(pageUrl).href; } catch { /* keep as is */ }   // the address the browser stores (example.com -> example.com/): the dialog and the tile share one entry
   await load();
   const noItem = !opts.item, pk = (noItem ? 'p:' : 'pc:') + pageUrl;
   const out = (c) => ({ src: c.src, kind: c.kind || itemKind(pageUrl) || null });
