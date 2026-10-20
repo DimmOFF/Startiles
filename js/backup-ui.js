@@ -63,10 +63,8 @@ export function init({ status }) {
   };
   $('#imp-btn').onclick = () => fileIn.click();
   let loaded = null;
-  fileIn.onchange = async () => {
-    const f = fileIn.files[0];
-    fileIn.value = '';
-    if (!f) return;
+  // reads the chosen / dropped backup file and opens the Import window
+  async function pickFile(f) {
     try {
       loaded = await Backup.readFile(f);
       file = f;
@@ -76,7 +74,31 @@ export function init({ status }) {
       lead.textContent = `${f.name}: ${parts.join(', ') || 'settings and previews'}. Choose what to import:`;
       open('import', loaded.avail);
     } catch (e) { status.textContent = 'Import failed: ' + e.message; }
+  }
+  fileIn.onchange = () => {
+    const f = fileIn.files[0];
+    fileIn.value = '';
+    if (f) pickFile(f);
   };
+
+  // Drag and drop: a backup file dropped anywhere on the Advanced Settings window (also on its dimmed surroundings) is imported like a chosen one.
+  // The dialog marks itself (.filedrop) while a file is over it; only drags that carry files are touched, so nothing else is affected.
+  const adv = $('#adv');
+  let depth = 0;                                           // dragenter / dragleave also fire for every child element: the window is left when the count is back to 0
+  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+  const endDrag = () => { depth = 0; adv.classList.remove('filedrop'); };
+  adv.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; adv.classList.add('filedrop'); });
+  adv.addEventListener('dragover', (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  adv.addEventListener('dragleave', (e) => { if (hasFiles(e) && --depth <= 0) endDrag(); });
+  adv.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();                                    // otherwise the browser opens the file instead
+    endDrag();
+    const f = [...e.dataTransfer.files].find((x) => /\.json$/i.test(x.name) || x.type === 'application/json');
+    if (f) pickFile(f);
+    else status.textContent = 'Import failed: drop a Startiles backup (.json) file';
+  });
+  adv.addEventListener('close', endDrag);
   $('#bk-cancel').onclick = () => dlg.close();
   closeOnBackdrop(dlg);
   form.onsubmit = async (e) => {

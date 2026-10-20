@@ -206,6 +206,7 @@ function tileEl(n, reuse) {
   label.querySelector('span').textContent = M.nameOf(n) || (n.url ? hostOf(n.url) : 'Folder');   // only the name, never the JSON
   if (!isF) t.dataset.sig = T.sigOf(n.url);
   card.append(isF ? folderThumb(n) : reuse?.thumb || T.renderThumb(n.url), label);
+  if (!isF && !reuse?.thumb) T.detectCard(n.url);   // an old tile with the default logo: is it an item (product, video...)? then it becomes a Card
   t.append(el('span', 'sel-box'));
   if (selMode && sel.has(n.id)) t.classList.add('selected');
   const tools = el('div', 'tools',
@@ -545,7 +546,7 @@ function openItemDialog({ node = null, parentId = null }) {
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
     <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com" autocomplete="off" spellcheck="false"><div class="ac" hidden></div></label>
     <label class="f"><span>Title</span><input name="ttl" autocomplete="off"></label>
-    <div class="seg sm" id="ttlsrc" data-only="link"><button type="button" data-src="url">Site URL</button><button type="button" data-src="site">Site name</button><button type="button" data-src="item">Page title</button></div>
+    <div class="seg sm" id="ttlsrc" data-only="link"><button type="button" data-src="url">Site URL</button><button type="button" data-src="site">Site name</button><button type="button" data-src="item">Page title</button><button type="button" data-src="mine" title="The name you gave this tile (typed by hand)" hidden>Custom</button></div>
     <p class="note" id="ttlnote" hidden></p>
     <section class="tcat" data-only="link">
       <h4>Thumbnail</h4>
@@ -770,9 +771,13 @@ function openItemDialog({ node = null, parentId = null }) {
   const tsrc = $('#ttlsrc', dlg), tbtns = [...tsrc.querySelectorAll('button')], tnote = $('#ttlnote', dlg);
   const TLBL = { video: 'Video title', movie: 'Movie title', book: 'Book title', product: 'Product title', music: 'Album title', game: 'Game title', wiki: 'Article title' };
   let names = null, nurl = null, nt, ttlSrc = 'url', ttlAuto = isNew;      // ttlAuto: the text was put there by the switch, not typed
+  // "Custom" (both modes) = the name the tile has (Edit) or the one typed by hand (Add / Edit): it comes back with one click after another source was used
+  const mineBtn = tsrc.querySelector('[data-src=mine]');
+  let userName = node?.url ? M.nameOf(node) : '';
   const hostName = () => hostOf(normalizeUrl(E.addr.value)).replace(/^www\./, '');
-  const nameFor = (src) => (src === 'url' ? hostOf(normalizeUrl(E.addr.value)) : src === 'site' ? names?.site || hostName() : names?.item || '');
+  const nameFor = (src) => (src === 'url' ? hostOf(normalizeUrl(E.addr.value)) : src === 'site' ? names?.site || hostName() : src === 'mine' ? userName : names?.item || '');
   const syncTitle = () => {
+    mineBtn.hidden = !userName;
     tsrc.querySelector('[data-src=item]').textContent = TLBL[names?.kind || Icons.coverKind(normalizeUrl(E.addr.value))] || 'Page title';
     const v = E.ttl.value.trim();
     const hit = v ? tbtns.find((b) => nameFor(b.dataset.src) === v) : tbtns.find((b) => b.dataset.src === ttlSrc);   // typed text: none is lit
@@ -813,9 +818,9 @@ function openItemDialog({ node = null, parentId = null }) {
   // is not typed by hand: empty, put there by the switch, or just the address / the site name
   const useSrc = async (src, explicit) => {
     const v0 = E.ttl.value.trim();
-    if (!(explicit || !v0 || ttlAuto || tbtns.some((b) => nameFor(b.dataset.src) === v0))) return;
+    if (!(explicit || !v0 || ttlAuto || tbtns.some((b) => b.dataset.src !== 'mine' && nameFor(b.dataset.src) === v0))) return;
     ttlSrc = src; ttlAuto = true; tnote.hidden = true;
-    if (src !== 'url') { E.ttl.placeholder = 'Loading…'; await ensureNames(); }
+    if (src === 'site' || src === 'item') { E.ttl.placeholder = 'Loading…'; await ensureNames(); }
     const n = nameFor(src);
     if (n && (explicit || v0)) E.ttl.value = n;
     else if (!n && explicit) { tnote.hidden = false; tnote.textContent = /^https?:/i.test(normalizeUrl(E.addr.value)) ? 'No title found on this page.' : 'Enter the address of the site first.'; }
@@ -848,7 +853,7 @@ function openItemDialog({ node = null, parentId = null }) {
       if (!init) afterAuto('logo');
     } finally { endDetect(url); }                             // not a Card: the usual icon replaces the placeholder
   };
-  E.ttl.addEventListener('input', () => { if (E.ttl.value.trim()) ttlAuto = false; tnote.hidden = true; syncTitle(); });
+  E.ttl.addEventListener('input', () => { if (E.ttl.value.trim()) { ttlAuto = false; userName = E.ttl.value.trim(); } tnote.hidden = true; syncTitle(); });
   titlePh();
   // local image: choose / drop / paste
   const fname = $('#fname', dlg), clearBtn = $('#clearfile', dlg);
@@ -970,6 +975,7 @@ function openItemDialog({ node = null, parentId = null }) {
         return;
       }
       let ttl = title;
+      if (!ttl && ttlSrc === 'mine' && userName) ttl = userName;
       if (!ttl && ttlSrc === 'url') ttl = hostOf(url);        // empty Title: the chosen source (address / site name / title of the item)
       else if (!ttl) {
         const n = await Promise.race([ensureNames(), new Promise((r) => setTimeout(() => r(null), 1500))]);

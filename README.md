@@ -204,7 +204,7 @@ The footer has **Export**, **Import**, **Reset to Default** and **Donate**.
 **Export** and **Import** open a window with check boxes: **Settings** (incl. the background image), **Themes**, **Speed Dials** (groups, folders, shortcuts, order) and, under it, **User previews** and **Cached previews**.
 
 - **Export** writes one JSON file with what is ticked.
-- **Import** reads the file, greys out what it does not contain, and offers **Add** or **Replace** for Themes and for Speed Dials. The previews follow the Speed Dials choice; Settings are always replaced.
+- **Import** reads the file (choose it, or just **drag and drop** it anywhere onto the Advanced Settings window), greys out what it does not contain, and offers **Add** or **Replace** for Themes and for Speed Dials. The previews follow the Speed Dials choice; Settings are always replaced.
   - *Add* merges: themes are appended (renamed on a name clash), groups and folders with the same name are merged and links with the same address are skipped, existing previews win.
   - *Replace* deletes the current themes / groups and tiles first.
 - The page reloads afterwards. Backups from older versions can still be imported.

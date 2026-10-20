@@ -128,8 +128,10 @@ async function discover(pageUrl) {
 function pump() {
   while (active < 4 && queue.length) { active++; queue.shift()(); }
 }
-const schedule = (fn) => new Promise((res) => {
-  queue.push(() => fn().then(res, () => res(null)).finally(() => { active--; pump(); }));
+// urgent: a request of the user (the names of a page in the Add / Edit dialog) goes to the FRONT of the queue, before the background lookups
+const schedule = (fn, urgent = false) => new Promise((res) => {
+  const job = () => fn().then(res, () => res(null)).finally(() => { active--; pump(); });
+  if (urgent) queue.unshift(job); else queue.push(job);
   pump();
 });
 
@@ -235,6 +237,7 @@ export function ytVideoId(url) {
   return id && /^[\w-]{11}$/.test(id) ? id : null;
 }
 
+const KIND_VER = 2;                                          // version of the page-kind detection: a stored preview WITHOUT a kind made by an older one is looked up again (when a Card is checked)
 const PV_VER = 4;                                          // preview entries stored without it (v1.1.61 and older) and without a picture are looked up again
 const previewFail = new Map();                               // pk -> time until which an unreachable page is not asked again (this session)
 
@@ -359,9 +362,10 @@ function pageKind(html) {
   const meta = (k) => metas.find((m) => (m.property || m.name || m.itemprop || '').toLowerCase() === k)?.content || '';
   const og = meta('og:type').toLowerCase().trim(), nodes = ldNodes(html);
   let kind = null, fromLd = false;
-  if (/^video\.(movie|tv_show|episode)/.test(og)) kind = 'movie';
+  // og:type is written in many ways: "video.movie" (the standard), but also a plain "Movie" / "film" / "tv_show" (anime and film sites), "books.book"
+  if (/^video\.(movie|tv_show|episode)/.test(og) || /^(movie|film|tv_?show|tv_?series|series|episode)s?$/.test(og)) kind = 'movie';
   else if (og.startsWith('video')) kind = 'video';
-  else if (og === 'book') kind = 'book';
+  else if (og === 'book' || og === 'books.book') kind = 'book';
   else if (/^(og:)?product/.test(og)) kind = 'product';
   else if (og.startsWith('music.')) kind = 'music';
   else if (og === 'game') kind = 'game';
@@ -432,7 +436,7 @@ async function fetchPreview(pageUrl, noItem = false) {
   if (!src && !noItem && itemKind(pageUrl)) console.info('[Startiles] Card: no picture for', pageUrl, transient ? '- nothing found: the page did not load in time, answered with a bot check, or has no picture; it is asked again in 10 minutes' : '- the page loaded, nothing usable on it; tried:', transient ? '' : tried);
   const old = cache[pk]?.src && !(!noItem && isEbay(pageUrl) && !EBAY_PIC.test(cache[pk].src)) ? cache[pk].src : null;   // the old picture is kept when a refresh fails - unless it is eBay's logo
   if (transient) { previewFail.set(pk, Date.now() + 10 * 60e3); return { src: old, kind: cache[pk]?.kind || kind || null }; }
-  cache[pk] = { src: src || old || null, w: 0, ts: Date.now(), kind: kind || null, v: PV_VER };   // a failed refresh keeps the old preview
+  cache[pk] = { src: src || old || null, w: 0, ts: Date.now(), kind: kind || null, v: PV_VER, kv: KIND_VER };   // a failed refresh keeps the old preview
   save();
   return { src: cache[pk].src, kind: cache[pk].kind };
 }
@@ -459,12 +463,15 @@ export async function previewInfo(pageUrl, opts = {}) {
   const badOld = !noItem && isEbay(pageUrl) && !!c?.src && !EBAY_PIC.test(c.src);          // eBay: a stored logo / banner instead of a photo
   if (c && (badOld || (c.v !== PV_VER && itemKind(pageUrl) && !coverKind(pageUrl) && (!noItem || !c.src)))) return fetchPreview(pageUrl, noItem);   // an Amazon / eBay item stored by an older version
   if (c && c.kind === undefined && opts.needKind && !coverKind(pageUrl)) return fetchPreview(pageUrl, noItem);   // stored before kinds existed
+  if (c && !noItem && !c.kind && c.kv !== KIND_VER && opts.needKind && !coverKind(pageUrl)) return fetchPreview(pageUrl, noItem);   // no kind found by an older detection: look again
   if (c && Date.now() - c.ts < (c.src ? ttlOk() : TTL_FAIL)) return out(c);
   if (c?.src) { fetchPreview(pageUrl, noItem).catch(() => {}); return out(c); }         // stale: show it, refresh in the background
   if ((previewFail.get(pk) || 0) > Date.now()) return { src: null, kind: coverKind(pageUrl) || null };   // could not be reached a moment ago
   return fetchPreview(pageUrl, noItem);
 }
 export const preview = async (pageUrl, opts) => (await previewInfo(pageUrl, opts)).src;
+// true when the page has a stored Card answer (a picture or a definite "nothing"); an unreachable page has none and is asked again later
+export const cardChecked = (pageUrl) => !!cache?.['pc:' + pageUrl];
 
 // Names of a page for the Title field: the name of its SITE and the title of the ITEM itself (product / video / movie / book / article).
 const ent = (v) => decode(v).replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(+d));
@@ -492,9 +499,17 @@ const namesCache = new Map();
 export function pageNames(pageUrl) {
   if (namesCache.has(pageUrl)) return namesCache.get(pageUrl);
   const p = schedule(async () => {
+    // YouTube often answers a plain request with a bot-protection / consent page that has no title of the video: its oEmbed gives the title
+    // without any page (it refuses only private / unavailable videos - then the page itself is read as for any other site)
+    const vid = ytVideoId(pageUrl);
+    if (vid) {
+      const j = await fetchJson('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + vid), 6000);
+      const t = typeof j?.title === 'string' ? j.title.replace(/\s+/g, ' ').trim() : '';
+      if (t) return { site: 'YouTube', item: t, kind: 'video' };
+    }
     const page = await fetchHead(pageUrl);
     return page ? pageTitles(page.text) : null;
-  });
+  }, true);
   namesCache.set(pageUrl, p);
   p.then((r) => { if (!r) namesCache.delete(pageUrl); });   // an unreachable page is asked again next time
   return p;

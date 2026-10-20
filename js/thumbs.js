@@ -8,13 +8,18 @@ import * as Icons from './icons.js';
 import * as S from './settings.js';
 import * as ImgCache from './imgcache.js';
 
-let thumbs = {}, shots = {};
+let thumbs = {}, shots = {}, cardSeen = {};   // cardSeen: addresses already checked for a Card (or decided by the user) - never checked again
 const listeners = [];
 
 export async function load() {
-  const r = await chrome.storage.local.get(['thumbs', 'shots', 'cardMig']);
+  const r = await chrome.storage.local.get(['thumbs', 'shots', 'cardMig', 'cardSeen', 'cardSeenVer']);
   thumbs = r.thumbs || {};
   shots = r.shots || {};
+  cardSeen = r.cardSeen || {};
+  if (r.cardSeenVer !== 2) {   // the detection of a Card got better: pages that were found "not a Card" are checked once more (the user's own choices, 'u', stay)
+    for (const u of Object.keys(cardSeen)) if (cardSeen[u] !== 'u') delete cardSeen[u];
+    await chrome.storage.local.set({ cardSeen, cardSeenVer: 2 });
+  }
   if (r.cardMig !== 1) {       // once: the "Use the item's cover" flags of versions 1.0.53-1.0.57 became the Card mode
     for (const [u, t] of Object.entries(thumbs)) {
       if (t?.mode !== 'auto' || t.auto !== 'pageview') continue;
@@ -39,8 +44,36 @@ export const all = () => thumbs;
 export const getT = (url) => thumbs[url] || { mode: 'auto', auto: 'logo' };
 export const onChange = (f) => listeners.push(f);
 const persist = () => chrome.storage.local.set({ thumbs });
+let seenT = 0;
+const markSeen = (url, user = true) => {      // user: the user decided (setT...), else the page was checked and is not a Card
+  if (cardSeen[url] === 'u' || (cardSeen[url] && !user)) return;
+  cardSeen[url] = user ? 'u' : 1;
+  clearTimeout(seenT);
+  seenT = setTimeout(() => chrome.storage.local.set({ cardSeen }), 500);
+};
+// An existing bookmark that still has the default thumbnail (the site logo) is checked ONCE for a Card: when its page stands for an item
+// (product, video, movie, book...) with a picture of its own, the tile becomes a Card. Any later choice of the user (even Logo) is final.
+const detecting = new Set();
+// at most 2 checks at a time: the network queue (4 places) is shared with the Add / Edit dialog, which must never wait behind a whole page of tiles
+let dActive = 0;
+const dWait = [];
+const dSlot = () => new Promise((r) => { if (dActive < 2) { dActive++; r(); } else dWait.push(r); });
+const dFree = () => { const n = dWait.shift(); if (n) n(); else dActive--; };
+export async function detectCard(url) {
+  if (!url || cardSeen[url] || thumbs[url] || detecting.has(url) || !/^https?:/i.test(url) || !S.get().hiResIcons) return;
+  detecting.add(url);
+  await dSlot();
+  try {
+    if (thumbs[url] || cardSeen[url]) return;
+    const info = await Icons.previewInfo(url, { item: true, needKind: true });
+    if (thumbs[url] || cardSeen[url]) return;                 // the user (or a refresh) decided meanwhile
+    if (info?.kind && info.src) await setT(url, { mode: 'auto', auto: 'card' });   // setT also remembers that the address is decided
+    else if (Icons.cardChecked(url)) markSeen(url, false);           // a definite answer: not a Card; an unreachable page is asked again next time
+  } catch { /* try again next time */ } finally { detecting.delete(url); dFree(); }
+}
 
 export async function setT(url, t) {
+  markSeen(url);
   if (!t || (t.mode === 'auto' && (t.auto === 'logo' || !t.auto) && !t.icon)) delete thumbs[url];
   else thumbs[url] = { ...t, ts: Date.now() };
   await persist();
@@ -50,6 +83,7 @@ export async function setT(url, t) {
 export async function setMany(map) {
   const now = Date.now();
   for (const [url, t] of Object.entries(map)) {
+    markSeen(url);
     if (!t || (t.mode === 'auto' && (t.auto === 'logo' || !t.auto) && !t.icon)) delete thumbs[url];
     else thumbs[url] = { ...t, ts: now };
   }
@@ -60,6 +94,7 @@ export async function rekey(oldUrl, newUrl) {
   if (thumbs[oldUrl] && oldUrl !== newUrl) {
     thumbs[newUrl] = thumbs[oldUrl];
     delete thumbs[oldUrl];
+    markSeen(newUrl);
     await persist();
   }
 }
