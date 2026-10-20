@@ -235,6 +235,7 @@ export function ytVideoId(url) {
   return id && /^[\w-]{11}$/.test(id) ? id : null;
 }
 
+const PV_VER = 4;                                          // preview entries stored without it (v1.1.61 and older) and without a picture are looked up again
 const previewFail = new Map();                               // pk -> time until which an unreachable page is not asked again (this session)
 
 // ---- item covers: a video, movie, book, product, album, game... shows ITS OWN picture ------------------------------
@@ -251,6 +252,42 @@ export function coverKind(url) {
   if (/^[a-z-]+\.wikipedia\.org$/.test(h) && /^\/wiki\/(?!(?:Special|File|Category|Talk|Help|Wikipedia|Template|Portal|User):)[^/]+$/.test(u.pathname)) return 'wiki';
   return null;
 }
+// Amazon and eBay do not describe the item in the page head (Amazon has no og:image at all) and show a bot check to plain requests,
+// so their items are recognised by the ADDRESS: amazonAsin() / ebayItem() give the item's id, itemKind() says 'product'.
+export function amazonAsin(url) {
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (!/^https?:$/.test(u.protocol) || !/(^|\.)amazon\.[a-z.]{2,6}$/i.test(u.hostname)) return null;
+  const m = u.pathname.match(/\/(?:dp|gp\/product|gp\/aw\/d|gp\/offer-listing|exec\/obidos\/(?:ASIN|tg\/detail\/-))\/([A-Z0-9]{10})(?:[/?#]|$)/i);
+  return m ? m[1].toUpperCase() : null;
+}
+export function ebayItem(url) {
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (!/^https?:$/.test(u.protocol) || !/(^|\.)ebay\.[a-z.]{2,6}$/i.test(u.hostname)) return null;
+  const m = u.pathname.match(/^\/(?:itm\/(?:[^/]+\/)?|p\/)(\d{8,14})(?:[/?#]|$)/);
+  return m ? m[1] : null;
+}
+const isEbay = (url) => { try { return /(^|\.)ebay\.[a-z.]{2,6}$/i.test(new URL(url).hostname); } catch { return false; } };
+// The address an item page is asked for: without the tracking part (the long ?pd_rd_w=..., the /<session id> after the ASIN, _skw=..., hash=...),
+// which is what a link copied from the address bar after clicking through from another product page carries.
+function cleanUrl(url) {
+  try {
+    const u = new URL(url), a = amazonAsin(url), e = ebayItem(url);
+    if (a) return u.origin + '/dp/' + a;
+    if (e) return u.origin + (u.pathname.startsWith('/p/') ? '/p/' : '/itm/') + e;
+  } catch { /* keep as is */ }
+  return url;
+}
+const EBAY_PIC = /^https:\/\/i\.ebayimg\.com\//i;
+const AMZ_MKT = { com: ['US', 'ws-na'], ca: ['CA', 'ws-na'], 'co.uk': ['GB', 'ws-eu'], de: ['DE', 'ws-eu'], fr: ['FR', 'ws-eu'], it: ['IT', 'ws-eu'], es: ['ES', 'ws-eu'], in: ['IN', 'ws-eu'], 'co.jp': ['JP', 'ws-fe'] };
+// Pictures of an Amazon product that need no page: the legacy image-by-ASIN addresses and the Associates widget image (a missing picture is a 1x1 gif)
+function amazonPics(url, asin) {
+  const tld = new URL(url).hostname.toLowerCase().replace(/^.*?amazon\./, ''), [mk, ws] = AMZ_MKT[tld] || AMZ_MKT.com;
+  return [`https://m.media-amazon.com/images/P/${asin}.01.LZZZZZZZ.jpg`, `https://images-na.ssl-images-amazon.com/images/P/${asin}.01.LZZZZZZZ.jpg`,
+    `https://${ws}.amazon-adsystem.com/widgets/q?_encoding=UTF8&ASIN=${asin}&Format=_SL500_&ID=AsinImage&MarketPlace=${mk}&ServiceVersion=20070822&WS=1`];
+}
+const itemKind = (url) => coverKind(url) || (amazonAsin(url) || ebayItem(url) ? 'product' : null);
 const fetchJson = async (url, ms = 4000) => {
   const r = await fetchText(url, ms);
   try { return r ? JSON.parse(r.text) : null; } catch { return null; }
@@ -264,6 +301,17 @@ async function siteCover(pageUrl) {
       const w = await loadImg(abs, 6000);
       if (w && w >= 160) return abs;
     }
+    return null;
+  }
+  const asin = amazonAsin(pageUrl);
+  if (asin) {                                                // Amazon: the product picture by ASIN (a missing one comes back as a 1x1 gif and is rejected by the size check)
+    for (const abs of amazonPics(pageUrl, asin)) {
+      const w = await loadImg(abs, 6000);
+      if (w && w >= 160) return abs;
+    }
+    // many products (Amazon Brand, new ones) have none of those: the main picture is read from the page body (landingImage / colorImages)
+    const pic = await netCall('amazonPage', cleanUrl(pageUrl), 15000);
+    if (pic) { const w = await loadImg(pic, 8000); if (w && w >= 160) return pic; }
     return null;
   }
   const k = coverKind(pageUrl);
@@ -329,19 +377,26 @@ function pageKind(html) {
 // noItem: Pageview - the page's own preview image (og:image...) or a screenshot; otherwise the Card mode: the picture of the ITEM itself.
 async function fetchPreview(pageUrl, noItem = false) {
   const pk = (noItem ? 'p:' : 'pc:') + pageUrl;               // 'p:' = Pageview, 'pc:' = Card
-  let transient = false, kind = coverKind(pageUrl);          // transient: the page itself could not be loaded: do not remember the failure for long
+  let transient = false, kind = itemKind(pageUrl);          // transient: the page itself could not be loaded: do not remember the failure for long
+  const tried = [];                                          // for the console note below: what was looked at
   const src = await schedule(async () => {
-    if (!noItem) { const s = await siteCover(pageUrl); if (s) return s; }
-    const page = await fetchHead(pageUrl);
+    if (!noItem) {
+      const s = await siteCover(pageUrl);
+      if (s) return s;
+      if (amazonAsin(pageUrl)) { transient = true; return null; }   // Amazon: no picture found / bot check - not remembered for days, asked again later
+    }
+    // Amazon / eBay pages are heavy and slow to answer (some regions take several seconds): they get more time than an ordinary page
+    const page = await fetchHead(cleanUrl(pageUrl), isEbay(pageUrl) || amazonAsin(pageUrl) ? 12000 : undefined);
     if (!page) { transient = true; return null; }
     const seen = new Set();
     const firstLarge = async (hrefs) => {                    // first candidate that really loads as a large enough image
       for (const href of hrefs) {
         let abs;
         try { abs = new URL(href, page.url).href; } catch { continue; }
-        if (seen.has(abs)) continue;
+        if (seen.has(abs) || (!noItem && isEbay(page.url) && !EBAY_PIC.test(abs))) continue;   // eBay: only i.ebayimg.com photos count - its own logo (og:image of brand / category pages, and what it may give a plain request) is not the picture of an item
         seen.add(abs);
         const w = await loadImg(abs, 8000);
+        tried.push(abs + (w ? ' (' + w + 'px)' : ' (does not load)'));
         if (w && w >= 160) return abs;
       }
       return null;
@@ -361,11 +416,23 @@ async function fetchPreview(pageUrl, noItem = false) {
     }
     const r2 = (await firstLarge(previewHrefs(page.text))) || (noItem ? await firstLarge(await manifestShots(page.text, page.url)) : null);   // a Card is never a screenshot
     if (r2) return r2;
+    if (!noItem && isEbay(page.url)) {                       // a brand / category / search page of eBay: the picture of its first listing
+      const ids = (await netCall('ebayListing', cleanUrl(pageUrl), 15000)) || [];
+      for (const id of ids) {                                // the photos of the page one after another: the first loadable one wins
+        for (const ext of ['jpg', 'webp']) {
+          const g = 'https://i.ebayimg.com/images/g/' + id + '/s-l500.' + ext, w = await loadImg(g, 8000);
+          tried.push(g + (w ? ' (' + w + 'px)' : ' (does not load)'));
+          if (w && w >= 160) return g;
+        }
+      }
+    }
     if (!noItem && pg.kind === 'book' && pg.isbn) return firstLarge(['https://covers.openlibrary.org/b/isbn/' + pg.isbn + '-L.jpg?default=false']);
     return null;
   });
-  if (transient) { previewFail.set(pk, Date.now() + 10 * 60e3); return { src: cache[pk]?.src || null, kind: cache[pk]?.kind || kind || null }; }
-  cache[pk] = { src: src || cache[pk]?.src || null, w: 0, ts: Date.now(), kind: kind || null };   // a failed refresh keeps the old preview
+  if (!src && !noItem && itemKind(pageUrl)) console.info('[Startiles] Card: no picture for', pageUrl, transient ? '- nothing found: the page did not load in time, answered with a bot check, or has no picture; it is asked again in 10 minutes' : '- the page loaded, nothing usable on it; tried:', transient ? '' : tried);
+  const old = cache[pk]?.src && !(!noItem && isEbay(pageUrl) && !EBAY_PIC.test(cache[pk].src)) ? cache[pk].src : null;   // the old picture is kept when a refresh fails - unless it is eBay's logo
+  if (transient) { previewFail.set(pk, Date.now() + 10 * 60e3); return { src: old, kind: cache[pk]?.kind || kind || null }; }
+  cache[pk] = { src: src || old || null, w: 0, ts: Date.now(), kind: kind || null, v: PV_VER };   // a failed refresh keeps the old preview
   save();
   return { src: cache[pk].src, kind: cache[pk].kind };
 }
@@ -387,8 +454,10 @@ export const previewMaxAge = () => ttlOk();                  // how long a store
 export async function previewInfo(pageUrl, opts = {}) {
   await load();
   const noItem = !opts.item, pk = (noItem ? 'p:' : 'pc:') + pageUrl;
-  const out = (c) => ({ src: c.src, kind: c.kind || coverKind(pageUrl) || null });
+  const out = (c) => ({ src: c.src, kind: c.kind || itemKind(pageUrl) || null });
   const c = cache[pk];
+  const badOld = !noItem && isEbay(pageUrl) && !!c?.src && !EBAY_PIC.test(c.src);          // eBay: a stored logo / banner instead of a photo
+  if (c && (badOld || (c.v !== PV_VER && itemKind(pageUrl) && !coverKind(pageUrl) && (!noItem || !c.src)))) return fetchPreview(pageUrl, noItem);   // an Amazon / eBay item stored by an older version
   if (c && c.kind === undefined && opts.needKind && !coverKind(pageUrl)) return fetchPreview(pageUrl, noItem);   // stored before kinds existed
   if (c && Date.now() - c.ts < (c.src ? ttlOk() : TTL_FAIL)) return out(c);
   if (c?.src) { fetchPreview(pageUrl, noItem).catch(() => {}); return out(c); }         // stale: show it, refresh in the background
