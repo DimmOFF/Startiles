@@ -71,6 +71,12 @@ body.gear-bottom #settings-btn{top:auto;bottom:var(--gear-off,12px)}
 .cell .thumb .fav{width:min(90%,calc(var(--icon-size,36%) * 1.3))}
 .cell .thumb .wide{width:min(92%,calc(var(--icon-size,36%) * 1.9))}
 .thumb .cov.top{object-position:top}
+/* Pageview: while the preview is being looked up / built, a light sweep runs over the thumbnail and the logo breathes */
+.thumb.busy::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(100deg,transparent 25%,color-mix(in srgb,var(--fg) 16%,transparent) 50%,transparent 75%);transform:translateX(-100%);animation:thumb-shim 1.4s ease-in-out infinite}
+.thumb.busy .fav,.thumb.busy .letter{animation:thumb-breathe 1.4s ease-in-out infinite}
+@keyframes thumb-shim{to{transform:translateX(100%)}}
+@keyframes thumb-breathe{50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.thumb.busy::after,.thumb.busy .fav,.thumb.busy .letter{animation:none}}
 .thumb .yt-badge{position:absolute;left:50%;top:50%;width:20%;aspect-ratio:68/48;transform:translate(-50%,-50%);pointer-events:none;filter:drop-shadow(0 1px 4px rgba(0,0,0,.45))}
 .thumb .yt-badge svg{display:block;width:100%;height:100%}
 .thumb .yt-badge.play{aspect-ratio:1}

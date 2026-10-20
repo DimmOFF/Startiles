@@ -110,6 +110,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
   const box = document.createElement('div');
   box.className = 'thumb';
   const web = /^https?:/i.test(pageUrl);
+  const busy = (on) => box.classList.toggle('busy', on);   // the preview is being looked up / built: the thumbnail shimmers (CSS)
 
   const logo = () => {
     box.replaceChildren();
@@ -143,13 +144,14 @@ export function renderThumbFrom(pageUrl, t, onState) {
     const im = new Image();
     im.className = cls; im.draggable = false; im.alt = '';
     im.onload = () => {
+      busy(false);
       let blur = false;
       if (o.fit) ({ cls: im.className, blur } = coverFit(o.fit, o.kind, im, o.shot));
       if (blur) { const bg = new Image(); bg.className = 'cov-bg'; bg.draggable = false; bg.alt = ''; bg.src = src; box.replaceChildren(bg, im); }
       else box.replaceChildren(im);
       if (o.badge) box.append(makeBadge(o.badge));
     };
-    im.onerror = onFail || (() => {});
+    im.onerror = () => { busy(false); onFail?.(); };
     im.src = src;
   };
 
@@ -163,6 +165,7 @@ export function renderThumbFrom(pageUrl, t, onState) {
       if (shot) { onState?.('found'); showCover(shot, 'cov top', upgradeLogo, { fit, shot: true }); }
       else if (web && (hi || (!card && Icons.shotServiceUrl(pageUrl)))) {
         onState?.('loading');
+        busy(true);
         (async () => {
           const info = hi ? await Icons.previewInfo(pageUrl, { item: card, needKind: !!onState }) : null;
           const src = info?.src, kind = info?.kind || null;
@@ -178,9 +181,10 @@ export function renderThumbFrom(pageUrl, t, onState) {
           const su = card ? null : Icons.shotServiceUrl(pageUrl);   // optional online screenshot (Settings > Icons & Previews)
           const shotCopy = su ? await ImgCache.get(su, { shot: true, maxAge: Icons.previewMaxAge() }) : null;
           if (shotCopy) { onState?.('found', kind); showCover(shotCopy, 'cov top', () => { onState?.('none', kind); upgradeLogo(); }, { fit, shot: true }); return; }
+          busy(false);
           onState?.('none', kind);
           upgradeLogo();
-        })();
+        })().catch(() => busy(false));
       } else { onState?.('off'); upgradeLogo(); }
     } else if (t.auto === 'wide') {
       // a wide (rectangular) logo of the site; until it is found - and when the site has none - the usual icon is shown

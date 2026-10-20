@@ -622,7 +622,10 @@ function openItemDialog({ node = null, parentId = null }) {
     $('#kindcov', dlg).textContent = KIND_COV[k] || 'a cover';
     $('#cfitrow', dlg).hidden = !(a === 'pageview' || a === 'card');
   };
-  const setNote = (s) => { const N = st.auto === 'wide' ? WNOTES : st.auto === 'card' ? CNOTES : NOTES; $('#aknote', dlg).textContent = N[s] || N.found; };
+  // the note under the mode buttons always matches the CURRENT mode (syncAk re-applies it before showing it), so it never flashes the text of
+  // another mode and the window does not change its height twice
+  let noteState = 'found', noteFor = st.auto;
+  const setNote = (s) => { noteState = s; noteFor = st.auto; const N = st.auto === 'wide' ? WNOTES : st.auto === 'card' ? CNOTES : NOTES; $('#aknote', dlg).textContent = N[s] || N.found; };
   const renderPrev = () => {
     const tok = ++updTok;
     const addr = normalizeUrl(E.addr.value);
@@ -656,6 +659,7 @@ function openItemDialog({ node = null, parentId = null }) {
   const shown = new Set();
   const syncAk = () => {
     f.querySelectorAll('.pane').forEach((p) => (p.hidden = !p.dataset.modes.split(' ').includes(st.mode)));
+    setNote(noteFor === st.auto ? noteState : 'found');
     $('#aknote', dlg).hidden = !(st.mode === 'auto' && (st.auto === 'pageview' || st.auto === 'wide' || st.auto === 'card'));
     syncCover();
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
