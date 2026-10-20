@@ -71,6 +71,10 @@ body.gear-bottom #settings-btn{top:auto;bottom:var(--gear-off,12px)}
 .cell .thumb .fav{width:min(90%,calc(var(--icon-size,36%) * 1.3))}
 .cell .thumb .wide{width:min(92%,calc(var(--icon-size,36%) * 1.9))}
 .thumb .cov.top{object-position:top}
+.thumb .yt-badge{position:absolute;left:50%;top:50%;width:20%;aspect-ratio:68/48;transform:translate(-50%,-50%);pointer-events:none;filter:drop-shadow(0 1px 4px rgba(0,0,0,.45))}
+.thumb .yt-badge svg{display:block;width:100%;height:100%}
+.thumb .yt-badge.play{aspect-ratio:1}
+.thumb .cov-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.25);filter:blur(16px) brightness(.85);pointer-events:none}
 .cell .thumb .letter{font-size:20px}
 .ph{height:100%;display:grid;place-items:center;color:color-mix(in srgb,var(--fg) 28%,transparent)}
 .tools button{position:absolute;top:6px;width:26px;height:26px;border:0;border-radius:7px;display:grid;place-items:center;
@@ -257,6 +261,10 @@ html{overflow-x:hidden}
 /* empty thumbnail placeholder (Add dialog without an address) */
 .thumb.thumb-ph{display:grid;place-items:center;color:rgba(110,118,140,.75);background:var(--thumb-bg)}
 .thumb.thumb-ph svg{width:72%;height:auto;max-height:86%}
+.thumb-ph .mer{transform-box:fill-box;transform-origin:center;animation:globe-spin 2.4s ease-in-out infinite}
+.thumb-ph .mer.b{animation-delay:-1.2s}
+@keyframes globe-spin{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.04)}}
+@media (prefers-reduced-motion:reduce){.thumb-ph .mer{animation:none;transform:scaleX(.41)}.thumb-ph .mer.b{display:none}}
 
 /* Add / Edit: Thumbnail category with horizontal mode switch */
 .tcat{margin-top:6px;padding-top:12px;border-top:1px solid var(--line)}
@@ -494,3 +502,8 @@ body.selecting #foot{visibility:hidden}
 .tslider .topt{flex:1;border:0;background:none;padding:6px 8px;border-radius:7px;cursor:pointer;color:var(--muted);transition:color .2s;white-space:nowrap}
 .tslider .topt.on{color:#fff}
 @media (prefers-reduced-motion:reduce){.tslider .tthumb,.tslider .topt{transition:none}}
+
+#ttlsrc{margin:-4px 0 6px}
+#ttlnote{margin:-2px 0 6px}
+
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent,#8a8aff);cursor:pointer;text-decoration:underline}

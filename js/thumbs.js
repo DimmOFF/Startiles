@@ -1,7 +1,7 @@
 // Thumbnail metadata lives in chrome.storage.local, keyed by bookmark URL:
 //   { mode: 'url'|'file', url?, dataUrl?, fit, ts }      custom image
 //   { mode: 'auto', auto: 'logo', icon: <chosen icon url>, ts }   automatic logo with a user-picked icon
-//   { mode: 'auto', auto: 'pageview', ts }               automatic: page preview (default 'logo' = no entry)
+//   { mode: 'auto', auto: 'pageview' | 'card', cfit? }    automatic: page preview / the picture of the item itself (default 'logo' = no entry)
 // Page screenshots captured by background.js live in storage 'shots' (local only, not synced).
 import { hostOf } from './util.js';
 import * as Icons from './icons.js';
@@ -12,9 +12,17 @@ let thumbs = {}, shots = {};
 const listeners = [];
 
 export async function load() {
-  const r = await chrome.storage.local.get(['thumbs', 'shots']);
+  const r = await chrome.storage.local.get(['thumbs', 'shots', 'cardMig']);
   thumbs = r.thumbs || {};
   shots = r.shots || {};
+  if (r.cardMig !== 1) {       // once: the "Use the item's cover" flags of versions 1.0.53-1.0.57 became the Card mode
+    for (const [u, t] of Object.entries(thumbs)) {
+      if (t?.mode !== 'auto' || t.auto !== 'pageview') continue;
+      if (t.cover !== false && t.ytcover !== false && Icons.coverKind(u)) t.auto = 'card';   // a video / game / article of a known site
+      delete t.cover; delete t.ytcover;
+    }
+    await chrome.storage.local.set({ thumbs, cardMig: 1 });
+  }
   await ImgCache.load();
 }
 chrome.storage.onChanged.addListener((ch, area) => {
@@ -70,6 +78,33 @@ export function setSiteIcon(img, pageUrl, size = 32) {
   img.src = srcs[0];
 }
 
+// A badge drawn over the cover of a video, centred, 20% of the tile width (see .yt-badge in newtab.css):
+// the YouTube logo for YouTube, a plain play button for any other video.
+const BADGES = {
+  yt: ['', '<svg viewBox="0 0 68 48" aria-hidden="true"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24S67.94 13.05 66.52 7.74z" fill="#f00"/><path d="M45 24 27 14v20z" fill="#fff"/></svg>'],
+  play: [' play', '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="rgba(0,0,0,.62)"/><path d="M26 20 46 32 26 44z" fill="#fff"/></svg>'],
+};
+const makeBadge = (kind) => {
+  const d = document.createElement('div');
+  d.className = 'yt-badge' + BADGES[kind][0];
+  d.innerHTML = BADGES[kind][1];
+  return d;
+};
+// How a pageview picture sits in the tile: auto | fill | top | inside | blur (inside, on a blurred copy of itself).
+// Auto: a screenshot from the top, a poster / book cover / product picture whose shape differs from the tile "inside + blur", the rest fills.
+const COVER_FITS = { fill: 'cov', top: 'cov top', inside: 'cov contain', blur: 'cov contain' };
+const BLUR_KINDS = ['movie', 'book', 'product', 'music', 'game', 'wiki'];
+function coverFit(mode, kind, im, isShot) {
+  if (COVER_FITS[mode]) return { cls: COVER_FITS[mode], blur: mode === 'blur' };
+  if (isShot) return { cls: 'cov top' };
+  if (BLUR_KINDS.includes(kind)) {
+    const tile = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ratio')) || 1.34;
+    const r = im.naturalWidth / (im.naturalHeight || 1);
+    if (Math.abs(Math.log(r / tile)) > Math.log(1.25)) return { cls: 'cov contain', blur: true };
+  }
+  return { cls: 'cov' };
+}
+
 // onState (optional) reports the Pageview / Logo lookup: 'loading' | 'found' | 'none' | 'off'
 export function renderThumbFrom(pageUrl, t, onState) {
   const box = document.createElement('div');
@@ -103,35 +138,47 @@ export function renderThumbFrom(pageUrl, t, onState) {
       big.src = hi;
     });
   };
-  const showCover = (src, cls, onFail) => {
+  // o.fit: the Cover fit chosen for the tile (pageview pictures); o.kind / o.shot: what the picture is; o.badge: 'yt' | 'play'
+  const showCover = (src, cls, onFail, o = {}) => {
     const im = new Image();
     im.className = cls; im.draggable = false; im.alt = '';
-    im.onload = () => box.replaceChildren(im);
+    im.onload = () => {
+      let blur = false;
+      if (o.fit) ({ cls: im.className, blur } = coverFit(o.fit, o.kind, im, o.shot));
+      if (blur) { const bg = new Image(); bg.className = 'cov-bg'; bg.draggable = false; bg.alt = ''; bg.src = src; box.replaceChildren(bg, im); }
+      else box.replaceChildren(im);
+      if (o.badge) box.append(makeBadge(o.badge));
+    };
     im.onerror = onFail || (() => {});
     im.src = src;
   };
 
   if (t.mode === 'auto') {
     logo();
-    if (t.auto === 'pageview') {
-      const shot = shots[pageUrl]?.dataUrl;
-      if (shot) { onState?.('found'); showCover(shot, 'cov top', upgradeLogo); }
-      else if (web && (S.get().hiResIcons || Icons.shotServiceUrl(pageUrl))) {
+    if (t.auto === 'pageview' || t.auto === 'card') {
+      // Pageview: the page's preview image or a screenshot. Card: the picture of the ITEM itself (video cover, movie poster, book cover,
+      // product photo - see Icons.previewInfo), never a screenshot, with a play badge on a video
+      const card = t.auto === 'card', hi = S.get().hiResIcons, fit = t.cfit || 'auto';
+      const shot = card ? null : shots[pageUrl]?.dataUrl;
+      if (shot) { onState?.('found'); showCover(shot, 'cov top', upgradeLogo, { fit, shot: true }); }
+      else if (web && (hi || (!card && Icons.shotServiceUrl(pageUrl)))) {
         onState?.('loading');
         (async () => {
-          const src = S.get().hiResIcons ? await Icons.preview(pageUrl) : null;
+          const info = hi ? await Icons.previewInfo(pageUrl, { item: card, needKind: !!onState }) : null;
+          const src = info?.src, kind = info?.kind || null;
           if (src) {
             // the worker downloads the picture (no Referer, so hotlink protection does not block it) and the tile shows the copy;
             // a direct <img> is only the last resort
             const copy = await ImgCache.get(src);
-            onState?.('found');
-            showCover(copy || src, 'cov', () => { onState?.('none'); upgradeLogo(); });
+            onState?.('found', kind);
+            const badge = card && kind === 'video' ? (Icons.ytVideoId(pageUrl) ? 'yt' : 'play') : null;
+            showCover(copy || src, 'cov', () => { onState?.('none', kind); upgradeLogo(); }, { fit, kind: card ? kind : null, badge });
             return;
           }
-          const su = Icons.shotServiceUrl(pageUrl);          // optional online screenshot (Settings > Icons & Previews)
+          const su = card ? null : Icons.shotServiceUrl(pageUrl);   // optional online screenshot (Settings > Icons & Previews)
           const shotCopy = su ? await ImgCache.get(su, { shot: true, maxAge: Icons.previewMaxAge() }) : null;
-          if (shotCopy) { onState?.('found'); showCover(shotCopy, 'cov top', () => { onState?.('none'); upgradeLogo(); }); return; }
-          onState?.('none');
+          if (shotCopy) { onState?.('found', kind); showCover(shotCopy, 'cov top', () => { onState?.('none', kind); upgradeLogo(); }, { fit, shot: true }); return; }
+          onState?.('none', kind);
           upgradeLogo();
         })();
       } else { onState?.('off'); upgradeLogo(); }
@@ -157,9 +204,10 @@ export function renderThumbFrom(pageUrl, t, onState) {
   return box;
 }
 // Vector placeholder for an empty thumbnail (no address yet): a browser window with a globe, crisp at any size.
-export function placeholderThumb() {
+// spin: the globe turns (two meridians sweep across it) - shown while the page is being checked
+export function placeholderThumb(spin = false) {
   const box = document.createElement('div');
-  box.className = 'thumb thumb-ph';
+  box.className = 'thumb thumb-ph' + (spin ? ' spin' : '');
   box.innerHTML = `<svg viewBox="0 0 120 98" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="16" y="14" width="88" height="70" rx="9"/>
     <path d="M16 31h88"/>
@@ -167,7 +215,7 @@ export function placeholderThumb() {
     <circle cx="34.5" cy="22.5" r="1.9" fill="currentColor" stroke="none"/>
     <circle cx="42" cy="22.5" r="1.9" fill="currentColor" stroke="none"/>
     <circle cx="60" cy="58" r="16"/>
-    <ellipse cx="60" cy="58" rx="6.5" ry="16"/>
+    ${spin ? '<ellipse class="mer" cx="60" cy="58" rx="16" ry="16"/><ellipse class="mer b" cx="60" cy="58" rx="16" ry="16"/>' : '<ellipse cx="60" cy="58" rx="6.5" ry="16"/>'}
     <path d="M44 58h32M47 49.5h26M47 66.5h26"/>
   </svg>`;
   return box;

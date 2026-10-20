@@ -214,11 +214,118 @@ async function manifestShots(html, base) {
   } catch { return []; }
 }
 
+// YouTube: the id of the video a link points to (watch?v=, youtu.be/, /shorts/, /embed/, /live/), or null for any other address
+export function ytVideoId(url) {
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  const h = u.hostname.replace(/^(www|m|music)\./i, '').toLowerCase();
+  let id = null;
+  if (h === 'youtu.be') id = u.pathname.split('/')[1];
+  else if (h === 'youtube.com' || h === 'youtube-nocookie.com') {
+    if (u.pathname === '/watch') id = u.searchParams.get('v');
+    else { const m = u.pathname.match(/^\/(?:shorts|embed|live|v)\/([^/?#]+)/); if (m) id = m[1]; }
+  }
+  return id && /^[\w-]{11}$/.test(id) ? id : null;
+}
+
 const previewFail = new Map();                               // pk -> time until which an unreachable page is not asked again (this session)
-async function fetchPreview(pageUrl) {
-  const pk = 'p:' + pageUrl;
-  let transient = false;                                     // the page itself could not be loaded: do not remember the failure for long
+
+// ---- item covers: a video, movie, book, product, album, game... shows ITS OWN picture ------------------------------
+// coverKind(url): what the ADDRESS alone says the page is (a known site), or null. The kind of any other page is found in its markup.
+// Kinds: video, movie, book, product, music, game, wiki.
+export function coverKind(url) {
+  if (ytVideoId(url)) return 'video';
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  const h = u.hostname.replace(/^(www|m)\./i, '').toLowerCase();
+  if (h === 'vimeo.com' && /^\/(?:channels\/[^/]+\/|groups\/[^/]+\/videos\/)?\d+/.test(u.pathname)) return 'video';
+  if (h === 'store.steampowered.com' && /^\/app\/\d+/.test(u.pathname)) return 'game';
+  if (/^[a-z-]+\.wikipedia\.org$/.test(h) && /^\/wiki\/(?!(?:Special|File|Category|Talk|Help|Wikipedia|Template|Portal|User):)[^/]+$/.test(u.pathname)) return 'wiki';
+  return null;
+}
+const fetchJson = async (url, ms = 4000) => {
+  const r = await fetchText(url, ms);
+  try { return r ? JSON.parse(r.text) : null; } catch { return null; }
+};
+// Pictures of a known site, straight from its own service (no page parsing).
+async function siteCover(pageUrl) {
+  const vid = ytVideoId(pageUrl);
+  if (vid) {                                                 // YouTube: the cover of the video (16:9, no black bars)
+    for (const name of ['maxresdefault', 'hq720', 'mqdefault']) {
+      const abs = 'https://i.ytimg.com/vi/' + vid + '/' + name + '.jpg';
+      const w = await loadImg(abs, 6000);
+      if (w && w >= 160) return abs;
+    }
+    return null;
+  }
+  const k = coverKind(pageUrl);
+  if (!k) return null;
+  const u = new URL(pageUrl), ok = async (abs) => { const w = await loadImg(abs, 8000); return w && w >= 160 ? abs : null; };
+  if (k === 'video') {                                       // Vimeo (oEmbed)
+    const j = await fetchJson('https://vimeo.com/api/oembed.json?width=1280&url=' + encodeURIComponent(pageUrl));
+    return j?.thumbnail_url ? ok(j.thumbnail_url) : null;
+  }
+  if (k === 'game') {                                        // Steam: the store header of the game
+    const id = u.pathname.match(/^\/app\/(\d+)/)[1];
+    return (await ok('https://cdn.cloudflare.steamstatic.com/steam/apps/' + id + '/header.jpg')) || null;
+  }
+  if (k === 'wiki') {                                        // Wikipedia: the lead image of the article
+    const j = await fetchJson('https://' + u.hostname + '/api/rest_v1/page/summary/' + u.pathname.slice(6));
+    const th = j?.thumbnail?.source, big = th && th.replace(/\/\d+px-/, '/800px-');
+    for (const c of [big, j?.originalimage?.source, th]) { if (c && (await ok(c))) return c; }
+  }
+  return null;
+}
+// Markup of an ordinary page: what it stands for (og:type, JSON-LD) and the pictures of THAT item.
+function ldNodes(html) {
+  const out = [];
+  const walk = (v, d) => {
+    if (!v || typeof v !== 'object' || d > 6) return;
+    if (Array.isArray(v)) { v.forEach((x) => walk(x, d + 1)); return; }
+    if (v['@type']) out.push(v);
+    Object.values(v).forEach((x) => walk(x, d + 1));
+  };
+  const re = /<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script\s*>/gi;
+  let m;
+  while ((m = re.exec(html))) { try { walk(JSON.parse(m[1].trim()), 0); } catch { /* not valid JSON */ } }
+  return out;
+}
+const LD_KIND = { Movie: 'movie', TVSeries: 'movie', TVEpisode: 'movie', VideoObject: 'video', Book: 'book', Product: 'product', ProductGroup: 'product',
+  IndividualProduct: 'product', MusicAlbum: 'music', MusicRecording: 'music', MusicPlaylist: 'music', VideoGame: 'game', Game: 'game' };
+const ldKindOf = (n) => [].concat(n['@type']).map((t) => LD_KIND[String(t).replace(/^.*[/#]/, '')]).find(Boolean) || null;
+function addImgs(x, out) {
+  if (typeof x === 'string') out.push(x);
+  else if (Array.isArray(x)) x.forEach((y) => addImgs(y, out));
+  else if (x && typeof x === 'object' && typeof x.url === 'string') out.push(x.url);
+}
+function pageKind(html) {
+  const metas = tags(html, 'meta');
+  const meta = (k) => metas.find((m) => (m.property || m.name || m.itemprop || '').toLowerCase() === k)?.content || '';
+  const og = meta('og:type').toLowerCase().trim(), nodes = ldNodes(html);
+  let kind = null, fromLd = false;
+  if (/^video\.(movie|tv_show|episode)/.test(og)) kind = 'movie';
+  else if (og.startsWith('video')) kind = 'video';
+  else if (og === 'book') kind = 'book';
+  else if (/^(og:)?product/.test(og)) kind = 'product';
+  else if (og.startsWith('music.')) kind = 'music';
+  else if (og === 'game') kind = 'game';
+  if (!kind) { kind = nodes.map(ldKindOf).find(Boolean) || null; fromLd = !!kind; }
+  const own = nodes.filter((n) => ldKindOf(n) === kind);
+  if (fromLd && own.length > 3) kind = null;                // a listing of many items is not ONE item
+  const imgs = [];
+  if (kind && own.length <= 3) own.forEach((n) => { addImgs(n.image, imgs); if (kind === 'video') addImgs(n.thumbnailUrl, imgs); });
+  const isbn = String(own.map((n) => n.isbn).find(Boolean) || meta('book:isbn') || '').replace(/[^0-9Xx]/g, '');
+  return { kind, imgs, isbn: isbn.length === 10 || isbn.length === 13 ? isbn : '' };
+}
+
+// noItem: Pageview - the page's own preview image (og:image...) or a screenshot; otherwise the Card mode: the picture of the ITEM itself.
+async function fetchPreview(pageUrl, noItem = false) {
+  const pk = (noItem ? 'p:' : 'pc:') + pageUrl;               // 'p:' = Pageview, 'pc:' = Card
+  let transient = false, kind = coverKind(pageUrl);          // transient: the page itself could not be loaded: do not remember the failure for long
   const src = await schedule(async () => {
+    if (!noItem) { const s = await siteCover(pageUrl); if (s) return s; }
     const page = await fetchHead(pageUrl);
     if (!page) { transient = true; return null; }
     const seen = new Set();
@@ -233,12 +340,28 @@ async function fetchPreview(pageUrl) {
       }
       return null;
     };
-    return (await firstLarge(previewHrefs(page.text))) || (await firstLarge(await manifestShots(page.text, page.url)));
+    const pg = pageKind(page.text);
+    kind = kind || pg.kind;
+    if (!noItem) {
+      const em = tags(page.text, 'link').find((l) => /json\+oembed/i.test(l.type || '') && l.href);   // the page's own oEmbed description
+      if (em) {
+        let j = null;
+        try { j = await fetchJson(new URL(em.href, page.url).href); } catch { /* ignore */ }
+        const th = j && (j.thumbnail_url || (j.type === 'photo' && j.url));
+        if (th) { const r = await firstLarge([th]); if (r) return r; }
+      }
+      const r = await firstLarge(pg.imgs);                   // the picture of the item itself (JSON-LD Product / Movie / Book ...)
+      if (r) return r;
+    }
+    const r2 = (await firstLarge(previewHrefs(page.text))) || (noItem ? await firstLarge(await manifestShots(page.text, page.url)) : null);   // a Card is never a screenshot
+    if (r2) return r2;
+    if (!noItem && pg.kind === 'book' && pg.isbn) return firstLarge(['https://covers.openlibrary.org/b/isbn/' + pg.isbn + '-L.jpg?default=false']);
+    return null;
   });
-  if (transient) { previewFail.set(pk, Date.now() + 10 * 60e3); return cache[pk]?.src || null; }
-  cache[pk] = { src: src || cache[pk]?.src || null, w: 0, ts: Date.now() };   // a failed refresh keeps the old preview
+  if (transient) { previewFail.set(pk, Date.now() + 10 * 60e3); return { src: cache[pk]?.src || null, kind: cache[pk]?.kind || kind || null }; }
+  cache[pk] = { src: src || cache[pk]?.src || null, w: 0, ts: Date.now(), kind: kind || null };   // a failed refresh keeps the old preview
   save();
-  return cache[pk].src;
+  return { src: cache[pk].src, kind: cache[pk].kind };
 }
 // Optional online screenshot service for Pageview tiles that have no picture of their own (off by default: the address of the page
 // is sent to the service). A template contains {url} (the address as it is) or {urlenc} (URL-encoded).
@@ -254,13 +377,52 @@ export function shotServiceUrl(pageUrl) {
 }
 export const previewMaxAge = () => ttlOk();                  // how long a stored preview / screenshot is considered fresh
 
-export async function preview(pageUrl) {
+// What a page's preview is: { src, kind }. opts.item: the Card mode (the item's own picture), otherwise Pageview; opts.needKind: refresh an entry stored without a kind
+export async function previewInfo(pageUrl, opts = {}) {
   await load();
-  const c = cache['p:' + pageUrl];
-  if (c && Date.now() - c.ts < (c.src ? ttlOk() : TTL_FAIL)) return c.src;
-  if (c?.src) { fetchPreview(pageUrl).catch(() => {}); return c.src; }                 // stale: show it, refresh in the background
-  if ((previewFail.get('p:' + pageUrl) || 0) > Date.now()) return null;                // could not be reached a moment ago
-  return fetchPreview(pageUrl);
+  const noItem = !opts.item, pk = (noItem ? 'p:' : 'pc:') + pageUrl;
+  const out = (c) => ({ src: c.src, kind: c.kind || coverKind(pageUrl) || null });
+  const c = cache[pk];
+  if (c && c.kind === undefined && opts.needKind && !coverKind(pageUrl)) return fetchPreview(pageUrl, noItem);   // stored before kinds existed
+  if (c && Date.now() - c.ts < (c.src ? ttlOk() : TTL_FAIL)) return out(c);
+  if (c?.src) { fetchPreview(pageUrl, noItem).catch(() => {}); return out(c); }         // stale: show it, refresh in the background
+  if ((previewFail.get(pk) || 0) > Date.now()) return { src: null, kind: coverKind(pageUrl) || null };   // could not be reached a moment ago
+  return fetchPreview(pageUrl, noItem);
+}
+export const preview = async (pageUrl, opts) => (await previewInfo(pageUrl, opts)).src;
+
+// Names of a page for the Title field: the name of its SITE and the title of the ITEM itself (product / video / movie / book / article).
+const ent = (v) => decode(v).replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (m, d) => String.fromCodePoint(+d));
+function pageTitles(html) {
+  const metas = tags(html, 'meta'), nodes = ldNodes(html), pg = pageKind(html);
+  const meta = (...keys) => {
+    for (const k of keys) {
+      const x = metas.find((m) => (m.property || m.name || m.itemprop || '').toLowerCase() === k && (m.content || '').trim());
+      if (x) return ent(x.content).replace(/\s+/g, ' ').trim();
+    }
+    return '';
+  };
+  const named = (pred) => nodes.find((n) => pred(n) && typeof n.name === 'string' && n.name.trim())?.name.replace(/\s+/g, ' ').trim() || '';
+  const types = (n) => [].concat(n['@type']).map((t) => String(t).replace(/^.*[/#]/, ''));
+  const site = meta('og:site_name', 'application-name', 'apple-mobile-web-app-title') || named((n) => types(n).some((t) => t === 'WebSite' || t === 'Organization'));
+  const tt = /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(html)?.[1];
+  let item = (pg.kind && named((n) => ldKindOf(n) === pg.kind)) || meta('og:title', 'twitter:title') || (tt ? ent(tt).replace(/\s+/g, ' ').trim() : '');
+  if (site) {                                                // "Item - Site" -> "Item"
+    const esc = site.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    item = item.replace(new RegExp('\\s*[|\\-\u2013\u2014\u00b7:\u2022]\\s*' + esc + '\\s*$', 'i'), '').trim() || item;
+  }
+  return { site, item, kind: pg.kind };
+}
+const namesCache = new Map();
+export function pageNames(pageUrl) {
+  if (namesCache.has(pageUrl)) return namesCache.get(pageUrl);
+  const p = schedule(async () => {
+    const page = await fetchHead(pageUrl);
+    return page ? pageTitles(page.text) : null;
+  });
+  namesCache.set(pageUrl, p);
+  p.then((r) => { if (!r) namesCache.delete(pageUrl); });   // an unreachable page is asked again next time
+  return p;
 }
 
 // Icon picker: all variants, verified by downloading. Everything starts at once (no shared queue) and

@@ -17,7 +17,7 @@ export const release = () => { held = Math.max(0, held - 1); };
 export function metaOfThumb(t) {
   if (!t) return null;
   if (t.mode === 'url' && t.url) return { icon_url: t.url, fit_mode: fitOf(t.fit) };
-  if (t.mode === 'auto' && t.auto !== 'pageview' && t.icon) return { icon_url: t.icon, fit_mode: t.auto === 'wide' ? 'wide' : 'icon' };   // a picked site icon is shown like an "Icon size" (or logo) image
+  if (t.mode === 'auto' && t.auto !== 'pageview' && t.auto !== 'card' && t.icon) return { icon_url: t.icon, fit_mode: t.auto === 'wide' ? 'wide' : 'icon' };   // a picked site icon is shown like an "Icon size" (or logo) image
   return null;
 }
 function links(root) {

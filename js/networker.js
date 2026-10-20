@@ -12,6 +12,30 @@ const timeout = (ms) => {
 };
 const isSvgText = (buf) => /^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)?<svg[\s>]/i.test(new TextDecoder().decode(buf.slice(0, 600)));
 
+// Text of a page in ITS encoding: the charset of the Content-Type header, else <meta charset> / <meta http-equiv=Content-Type> in the first
+// bytes, else UTF-8 (many sites still send windows-1251, Shift_JIS, GBK...). Reads at most `limit` bytes; stopAtHead: stops after </head>.
+async function readPage(r, type, limit, stopAtHead) {
+  const reader = r.body.getReader(), probe = new TextDecoder('latin1'), chunks = [];
+  let n = 0, tail = '';
+  while (n < limit) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); n += value.length;
+    if (stopAtHead) {
+      const t = tail + probe.decode(value);                  // ASCII-compatible view, enough to find the tag
+      if (/<\/head>/i.test(t)) break;
+      tail = t.slice(-8);
+    }
+  }
+  reader.cancel().catch(() => {});
+  const all = new Uint8Array(n);
+  let o = 0;
+  for (const c of chunks) { all.set(c, o); o += c.length; }
+  let m = /charset\s*=\s*["']?([\w:.-]+)/i.exec(type || '');
+  if (!m) m = /<meta[^>]+charset\s*=\s*["']?([\w:.-]+)/i.exec(probe.decode(all.subarray(0, 8000)));
+  try { return new TextDecoder(m ? m[1] : 'utf-8').decode(all); } catch { return new TextDecoder().decode(all); }   // unknown label: UTF-8
+}
+
 // A page as text (used for <link rel=manifest> files and the like).
 async function fetchText(url, ms = 4000) {
   const t = timeout(ms);
@@ -30,16 +54,7 @@ async function fetchHead(url, ms = 4000) {
     if (!r.ok) return null;
     const type = r.headers.get('content-type') || '';
     if (type && !/html/i.test(type)) return null;
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let text = '';
-    while (text.length < 600000) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      text += dec.decode(value, { stream: true });
-      if (/<\/head>/i.test(text)) break;
-    }
-    reader.cancel().catch(() => {});
-    return { text, url: r.url, type };
+    return { text: await readPage(r, type, 600000, true), url: r.url, type };
   } catch { return null; } finally { t.done(); }
 }
 
@@ -83,15 +98,7 @@ async function fetchTop(url, ms = 5000) {
     if (!r.ok) return null;
     const type = r.headers.get('content-type') || '';
     if (type && !/html/i.test(type)) return null;
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let text = '';
-    while (text.length < 150000) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      text += dec.decode(value, { stream: true });
-    }
-    reader.cancel().catch(() => {});
-    return { text, url: r.url, type };
+    return { text: await readPage(r, type, 150000, false), url: r.url, type };
   } catch { return null; } finally { t.done(); }
 }
 

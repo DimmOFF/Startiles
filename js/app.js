@@ -537,12 +537,14 @@ function openItemDialog({ node = null, parentId = null }) {
   const isNew = !node;
   let kind = isNew ? 'link' : node.url ? 'link' : 'folder';
   const t0 = node?.url ? T.getT(node.url) : { mode: 'auto' };
-  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || (['cover', 'contain', 'icon', 'wide'].includes(S.get().lastFit) ? S.get().lastFit : 'cover'), auto: t0.auto || 'logo', icon: t0.auto === 'wide' ? '' : t0.icon || '', wideIcon: t0.auto === 'wide' ? t0.icon || '' : '', fname: '' };
+  const st = { mode: t0.mode, url: t0.url || '', dataUrl: t0.dataUrl || '', fit: t0.fit || (['cover', 'contain', 'icon', 'wide'].includes(S.get().lastFit) ? S.get().lastFit : 'cover'), auto: t0.auto || 'logo', cfit: t0.cfit || 'auto', icon: t0.auto === 'wide' ? '' : t0.icon || '', wideIcon: t0.auto === 'wide' ? t0.icon || '' : '', fname: '' };
   dlg.innerHTML = `<form class="dform">
     <h3>${isNew ? 'Add' : 'Edit'}</h3>
     ${isNew ? '<div class="seg"><button type="button" data-kind="link" class="on">Shortcut</button><button type="button" data-kind="folder">Folder</button></div>' : ''}
     <label class="f" data-only="link"><span>Address</span><input name="addr" placeholder="https://example.com" autocomplete="off" spellcheck="false"><div class="ac" hidden></div></label>
     <label class="f"><span>Title</span><input name="ttl" autocomplete="off"></label>
+    <div class="seg sm" id="ttlsrc" data-only="link"><button type="button" data-src="url">Site URL</button><button type="button" data-src="site">Site name</button><button type="button" data-src="item">Page title</button></div>
+    <p class="note" id="ttlnote" hidden></p>
     <section class="tcat" data-only="link">
       <h4>Thumbnail</h4>
       <div class="thumbsec">
@@ -554,8 +556,12 @@ function openItemDialog({ node = null, parentId = null }) {
             <label class="r"><input type="radio" name="mode" value="file"> Local file</label>
           </div>
           <div class="pane" data-modes="auto">
-            <div class="seg sm" id="ak"><button type="button" data-ak="logo">Icon</button><button type="button" data-ak="wide" title="A wide (rectangular) logo of the site">Logo</button><button type="button" data-ak="pageview">Pageview</button></div>
+            <div class="seg sm" id="ak"><button type="button" data-ak="logo">Icon</button><button type="button" data-ak="wide" title="A wide (rectangular) logo of the site">Logo</button><button type="button" data-ak="pageview">Pageview</button><button type="button" data-ak="card" title="The picture of the item itself: video cover, movie poster, book cover, product photo">Card</button></div>
             <p class="note" id="aknote" hidden>Uses the site's preview image, or a screenshot taken when you visit the page.</p>
+            <p class="note" id="cardhint" hidden>This page has <span id="kindcov">a cover</span>. <button type="button" class="linkbtn" id="cardgo">Switch to Card</button></p>
+            <label class="r" id="cfitrow" hidden>Cover fit <select name="cfit">
+              <option value="auto">Auto</option><option value="fill">Fill</option><option value="top">Fill, from the top</option>
+              <option value="inside">Fit inside</option><option value="blur">Fit inside + blurred background</option></select></label>
             <div class="widetools" id="widetools" hidden>
               <div class="wt-row">
                 <button type="button" class="pill sm" id="wt-online" title="Looks for logos on Wikidata and Wikimedia Commons. The site name is sent to those services.">Search online</button>
@@ -600,7 +606,23 @@ function openItemDialog({ node = null, parentId = null }) {
     none: 'No wide logo found for this site. The regular icon is used.',
     off: 'Turn on “Try to fetch hi-res icons & previews” in Advanced Settings to look for logos.',
   };
-  const setNote = (s) => { const N = st.auto === 'wide' ? WNOTES : NOTES; $('#aknote', dlg).textContent = N[s] || N.found; };
+  const CNOTES = {
+    found: 'Uses the picture of the item itself: a video cover, movie poster, book cover or product photo.',
+    loading: 'Looking for the cover…',
+    none: 'No cover found on this page. The regular icon is used.',
+    off: 'Turn on “Try to fetch hi-res icons & previews” in Advanced Settings to look up covers.',
+  };
+  // Pageview of a page that stands for an item (video / movie / book / product...) offers the Card mode: known from the address or found in the page
+  const KIND_COV = { video: 'a video cover', movie: 'a movie poster', book: 'a book cover', product: 'a product image', music: 'an album cover',
+    game: 'a game cover', wiki: 'an article image' };
+  let pvKind = null, detecting = false;                    // detecting: the page is being checked for a Card - an empty, spinning placeholder is shown
+  const syncCover = () => {
+    const k = Icons.coverKind(normalizeUrl(E.addr.value)) || pvKind, a = st.mode === 'auto' ? st.auto : '';
+    $('#cardhint', dlg).hidden = !(a === 'pageview' && k);
+    $('#kindcov', dlg).textContent = KIND_COV[k] || 'a cover';
+    $('#cfitrow', dlg).hidden = !(a === 'pageview' || a === 'card');
+  };
+  const setNote = (s) => { const N = st.auto === 'wide' ? WNOTES : st.auto === 'card' ? CNOTES : NOTES; $('#aknote', dlg).textContent = N[s] || N.found; };
   const renderPrev = () => {
     const tok = ++updTok;
     const addr = normalizeUrl(E.addr.value);
@@ -608,13 +630,24 @@ function openItemDialog({ node = null, parentId = null }) {
     setNote('found');
     // the logo (wide icon) picked in the picker lives in st.wideIcon: the thumbnail reads it as `icon`
     const t = st.mode === 'auto' && st.auto === 'wide' ? { ...st, icon: st.wideIcon } : st;
-    prev.replaceChildren(addr || custom
-      ? T.renderThumbFrom(addr || 'https://example.com', t, (s) => { if (tok === updTok) setNote(s); })
+    const waiting = detecting && !modeTouched && st.mode === 'auto' && st.auto === 'logo' && !st.icon;
+    prev.replaceChildren(waiting ? T.placeholderThumb(true) : addr || custom
+      ? T.renderThumbFrom(addr || 'https://example.com', t, (s, k) => { if (tok === updTok) { setNote(s); if (k !== undefined) { pvKind = k; syncCover(); } } })
       : T.placeholderThumb());
   };
   // now = true: draw immediately (used for the first render, so the window never changes height after opening)
   const upd = (now) => { clearTimeout(pt); if (now) renderPrev(); else pt = setTimeout(renderPrev, 150); };
   const ak = $('#ak', dlg);
+  // a tile whose address is a known video / game / article (YouTube, Vimeo, Steam, Wikipedia) starts as Card (its cover, and its title as the Title);
+  // this stops as soon as the user picks a mode himself. Also for an existing tile that still has the default thumbnail: it is switched when
+  // Edit opens (init: its Title is left alone)
+  let modeTouched = false, ytAuto = false;
+  const ytDefault = (init) => {
+    if (modeTouched) return;
+    const isVid = !!Icons.coverKind(normalizeUrl(E.addr.value));
+    if (isVid && !ytAuto && st.mode === 'auto' && st.auto === 'logo' && !st.icon) { ytAuto = true; st.auto = 'card'; renderIcons(); syncAk(); if (!init) afterAuto('logo'); }
+    else if (!isVid && ytAuto) { ytAuto = false; st.auto = 'logo'; renderIcons(); syncAk(); afterAuto('card'); }
+  };
   // icon picker: shown when the site offers several icon variants
   const icp = $('#icopick', dlg);
   let cands = [], lastUrl = null, ct, searching = false;
@@ -623,7 +656,8 @@ function openItemDialog({ node = null, parentId = null }) {
   const shown = new Set();
   const syncAk = () => {
     f.querySelectorAll('.pane').forEach((p) => (p.hidden = !p.dataset.modes.split(' ').includes(st.mode)));
-    $('#aknote', dlg).hidden = !(st.mode === 'auto' && (st.auto === 'pageview' || st.auto === 'wide'));
+    $('#aknote', dlg).hidden = !(st.mode === 'auto' && (st.auto === 'pageview' || st.auto === 'wide' || st.auto === 'card'));
+    syncCover();
     ak.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.ak === st.auto));
     // the picker area stays put (icons, skeleton or a note) as long as it is relevant, so the window height never jumps
     icp.classList.toggle('wide', st.auto === 'wide');
@@ -714,7 +748,8 @@ function openItemDialog({ node = null, parentId = null }) {
     window.open('https://www.google.com/search?tbm=isch&tbs=' + encodeURIComponent('ic:trans,iar:w') + '&q=' + encodeURIComponent((name + ' logo').trim()), '_blank', 'noopener');
     wtNote.innerHTML = 'Copy the image you like (right-click → Copy image) and press <b>Ctrl+V</b> in this window.';
   };
-  ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { st.auto = b.dataset.ak; renderIcons(); syncAk(); upd(); loadWide(0); }));
+  ak.querySelectorAll('button').forEach((b) => (b.onclick = () => { modeTouched = true; const was = st.auto; st.auto = b.dataset.ak; renderIcons(); syncAk(); upd(); loadWide(0); afterAuto(was); }));
+  $('#cardgo', dlg).onclick = () => { modeTouched = true; const was = st.auto; st.auto = 'card'; renderIcons(); syncAk(); upd(); afterAuto(was); };
   const setMode = (m) => { st.mode = m; syncAk(); loadWide(0); f.querySelectorAll('input[name=mode]').forEach((r) => (r.checked = r.value === m)); upd(); };
 
   f.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => {
@@ -722,9 +757,92 @@ function openItemDialog({ node = null, parentId = null }) {
     f.querySelectorAll('[data-kind]').forEach((x) => x.classList.toggle('on', x === b));
     showKind();
   }));
-  f.querySelectorAll('input[name=mode]').forEach((r) => (r.onchange = () => setMode(r.value)));
+  f.querySelectorAll('input[name=mode]').forEach((r) => (r.onchange = () => { modeTouched = true; setMode(r.value); }));
   // the Title field shows the site name that will be used when it is left empty
-  const titlePh = () => { E.ttl.placeholder = hostOf(normalizeUrl(E.addr.value)) || 'Title'; };
+  // The Title can be the site ADDRESS (as it always was), the site NAME, or the title of the item itself (product / video / movie / book...): a switch under the field.
+  // Empty field = the chosen source is used on Save (its name is the placeholder); a click fills the field, which stays editable.
+  const tsrc = $('#ttlsrc', dlg), tbtns = [...tsrc.querySelectorAll('button')], tnote = $('#ttlnote', dlg);
+  const TLBL = { video: 'Video title', movie: 'Movie title', book: 'Book title', product: 'Product title', music: 'Album title', game: 'Game title', wiki: 'Article title' };
+  let names = null, nurl = null, nt, ttlSrc = 'url', ttlAuto = isNew;      // ttlAuto: the text was put there by the switch, not typed
+  const hostName = () => hostOf(normalizeUrl(E.addr.value)).replace(/^www\./, '');
+  const nameFor = (src) => (src === 'url' ? hostOf(normalizeUrl(E.addr.value)) : src === 'site' ? names?.site || hostName() : names?.item || '');
+  const syncTitle = () => {
+    tsrc.querySelector('[data-src=item]').textContent = TLBL[names?.kind || Icons.coverKind(normalizeUrl(E.addr.value))] || 'Page title';
+    const v = E.ttl.value.trim();
+    const hit = v ? tbtns.find((b) => nameFor(b.dataset.src) === v) : tbtns.find((b) => b.dataset.src === ttlSrc);   // typed text: none is lit
+    tbtns.forEach((b) => b.classList.toggle('on', b === hit));
+    E.ttl.placeholder = nameFor(ttlSrc) || hostName() || 'Title';
+  };
+  const ensureNames = async () => {                         // the names of the address in the field (null: none / the address changed meanwhile)
+    const url = normalizeUrl(E.addr.value);
+    if (!/^https?:/i.test(url)) return null;
+    if (url === nurl && names) return names;
+    nurl = url; names = null;
+    const r = (await Icons.pageNames(url)) || {};
+    if (normalizeUrl(E.addr.value) !== url) return null;
+    names = r;
+    return r;
+  };
+  // Until the check for a Card is over, the thumbnail is empty (a spinning globe); then it becomes the Card, or the usual icon
+  let dt;
+  const canDetect = (url) => !modeTouched && st.mode === 'auto' && (ytAuto || (st.auto === 'logo' && !st.icon)) && S.get().hiResIcons
+    && /^https?:/i.test(url) && !Icons.coverKind(url);
+  const endDetect = (url) => { if (detecting && normalizeUrl(E.addr.value) === url) { detecting = false; upd(true); } };
+  const titlePh = () => {
+    tnote.hidden = true; syncTitle();
+    const u0 = normalizeUrl(E.addr.value);
+    detecting = !(!isNew && u0 === node.url) && canDetect(u0);   // an unchanged address of an existing tile keeps showing its icon
+    clearTimeout(dt);
+    if (detecting) dt = setTimeout(() => endDetect(u0), 9000);   // never wait for ever
+    clearTimeout(nt);
+    nt = setTimeout(async () => {
+      if (!(await ensureNames())) { endDetect(normalizeUrl(E.addr.value)); return; }
+      if (ttlAuto && E.ttl.value.trim() && nameFor(ttlSrc)) E.ttl.value = nameFor(ttlSrc);   // follows the address while it is not typed by hand
+      syncTitle();
+      const url = normalizeUrl(E.addr.value);
+      autoCard(url, !isNew && url === node.url);              // an unchanged address of an existing tile: its Title stays as it is
+    }, 450);
+  };
+  // the Title follows a source: explicit = the user pressed its button (the field is always filled); otherwise (Card was chosen) only when the text
+  // is not typed by hand: empty, put there by the switch, or just the address / the site name
+  const useSrc = async (src, explicit) => {
+    const v0 = E.ttl.value.trim();
+    if (!(explicit || !v0 || ttlAuto || tbtns.some((b) => nameFor(b.dataset.src) === v0))) return;
+    ttlSrc = src; ttlAuto = true; tnote.hidden = true;
+    if (src !== 'url') { E.ttl.placeholder = 'Loading…'; await ensureNames(); }
+    const n = nameFor(src);
+    if (n && (explicit || v0)) E.ttl.value = n;
+    else if (!n && explicit) { tnote.hidden = false; tnote.textContent = /^https?:/i.test(normalizeUrl(E.addr.value)) ? 'No title found on this page.' : 'Enter the address of the site first.'; }
+    syncTitle();
+  };
+  // Card shows the item, so its Title is the item's title (and goes back to the address when Card is left, if nobody changed it meanwhile)
+  let cardTitle = false;
+  const afterAuto = async (was) => {
+    if (st.auto === 'card' && was !== 'card') {
+      const before = ttlSrc;
+      await useSrc('item', false);
+      cardTitle = before !== 'item' && ttlSrc === 'item';
+    } else if (was === 'card' && st.auto !== 'card' && cardTitle) {
+      cardTitle = false;
+      if (ttlSrc === 'item') await useSrc('url', false);
+    }
+  };
+  tbtns.forEach((b) => (b.onclick = () => { cardTitle = false; useSrc(b.dataset.src, true); }));
+  // Any page that turns out to stand for an item (a video, movie, book, product, album, game) with a picture of its own: while the thumbnail is
+  // still the default one, the tile becomes a Card (and the Title becomes the item's title). Known sites do it at once (ytDefault), the others
+  // after the page is read - a moment after the address is pasted or typed.
+  const autoCard = async (url, init) => {
+    const free = () => !modeTouched && !ytAuto && st.mode === 'auto' && st.auto === 'logo' && !st.icon && normalizeUrl(E.addr.value) === url;
+    try {
+      if (!free() || !S.get().hiResIcons || !/^https?:/i.test(url) || Icons.coverKind(url)) return;
+      const info = await Icons.previewInfo(url, { item: true, needKind: true });
+      if (!free() || !info?.kind || !info.src) return;
+      ytAuto = true; st.auto = 'card'; detecting = false;
+      renderIcons(); syncAk(); upd(true);
+      if (!init) afterAuto('logo');
+    } finally { endDetect(url); }                             // not a Card: the usual icon replaces the placeholder
+  };
+  E.ttl.addEventListener('input', () => { if (E.ttl.value.trim()) ttlAuto = false; tnote.hidden = true; syncTitle(); });
   titlePh();
   // local image: choose / drop / paste
   const fname = $('#fname', dlg), clearBtn = $('#clearfile', dlg);
@@ -797,12 +915,12 @@ function openItemDialog({ node = null, parentId = null }) {
     const s = items[i];
     if (!s) return;
     E.addr.value = s.url;
-    if (!E.ttl.value.trim()) E.ttl.value = s.title;
-    closeAc(); upd(); loadCands(0); loadWide(0); titlePh(); E.addr.classList.remove('err');
+    if (!E.ttl.value.trim()) { E.ttl.value = s.title; ttlAuto = false; }
+    closeAc(); pvKind = null; ytDefault(); syncAk(); upd(); loadCands(0); loadWide(0); titlePh(); E.addr.classList.remove('err');
   };
   E.addr.oninput = () => {
     E.addr.classList.remove('err');
-    titlePh(); upd(); loadCands(); loadWide();
+    pvKind = null; titlePh(); ytDefault(); syncAk(); upd(); loadCands(); loadWide();
     clearTimeout(acT);
     acT = setTimeout(async () => {
       const q = E.addr.value;
@@ -821,6 +939,8 @@ function openItemDialog({ node = null, parentId = null }) {
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeAc(); }
   };
   E.addr.onblur = closeAc;
+  E.cfit.value = st.cfit;
+  E.cfit.onchange = () => { st.cfit = E.cfit.value; upd(); };
   E.imgurl.oninput = () => { st.url = E.imgurl.value.trim(); checkImg(); upd(); };   // the mode is chosen with the radio buttons
   let fitTouched = false;                                    // Fit was changed by hand in this window
   E.fit.onchange = () => { st.fit = E.fit.value; fitTouched = true; upd(); };
@@ -843,7 +963,12 @@ function openItemDialog({ node = null, parentId = null }) {
         E.addr.focus();
         return;
       }
-      const ttl = title || hostOf(url);
+      let ttl = title;
+      if (!ttl && ttlSrc === 'url') ttl = hostOf(url);        // empty Title: the chosen source (address / site name / title of the item)
+      else if (!ttl) {
+        const n = await Promise.race([ensureNames(), new Promise((r) => setTimeout(() => r(null), 1500))]);
+        ttl = (ttlSrc === 'item' && n?.item) || n?.site || hostName() || hostOf(url);
+      }
       const useImg = (st.mode === 'url' && st.url) || (st.mode === 'file' && st.dataUrl);
       // Speed Dials mode: an icon that comes from a URL travels in the bookmark title as JSON, so it syncs with the bookmarks
       const pick = st.mode === 'auto' ? (st.auto === 'logo' ? st.icon : st.auto === 'wide' ? st.wideIcon : '') : '';   // the icon picked in a picker
@@ -856,14 +981,14 @@ function openItemDialog({ node = null, parentId = null }) {
           await M.update(node.id, { title: bmTitle, url });
           if (url !== node.url) await T.rekey(node.url, url);
         }
-        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}), ...(st.auto === 'wide' && st.wideIcon ? { icon: st.wideIcon } : {}) });
+        await T.setT(url, useImg ? { mode: st.mode, url: st.url, dataUrl: st.mode === 'file' ? st.dataUrl : '', fit: st.fit } : { mode: 'auto', auto: st.auto, ...((st.auto === 'pageview' || st.auto === 'card') && st.cfit !== 'auto' ? { cfit: st.cfit } : {}), ...(st.auto === 'logo' && st.icon ? { icon: st.icon } : {}), ...(st.auto === 'wide' && st.wideIcon ? { icon: st.wideIcon } : {}) });
         if (useImg && (isNew || fitTouched)) await S.set({ lastFit: st.fit });   // the next own image starts with this Fit
       } finally { DialMeta.release(); }
     }
     dlg.close();
     scheduleRefresh();
   };
-  showKind(); renderIcons(); syncAk(); upd(true); loadCands(0); loadWide(0);
+  showKind(); ytDefault(true); renderIcons(); syncAk(); upd(true); loadCands(0); loadWide(0);
   dlg.showModal();
   (isNew ? E.addr : E.ttl).focus();
 }
