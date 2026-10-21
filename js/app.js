@@ -729,11 +729,15 @@ function openItemDialog({ node = null, parentId = null }) {
     };
     if (delay) wt = setTimeout(run, delay); else run();
   };
-  // names a site is known by: the title typed in the dialog and the domain's main label (github.com -> github)
-  const siteNames = (url) => {
+  // names a site is known by, for the online logo search: the NAME OF THE SITE (og:site_name of the page, without a tagline) and the domain's
+  // main label (github.com -> github). Never the Title typed in the dialog: it can be anything and has nothing to do with the site.
+  const siteNames = async (url) => {
     const host = hostOf(url).replace(/^www\./, ''), parts = host.split('.');
     const n = parts.length > 2 && parts[parts.length - 1].length === 2 && ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac'].includes(parts[parts.length - 2]) ? 3 : 2;
-    return [E.ttl.value.trim(), parts.length >= n ? parts[parts.length - n] : parts[0]].filter(Boolean);
+    let site = '';
+    try { if (normalizeUrl(E.addr.value) === url) site = ((await Promise.race([ensureNames(), new Promise((r) => setTimeout(() => r(null), 3000))]))?.site || ''); } catch { /* no name: the domain is used */ }
+    site = site.split(/\s+[-\u2013\u2014|:\u00b7\u2022]\s+/)[0].trim();            // "Site - tagline" -> "Site"
+    return [site, parts.length >= n ? parts[parts.length - n] : parts[0]].filter(Boolean);
   };
   const wtNote = $('#wt-note', dlg);
   $('#wt-online', dlg).onclick = async () => {
@@ -744,14 +748,14 @@ function openItemDialog({ node = null, parentId = null }) {
     wtNote.textContent = 'Searching Wikidata and Wikimedia Commons…';
     renderIcons(); syncAk();
     const done = (list) => { if (tok !== otok) return false; ocands = list; return true; };
-    const list = await Icons.webLogos(siteNames(url), url, (l) => { if (done(l)) renderIcons(); });
+    const list = await Icons.webLogos(await siteNames(url), url, (l) => { if (done(l)) renderIcons(); });
     if (!done(list)) return;
     osearching = false;
     wtNote.textContent = list.length ? 'Pick one of the wide logos found online.' : 'Nothing found online. Try Google Images: copy an image there and press Ctrl+V in this window.';
     renderIcons(); syncAk();
   };
-  $('#wt-google', dlg).onclick = () => {
-    const name = siteNames(normalizeUrl(E.addr.value))[0] || hostOf(normalizeUrl(E.addr.value)) || '';
+  $('#wt-google', dlg).onclick = async () => {
+    const name = (await siteNames(normalizeUrl(E.addr.value)))[0] || hostOf(normalizeUrl(E.addr.value)) || '';
     window.open('https://www.google.com/search?tbm=isch&tbs=' + encodeURIComponent('ic:trans,iar:w') + '&q=' + encodeURIComponent((name + ' logo').trim()), '_blank', 'noopener');
     wtNote.innerHTML = 'Copy the image you like (right-click → Copy image) and press <b>Ctrl+V</b> in this window.';
   };
