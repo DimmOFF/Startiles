@@ -5,6 +5,10 @@ const keyOf = (u) => {
 };
 const MAX_W = 640, TTL = 6 * 3600e3, VISIT_TTL = 30 * 60e3, VISIT_MS = 90e3;
 
+// After the extension is removed, the browser opens this page (a static page on GitHub Pages, see /uninstall/ there): a goodbye and an optional feedback link.
+// Only the version number is added to the address; nothing else is sent anywhere.
+try { chrome.runtime.setUninstallURL('https://dimmoff.github.io/Startiles/uninstall/?v=' + encodeURIComponent(chrome.runtime.getManifest().version)); } catch { /* not supported here */ }
+
 // A tile of the new-tab page tells us which tile it opens in its tab (js/app.js): the page that loads in that tab is the
 // tile's page even when the address redirects (/ -> /en, http -> https, a login page...), so it is matched by the tab, not by the URL.
 const visits = new Map();

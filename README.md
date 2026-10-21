@@ -228,7 +228,7 @@ Ticking *Speed Dials* ticks both preview options; they can also be reset on thei
 
 ## 🔒 Data & privacy
 
-- **Privacy**: the developer collects no data; everything stays in your browser. Details: <https://dimmoff.github.io/Startiles/privacy/>
+- **Privacy**: the developer collects no data; everything stays in your browser. After you uninstall the extension the browser opens a goodbye page with an optional feedback link; only the version number is part of its address. Details: <https://dimmoff.github.io/Startiles/privacy/>
 - **Speed Dials** source: bookmarks folder `root\Startiles Speed Dial`. Chromium usually does not let extensions write to the bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Mode.
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
 - Structure: `<root folder>` → `<group>` → link or `<folder>` → (links, nested folders…).

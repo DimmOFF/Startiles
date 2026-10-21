@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sorry to see you go · Startiles</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='11' height='11' rx='3' fill='%237b83f5'/%3E%3Crect x='18' y='3' width='11' height='11' rx='3' fill='%237b83f5' opacity='.6'/%3E%3Crect x='3' y='18' width='11' height='11' rx='3' fill='%237b83f5' opacity='.6'/%3E%3Crect x='18' y='18' width='11' height='11' rx='3' fill='%237b83f5' opacity='.35'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f3f3f8; --card: #fff; --fg: #1d1d26; --muted: #5f5f6e; --line: #e3e3ec;
+    --btn: #5b64e6; --btn-hover: #4b54d4; --btn-fg: #fff; --ring: #5b64e6;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1b20; --card: #2a2a2f; --fg: #ececf1; --muted: #a9a9b6; --line: #3a3a42;
+      --btn: #8b92f7; --btn-hover: #9aa0f9; --btn-fg: #14141c; --ring: #8b92f7;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  main {
+    width: 100%; max-width: 460px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 36px 32px 32px; text-align: center;
+    box-shadow: 0 10px 40px rgba(20, 20, 40, .08);
+  }
+  h1 { margin: 0 0 20px; font-size: 28px; line-height: 1.2; letter-spacing: -.01em; }
+  picture, img { display: block; }
+  img { width: 180px; height: 180px; margin: 0 auto 22px; border-radius: 6px; background: #d4ced5; }
+  p { margin: 0 0 14px; color: var(--muted); }
+  p.small { font-size: 14px; margin: 16px 0 0; }
+  .actions { display: grid; gap: 12px; margin-top: 24px; }
+  a.btn {
+    display: block; padding: 13px 18px; border-radius: 10px; font-weight: 600; font-size: 16px;
+    text-decoration: none; border: 1.5px solid var(--btn); transition: background-color .15s, border-color .15s;
+  }
+  a.primary { background: var(--btn); color: var(--btn-fg); }
+  a.primary:hover { background: var(--btn-hover); border-color: var(--btn-hover); }
+  a.secondary { background: transparent; color: var(--fg); border-color: var(--line); }
+  a.secondary:hover { border-color: var(--btn); }
+  a.btn:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+  @media (max-width: 420px) { main { padding: 28px 20px 24px; } h1 { font-size: 24px; } }
+  @media (prefers-reduced-motion: reduce) { a.btn { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sorry to see you go</h1>
+  <picture>
+    <source media="(prefers-reduced-motion: reduce)" srcset="cat-still.png">
+    <img src="cat.gif" width="180" height="180" alt="A sleepy cat curled up next to a small envelope">
+  </picture>
+  <p>Startiles was uninstalled. Optional feedback helps us improve &mdash; it takes under a minute.</p>
+  <div class="actions">
+    <a id="feedback" class="btn primary" href="https://github.com/dimmoff/Startiles/issues/new" target="_blank" rel="noopener noreferrer">Share feedback</a>
+    <a id="reinstall" class="btn secondary" href="https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm" target="_blank" rel="noopener noreferrer">Reinstall from Chrome Web Store</a>
+  </div>
+  <p class="small">Your shortcuts were ordinary bookmarks, so they are still in your bookmarks, in the <b>Startiles Speed Dial</b> folder.</p>
+</main>
+<script>
+  // Where "Share feedback" leads: the Google Form. Set it to '' to use a GitHub issue instead (needs a GitHub account).
+  var FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdMGsmTwVrGRpnuCLYlK1uP6pqTXXezeDkYL7OyzWNYBVsLAQ/viewform';
+
+  var a = document.getElementById('feedback');
+  // ?v=1.2.74 is added by the extension (setUninstallURL); only digits and dots are accepted
+  var v = (new URLSearchParams(location.search).get('v') || '').trim();
+  if (!/^[0-9.]{1,16}$/.test(v)) v = '';
+  if (FEEDBACK_URL) {
+    a.href = FEEDBACK_URL;
+  } else {
+    var q = new URLSearchParams({
+      title: 'Uninstall feedback',
+      body: (v ? 'Version: ' + v + '\n\n' : '') + 'What made you uninstall Startiles? What was missing or not working?\n\n'
+    });
+    a.href = 'https://github.com/dimmoff/Startiles/issues/new?' + q.toString();
+  }
+</script>
+</body>
+</html>
