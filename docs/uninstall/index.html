@@ -66,13 +66,21 @@
 <script>
   // Where "Share feedback" leads: the Google Form. Set it to '' to use a GitHub issue instead (needs a GitHub account).
   var FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdMGsmTwVrGRpnuCLYlK1uP6pqTXXezeDkYL7OyzWNYBVsLAQ/viewform';
+  // The form question that receives the version ("entry.1234567890", see startiles-form-setup.gs). Empty = the version is not passed to the form.
+  var FORM_VERSION_ENTRY = '';
 
   var a = document.getElementById('feedback');
   // ?v=1.2.74 is added by the extension (setUninstallURL); only digits and dots are accepted
   var v = (new URLSearchParams(location.search).get('v') || '').trim();
   if (!/^[0-9.]{1,16}$/.test(v)) v = '';
   if (FEEDBACK_URL) {
-    a.href = FEEDBACK_URL;
+    var u = new URL(FEEDBACK_URL);
+    // Google Forms "pre-filled link": the version question is filled in when the form opens
+    if (v && /^entry\.\d+$/.test(FORM_VERSION_ENTRY) && /(^|\.)docs\.google\.com$/.test(u.hostname)) {
+      u.searchParams.set('usp', 'pp_url');
+      u.searchParams.set(FORM_VERSION_ENTRY, v);
+    }
+    a.href = u.toString();
   } else {
     var q = new URLSearchParams({
       title: 'Uninstall feedback',
