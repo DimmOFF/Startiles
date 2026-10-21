@@ -1466,7 +1466,11 @@ async function selDelete() {
   const folders = nodes.filter((n) => !n.url && n.children?.length).length;
   if (!confirm(`Delete ${nodes.length} selected item${nodes.length === 1 ? '' : 's'}?` + (folders ? '\n\nFolders are deleted together with everything in them.' : ''))) return;
   const tiles = ids.map((id) => document.querySelector(`.tile[data-id="${id}"]`)).filter(Boolean);
-  if (tiles.length && S.anim('animDelete')) await Promise.all(tiles.map((t) => playDelete(S.get().deleteAnim, t)));
+  if (tiles.length && S.anim('animDelete')) {
+    // several tiles at once: the light Dissolve effect (the heavy ones, cut into pieces, freeze the page when played on many tiles), if the setting is on
+    const id = tiles.length > 1 && S.get().simpleBatchDelete ? 'dissolve' : S.get().deleteAnim;
+    await Promise.all(tiles.map((t) => playDelete(id, t)));
+  }
   if (tiles.length) flipBegin();
   for (const n of nodes) await M.remove(n);
   flipReady();

@@ -48,6 +48,7 @@ const DEF = {
   showLongTitle: sw('Show long title caption'),
   animMode: { type: 'select', label: 'Animations', options: [['auto', 'Auto'], ['on', 'ON'], ['off', 'OFF']], after: () => refreshAll() },
   animDelete: sw('Tile deletion animation'),
+  simpleBatchDelete: sw('Simplified animation for group deletion (Dissolve)'),
   animReflow: sw('Tile shift (after delete / move)'),
   animGroups: sw('Group switching (swipe)'),
   animFolders: sw('Folder transitions'),
@@ -70,7 +71,7 @@ const DEF = {
 };
 
 const ICON_DEP = ['iconRefreshEvery'];                       // greyed out while auto-refresh is off
-const ANIM_DEP = ['animDelete', 'animReflow', 'animGroups', 'animFolders', 'animMs'];   // greyed out while animations are not available (OFF, or Auto without hardware acceleration)
+const ANIM_DEP = ['animDelete', 'simpleBatchDelete', 'animReflow', 'animGroups', 'animFolders', 'animMs'];   // greyed out while animations are not available (OFF, or Auto without hardware acceleration)
 const syncBg = () => document.querySelectorAll('.bg-url').forEach((i) => { i.value = S.get().bgUrl || ''; });
 const syncBgState = () => document.querySelectorAll('.bg-state').forEach((n) => {
   n.textContent = S.get().bgSrc ? 'Local image is in use' : 'No image selected';
@@ -416,7 +417,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   animRow.classList.add('strong');                           // the label is bold, like the group headings
   animSec.append(animRow, animHint);
   const behavior = pane(grid(
-    [animSec, section('Tiles', ['animDelete', 'deleteAnim', 'animReflow'])],     // the list sits in the left column
+    [animSec, section('Tiles', ['animDelete', 'deleteAnim', 'simpleBatchDelete', 'animReflow'])],     // the list sits in the left column
     [section('Transitions', ['animGroups', 'animFolders', 'animMs'])],
   ));
   document.addEventListener('msd-hw', () => refreshAll());     // the hardware probe finished (it runs when the browser is idle)
