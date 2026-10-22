@@ -561,3 +561,25 @@ dialog.float{position:fixed;margin:0;right:auto;bottom:auto;z-index:70;box-shado
 .bform .bhead{margin:-20px -22px 0;padding:14px 22px 12px;cursor:grab;user-select:none;touch-action:none;border-bottom:1px solid var(--line)}
 .bform .bhead.dragging{cursor:grabbing}
 body.batching .tile,body.batching #selbar,body.batching #add-btn{pointer-events:none}
+
+/* ---- Animations page: master card + one card per animation ---- */
+.acard{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--faint);min-width:0}
+.acard.master{margin-bottom:12px}
+.acard.master .anim-note{margin:8px 0 0}
+.agrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.acard.wide{grid-column:1/-1}
+.acard-h{display:flex;align-items:center;gap:10px}
+.aico{flex:none;box-sizing:border-box;width:30px;height:30px;padding:6px;border-radius:9px;background:var(--accent-soft);color:var(--accent);fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.acard-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.acard-t b{font-weight:600}
+.acard-t small{color:var(--muted);font-size:12px}
+.acard .row.col{padding:10px 0 0}
+.adel{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
+.fx{flex:1;min-width:200px;display:flex;flex-wrap:wrap;align-content:center;gap:5px}
+.fxc{padding:3px 10px;font-size:12px;border:1px solid var(--border);border-radius:16px;background:var(--field);cursor:pointer;color:var(--fg);transition:background .15s,border-color .15s,color .15s}
+.fxc:hover{border-color:var(--accent)}
+.fxc.on{background:var(--accent);border-color:transparent;color:#fff}
+.astage-col{flex:none;width:148px}
+.astage-col .anim-stage{margin:0;height:104px}
+.acard .asub{margin-top:8px;padding-top:4px;min-height:28px;border-top:1px solid var(--line)}
+@media (max-width:760px){.agrid{grid-template-columns:minmax(0,1fr)}}

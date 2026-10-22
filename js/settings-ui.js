@@ -145,40 +145,41 @@ function buildEngine() {
   row.append(dd);
   return row;
 }
-// Deletion animation picker: a dropdown plus a live preview on a sample tile (plays on change, on click and on the button).
+// Deletion animation picker: the effects as chips (a click chooses one and plays it) next to a sample tile that replays on click / on the button.
 function buildDeleteAnim() {
-  const box = el('div', 'anim-pick');
-  const lab = el('label', 'row', '<span>Deletion animation</span>');
-  const sel = el('select');
-  DELETE_ANIMS.forEach(([v, t]) => sel.append(new Option(t, v)));
-  lab.append(sel);
+  const box = el('div', 'adel');
+  const chips = el('div', 'fx');
+  const btns = DELETE_ANIMS.map(([v, t]) => {
+    const b = el('button', 'fxc'); b.type = 'button'; b.textContent = t; b.dataset.v = v;
+    chips.append(b);
+    return b;
+  });
+  const col = el('div', 'astage-col');
   const stage = el('div', 'anim-stage');
   stage.title = 'Click to replay';
   const tile = el('div', 'pv-tile', '<b>G</b><i>example.com</i>');
   stage.append(tile);
-  const foot = el('div', 'row');
-  const replay = el('button', 'pill sm', '▶ Preview'); replay.type = 'button';
-  foot.append(el('span', 'note', 'The tile comes back after the preview.'), replay);
+  col.append(stage);
+  box.append(chips, col);
   let busy = false;
+  const cur = () => (DELETE_ANIMS.some(([v]) => v === S.get().deleteAnim) ? S.get().deleteAnim : DEFAULT_ANIM);
   const play = async () => {
     if (busy) return;
     busy = true;
     try {
-      await startDelete(sel.value, tile, stage).done;
+      await startDelete(cur(), tile, stage).done;
       tile.style.visibility = 'hidden';
       tile.getAnimations().forEach((a) => a.cancel());
-      await new Promise((r) => setTimeout(r, 350));
+      await new Promise((r) => setTimeout(r, 350));                // the tile comes back after the preview
       tile.style.visibility = '';
       tile.animate([{ opacity: 0, transform: 'scale(.92)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
     } finally { busy = false; }
   };
-  const cur = () => (DELETE_ANIMS.some(([v]) => v === S.get().deleteAnim) ? S.get().deleteAnim : DEFAULT_ANIM);
-  sel.value = cur();
-  sel.onchange = () => { S.set({ deleteAnim: sel.value }); play(); };
-  stage.onclick = replay.onclick = play;
-  extraRefresh.push(() => { sel.value = cur(); });
-  box.classList.add('anim-dep');
-  box.append(lab, stage, foot);
+  const paint = () => btns.forEach((b) => { const on = b.dataset.v === cur(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  btns.forEach((b) => { b.onclick = () => { S.set({ deleteAnim: b.dataset.v }); paint(); play(); }; });
+  stage.onclick = play;
+  extraRefresh.push(paint);
+  paint();
   return box;
 }
 // Custom screenshot service: a template with {url} or {urlenc}; shown only for "Custom URL"
@@ -431,14 +432,45 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
     word.title = S.hwDetails();                                  // what the check saw: shown only over ON / OFF
     animHint.replaceChildren('Hardware acceleration is ', word, on ? ', animations are working.' : ', animations are disabled.');
   });
-  const animSec = el('section');
-  const animRow = build('animMode');
-  animRow.classList.add('strong');                           // the label is bold, like the group headings
-  animSec.append(animRow, animHint);
-  const behavior = pane(grid(
-    [animSec, section('Tiles', ['animDelete', 'deleteAnim', 'simpleBatchDelete', 'animReflow'])],     // the list sits in the left column
-    [section('Transitions', ['animGroups', 'animFolders', 'animMs'])],
-  ));
+  // The page is a column of cards: the master switch, then one card per animation with its own switch in the header.
+  const AICO = {
+    del: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
+    shift: '<rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="13" width="7" height="7" rx="1.5"/><path d="M13 7h6M16.5 4.5L19 7l-2.5 2.5"/>',
+    groups: '<path d="M4 8h12M12 4l4 4-4 4M20 16H8M12 12l-4 4 4 4"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    speed: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 3h6"/>',
+  };
+  const swOf = (key) => build(key).querySelector('input');         // the switch alone: it keeps its link with the setting
+  const animCard = (ico, title, desc, sw, ...body) => {
+    const c = el('div', 'acard anim-dep'), h = el('div', 'acard-h', `<svg class="aico" viewBox="0 0 24 24" aria-hidden="true">${ico}</svg><span class="acard-t"><b></b><small></small></span>`);
+    h.querySelector('b').textContent = title; h.querySelector('small').textContent = desc;
+    if (sw) { sw.setAttribute('aria-label', title); h.append(sw); }
+    c.append(h, ...body);
+    return c;
+  };
+  const master = el('div', 'acard master');
+  const animRow = build('animMode', true);                  // Auto | ON | OFF as a sliding switch
+  animRow.classList.add('strong');
+  master.append(animRow, animHint);
+
+  const delBox = build('deleteAnim');
+  const batchRow = build('simpleBatchDelete'); batchRow.classList.remove('anim-dep'); batchRow.classList.add('asub');
+  const delCard = animCard(AICO.del, 'Deleting a tile', 'Click an effect to choose it and see it play.', swOf('animDelete'), delBox, batchRow);
+  delCard.classList.add('wide');
+  const speedRow = build('animMs'); speedRow.classList.remove('anim-dep');
+  const grp = animCard(AICO.groups, 'Switching groups', 'Swipe between groups.', swOf('animGroups'));
+  const fld = animCard(AICO.folder, 'Folders', 'Smooth opening and closing of folders.', swOf('animFolders'));
+  const spd = animCard(AICO.speed, 'Transition speed', 'How long group and folder transitions take.', null, speedRow);
+  const shf = animCard(AICO.shift, 'Tile shift', 'Tiles slide into the gap after a delete or a move.', swOf('animReflow'));
+  const agrid = el('div', 'agrid');
+  agrid.append(delCard, shf, grp, fld, spd);
+  // a part whose own switch is off is dimmed (while animations are available at all: otherwise the whole card is already dimmed)
+  extraRefresh.push(() => {
+    const on = S.animOn(), g = S.get();
+    [delBox, batchRow].forEach((n) => n.classList.toggle('dim', on && !g.animDelete));
+    speedRow.classList.toggle('dim', on && !g.animGroups && !g.animFolders);
+  });
+  const behavior = pane(master, agrid);
   document.addEventListener('msd-hw', () => refreshAll());     // the hardware probe finished (it runs when the browser is idle)
   extraRefresh.push(() => document.querySelectorAll('.anim-dep').forEach((n) => n.classList.toggle('dim', !S.animOn())));
   extraRefresh.push(() => document.querySelectorAll('.icon-dep').forEach((n) => n.classList.toggle('dim', !S.get().iconAutoRefresh)));
