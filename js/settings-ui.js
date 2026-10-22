@@ -261,9 +261,20 @@ function build(key, asSlider = false) {
   });
   return lab;
 }
-function section(title, keys) {
-  const s = el('section');
-  s.append(el('h4', null, title));
+// 24x24 line icons in front of the group headings of Appearance > Layout (the gear is the one of the settings button)
+const SECTION_ICON = {
+  groups: '<rect x="3" y="4" width="8" height="5" rx="1.5"/><rect x="13" y="4" width="8" height="5" rx="1.5"/><rect x="3" y="12" width="18" height="8" rx="2"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+  grid: '<rect x="3" y="3" width="5" height="5" rx="1.2"/><rect x="9.5" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="3" y="9.5" width="5" height="5" rx="1.2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.2"/><rect x="16" y="9.5" width="5" height="5" rx="1.2"/><rect x="3" y="16" width="5" height="5" rx="1.2"/><rect x="9.5" y="16" width="5" height="5" rx="1.2"/><rect x="16" y="16" width="5" height="5" rx="1.2"/>',
+  add: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+  tile: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 15h16"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
+};
+function section(title, keys, icon) {                          // icon: optional, a SECTION_ICON drawing shown before the heading
+  const s = el('section'), h = el('h4', icon ? 'with-ico' : null, (icon ? `<svg class="hico" viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>` : '') + '<span></span>');
+  h.lastChild.textContent = title;
+  s.append(h);
   keys.forEach((k) => s.append(typeof k === 'string' ? build(k) : k));   // a key of a row, or a ready-made row element
   return s;
 }
@@ -320,7 +331,17 @@ function buildAbout() {
   return box;
 }
 
-// Tab strip: nav gets one button per [id, label, pane]; the choice is remembered in localStorage under `key`.
+// 24x24 line icons of the tabs (same drawing style as the About icons)
+const TAB_ICON = {
+  general: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+  appearance: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.9 1.5-1.9-.3-1 .4-2.1 1.5-2.1H17a4 4 0 0 0 4-4c0-5-4-10-9-10z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15.5" cy="8" r="1"/>',
+  animations: '<path d="M10 3l1.8 4.7 4.7 1.8-4.7 1.8L10 16l-1.8-4.7L3.5 9.5l4.7-1.8z"/><path d="M18 14v5M15.5 16.5h5"/>',
+  about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/>',
+  layout: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  theme: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
+};
+
+// Tab strip: nav gets one button per [id, label, pane, icon]; the choice is remembered in localStorage under `key`.
 function makeTabs(nav, items, key) {
   const btns = [];
   const show = (id) => {
@@ -328,8 +349,9 @@ function makeTabs(nav, items, key) {
     items.forEach(([i, , p]) => { p.hidden = i !== id; });
     try { localStorage.setItem(key, id); } catch {}
   };
-  items.forEach(([id, label]) => {
-    const b = el('button', null, label); b.type = 'button'; b.onclick = () => show(id);
+  items.forEach(([id, label, , icon]) => {
+    const b = el('button', null, (icon ? `<svg class="tabico" viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>` : '') + '<span></span>');
+    b.lastChild.textContent = label; b.type = 'button'; b.onclick = () => show(id);
     nav.append(b); btns.push([id, b]);
   });
   let saved = null;
@@ -355,7 +377,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   more.append(advBtn);
   quick.append(more);
 
-  // ----- Advanced Settings: General | Appearance (Layout, Theme) | Behavior -----
+  // ----- Advanced Settings: General | Appearance (Layout, Theme) | Animations | About -----
   const grid = (...cols) => { const g = el('div', 'advgrid'); cols.forEach((c) => { const d = el('div', 'advcol'); d.append(...c); g.append(d); }); return g; };
   const pane = (...kids) => { const p = el('div', 'tabpane'); p.hidden = true; p.append(...kids); return p; };
 
@@ -379,26 +401,27 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   // Layout: left column = the page from top to bottom (each element with its own switch, position and size),
   // right column = how a tile looks, then the windows and the settings icon.
   const layout = grid(
-    [section('Groups Bar', ['groupsTop', 'groupsMaxPx', 'groupsMaxPct', 'groupsSticky']),
-     section('Search Field', ['showSearch', 'searchTop']),
-     section('Speed Dial Grid', ['gridTop', 'maxColumns', 'gapX', 'gapY']),
-     section('+ Shortcut Button', ['showAdd', 'addAnchor', 'addOffset'])],
-    [section('Tiles', ['tileWidth', 'ratio', 'tileRadius', 'iconSize', 'showTitles', 'showLongTitle', 'showDelete']),
-     section('Folder Window', ['folderSize']),
-     section('Settings Icon', ['gearAutoHide', 'gearRadius', 'gearAnchor', 'gearSize', 'gearOffset'])],
+    [section('Groups Bar', ['groupsTop', 'groupsMaxPx', 'groupsMaxPct', 'groupsSticky'], SECTION_ICON.groups),
+     section('Search Field', ['showSearch', 'searchTop'], SECTION_ICON.search),
+     section('Speed Dial Grid', ['gridTop', 'maxColumns', 'gapX', 'gapY'], SECTION_ICON.grid),
+     section('+ Shortcut Button', ['showAdd', 'addAnchor', 'addOffset'], SECTION_ICON.add)],
+    [section('Tiles', ['tileWidth', 'ratio', 'tileRadius', 'iconSize', 'showTitles', 'showLongTitle', 'showDelete'], SECTION_ICON.tile),
+     section('Folder Window', ['folderSize'], SECTION_ICON.folder),
+     section('Settings Icon', ['gearAutoHide', 'gearRadius', 'gearAnchor', 'gearSize', 'gearOffset'], SECTION_ICON.gear)],
   );
-  // Theme: the choice of theme with its actions on top, then the colours grouped by what they paint.
+  // Theme: the left column starts with the choice of theme and its name / actions, then the page and tile colours; the right column holds the text and panel colours.
   const ed = ThemeUI.editor((f) => extraRefresh.push(f), refreshAll);
   const themeSec = el('section');
   themeSec.append(ThemeUI.picker((f) => extraRefresh.push(f), refreshAll), ed.head);
   const theme = el('div');
-  theme.append(themeSec, grid(
-    [section('Page', ['bgType', 'bgUrl', 'bgImage', ed.rows.pageBg, ed.rows.folderBg]),
+  theme.append(grid(
+    [themeSec,
+     section('Page', ['bgType', 'bgUrl', 'bgImage', ed.rows.pageBg, ed.rows.folderBg]),
      section('Tiles', [ed.rows.thumbBg, ed.rows.label])],
     [section('Text & Accent', [ed.rows.text, ed.rows.muted, ed.rows.icon, ed.rows.accent]),
      section('Panels & Controls', [ed.rows.surface, ed.rows.field])],
   ));
-  const subNav = el('div', 'subtabs'), subPanes = [['layout', 'Layout', layout], ['theme', 'Theme', theme]];
+  const subNav = el('div', 'subtabs'), subPanes = [['layout', 'Layout', layout, TAB_ICON.layout], ['theme', 'Theme', theme, TAB_ICON.theme]];
   const appearance = pane(subNav, ...subPanes.map(([, , p]) => p));
   appearance.querySelectorAll(':scope > div:not(.subtabs)').forEach((p) => { p.hidden = true; p.style.marginTop = '4px'; });
   makeTabs(subNav, subPanes, 'msd-adv-subtab');
@@ -426,7 +449,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
 
   const about = pane(buildAbout());
   adv.append(general, appearance, behavior, about);
-  makeTabs($('#adv-tabs'), [['general', 'General', general], ['appearance', 'Appearance', appearance], ['behavior', 'Behavior', behavior], ['about', 'About', about]], 'msd-adv-tab');
+  makeTabs($('#adv-tabs'), [['general', 'General', general, TAB_ICON.general], ['appearance', 'Appearance', appearance, TAB_ICON.appearance], ['behavior', 'Animations', behavior, TAB_ICON.animations], ['about', 'About', about, TAB_ICON.about]], 'msd-adv-tab');   // the id 'behavior' stays: it is what a remembered tab is stored as
   refreshAll();
   syncBg();
   syncBgState();

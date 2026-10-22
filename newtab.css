@@ -332,6 +332,12 @@ body.no-anim *,body.no-anim *::before,body.no-anim *::after{transition:none!impo
 .tabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 14px;cursor:pointer;color:var(--muted);font-weight:500;margin-bottom:-1px}
 .tabs button:hover{color:var(--fg)}
 .tabs button.on{color:var(--fg);border-bottom-color:var(--accent)}
+.tabs button,.subtabs button{display:inline-flex;align-items:center;gap:7px}
+.tabico{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs button.on .tabico{stroke:var(--accent)}
+.subtabs .tabico{width:15px;height:15px}
+.advgrid h4.with-ico{display:flex;align-items:center;gap:8px}
+.hico{width:17px;height:17px;flex:none;fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .subtabs{display:flex;gap:4px;margin:12px 0 0;padding:3px;width:fit-content;background:var(--field);border-radius:9px}
 .subtabs button{border:0;background:none;padding:5px 16px;border-radius:7px;cursor:pointer;color:var(--muted)}
 .subtabs button.on{background:var(--strong);color:var(--fg)}
@@ -347,7 +353,7 @@ body.no-anim *,body.no-anim *::before,body.no-anim *::after{transition:none!impo
 .crow input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}
 .crow input[type=color]::-moz-color-swatch{border:0;border-radius:5px}
 .theme-btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
-.row input.theme-name[type=text]{width:170px}
+.row input.theme-name[type=text]{width:210px}   /* as wide as the theme list above it */
 
 .advbody{flex:1;min-height:0;display:flex;flex-direction:column}
 .row select.theme-sel{width:210px;max-width:210px}
