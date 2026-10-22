@@ -345,19 +345,54 @@ body.no-anim *,body.no-anim *::before,body.no-anim *::after{transition:none!impo
 .tabpane .advgrid{overflow:visible;padding:0}
 .dim{opacity:.45;pointer-events:none}
 
-/* ---- Theme editor ---- */
-.crow input[type=color]{border:1px solid var(--border);border-radius:6px;cursor:pointer}
-.crow input[type=color]:disabled{opacity:.6;cursor:default}
+/* ---- Theme tab: gallery of themes, colours of the selected theme ---- */
+.tgallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:8px 0 4px}
+.tcard{display:flex;flex-direction:column;gap:4px;padding:5px;border:2px solid transparent;border-radius:10px;background:var(--faint);cursor:pointer;text-align:left;min-width:0}
+.tcard:hover{background:var(--hover)}
+.tcard.on{border-color:var(--accent);background:var(--accent-soft)}
+.tcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tc-prev{position:relative;display:block;aspect-ratio:16/5;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.tcard.on .tc-prev::after{content:"✓";position:absolute;right:4px;top:50%;margin-top:-8px;width:16px;height:16px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;line-height:16px;text-align:center;font-weight:700}
+.tc-mini{position:absolute;inset:0;background:var(--m-bg);display:flex;align-items:center;gap:6px;padding:5px 7px}
+.tc-mini .tt{flex:1;display:flex;gap:3px;min-width:0}
+.tc-mini .tt b{flex:1;height:14px;border-radius:3px;background:var(--m-tile);box-shadow:0 0 0 1px color-mix(in srgb,var(--m-fg) 14%,transparent)}
+.tc-mini u{flex:none;width:8px;height:8px;border-radius:50%;background:var(--m-acc)}
+.tc-prev.auto .tc-mini + .tc-mini{clip-path:polygon(58% 0,100% 0,100% 100%,42% 100%)}
+.tc-name{display:flex;align-items:center;gap:2px;min-height:20px;padding:0 2px;font-size:12px}
+.tc-txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-edit{width:100%;min-width:0;font-size:12px;padding:1px 4px;border-radius:5px}
+.tc-acts{flex:none;display:flex;gap:1px;opacity:0;transition:opacity .12s}
+.tcard:hover .tc-acts,.tcard:focus-within .tc-acts{opacity:1}
+.tc-name.editing .tc-acts{display:none}
+.tc-act{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:6px;background:none;color:var(--muted);cursor:pointer}
+.tc-act:hover{background:var(--hover);color:var(--fg)}
+.tc-act.del:hover{color:#ff8b8b}
+.tcard.add{flex-direction:row;align-items:center;justify-content:center;gap:6px;border:2px dashed var(--border);background:none;color:var(--muted)}
+.tcard.add:hover{color:var(--fg);border-color:var(--accent);background:var(--faint)}
+.tc-plus{font-size:20px;line-height:1}
+
+.tcta{padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--faint)}
+.tcta h5{margin:0 0 4px;font-size:13px}
+.tcta .note{margin:0 0 12px;white-space:normal}
+.pill.accent{background:var(--accent);border-color:transparent;color:#fff}
+.pill.accent:hover{background:color-mix(in srgb,var(--accent) 86%,#fff)}
+
+.teditor{display:flex;flex-direction:column;gap:6px}
+.tgroups{display:flex;flex-direction:column}
+.tgroup h5{margin:14px 0 2px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.trow{display:flex;align-items:center;gap:10px;padding:5px 6px;margin:0 -6px;border-radius:9px}
+.trow-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.trow-txt b{font-weight:500}
+.trow-txt small{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .tsw{flex:none;width:34px;height:34px;padding:0;border:1px solid var(--border);border-radius:9px;background:none;cursor:pointer}
 /* the browser draws its own frame around the swatch inside the input: with our border that was a double frame */
-.crow input[type=color]::-webkit-color-swatch-wrapper{padding:0}
-.crow input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}
-.crow input[type=color]::-moz-color-swatch{border:0;border-radius:5px}
-.theme-btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
-.row input.theme-name[type=text]{width:210px}   /* as wide as the theme list above it */
+.trow .tsw::-webkit-color-swatch-wrapper{padding:0}
+.trow .tsw::-webkit-color-swatch{border:0;border-radius:8px}
+.trow .tsw::-moz-color-swatch{border:0;border-radius:8px}
+.trow .thex{flex:none;width:76px;font:12px ui-monospace,Consolas,monospace;text-transform:lowercase}
 
 .advbody{flex:1;min-height:0;display:flex;flex-direction:column}
 .row select.theme-sel{width:210px;max-width:210px}
-.cwrap{display:flex;align-items:center;gap:8px}
 
 /* Add / Edit: visible edge for the thumbnail preview (white previews vanished on the light theme) */
 .prev{border-radius:8px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 22%,transparent)}

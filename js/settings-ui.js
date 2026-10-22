@@ -409,17 +409,13 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
      section('Folder Window', ['folderSize'], SECTION_ICON.folder),
      section('Settings Icon', ['gearAutoHide', 'gearRadius', 'gearAnchor', 'gearSize', 'gearOffset'], SECTION_ICON.gear)],
   );
-  // Theme: the left column starts with the choice of theme and its name / actions, then the page and tile colours; the right column holds the text and panel colours.
-  const ed = ThemeUI.editor((f) => extraRefresh.push(f), refreshAll);
-  const themeSec = el('section');
-  themeSec.append(ThemeUI.picker((f) => extraRefresh.push(f), refreshAll), ed.head);
+  // Theme: the left column = a gallery of themes (pick one, or start a new one) and the page background;
+  // the right column = a live preview (click a part of it to change its colour), then the editor of the selected custom theme.
+  const tt = ThemeUI.themeTab((f) => extraRefresh.push(f), refreshAll);
   const theme = el('div');
   theme.append(grid(
-    [themeSec,
-     section('Page', ['bgType', 'bgUrl', 'bgImage', ed.rows.pageBg, ed.rows.folderBg]),
-     section('Tiles', [ed.rows.thumbBg, ed.rows.label])],
-    [section('Text & Accent', [ed.rows.text, ed.rows.muted, ed.rows.icon, ed.rows.accent]),
-     section('Panels & Controls', [ed.rows.surface, ed.rows.field])],
+    [tt.gallerySec, section('Background', ['bgType', 'bgUrl', 'bgImage'])],
+    [tt.sideSec],
   ));
   const subNav = el('div', 'subtabs'), subPanes = [['layout', 'Layout', layout, TAB_ICON.layout], ['theme', 'Theme', theme, TAB_ICON.theme]];
   const appearance = pane(subNav, ...subPanes.map(([, , p]) => p));
