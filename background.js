@@ -83,7 +83,7 @@ async function capture(tabId, late = false) {
 // Left click on the toolbar button opens the new-tab page (the Speed Dial) in a new tab of the current window.
 // Opera has no usable chrome://newtab/ for an extension: its own new tab page is opened by address instead ("OPR/" is in its user agent)
 const isOpera = () => /\bOPR\//.test(navigator.userAgent);
-const OPERA_NEWTAB = 'chrome-extension://pjnkboombbeajiakdfghhpgonlcliknm/newtab.html';
+const OPERA_NEWTAB = chrome.runtime.getURL('newtab.html');
 async function openNewTab() {
   if (isOpera()) { await chrome.tabs.create({ url: OPERA_NEWTAB }); return; }
   try { await chrome.tabs.create({ url: 'chrome://newtab/' }); }
