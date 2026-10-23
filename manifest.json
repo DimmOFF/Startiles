@@ -7,6 +7,7 @@
   "background": {"service_worker": "background.js"},
   "host_permissions": ["<all_urls>"],
   "action": {"default_title": "Open Startiles Speed Dial in a new tab"},
+  "commands": {"open-newtab": {"description": "Open Startiles Speed Dial in a new tab"}},
   "chrome_url_overrides": {"newtab": "newtab.html"},
   "icons": {"16": "icons/icon16-alt.png", "32": "icons/icon32-alt.png", "48": "icons/icon48-alt.png", "128": "icons/icon128-alt.png"}
 }

@@ -196,6 +196,47 @@ function buildPvServiceUrl() {
   extraRefresh.push(show); show();
   return lab;
 }
+// ----- Shortcuts: the browser keeps the keys of an extension's commands, so this shows the current key and opens the browser's own page to change it -----
+const SC_SCHEME = /\bOPR\//.test(navigator.userAgent) ? 'opera' : /\bEdg\//.test(navigator.userAgent) ? 'edge' : navigator.brave ? 'brave' : 'chrome';
+const SC_URL = SC_SCHEME + '://extensions/shortcuts';
+const SC_COMMANDS = [['open-newtab', 'Open Startiles in a new tab']];
+function buildShortcuts() {
+  const box = el('div', 'afields');
+  const keys = new Map();
+  SC_COMMANDS.forEach(([id, label]) => {
+    const r = el('div', 'row'), span = el('span'), k = el('kbd', 'sc-key');
+    span.textContent = label;
+    r.append(span, k);
+    keys.set(id, k);
+    box.append(r);
+  });
+  const paint = async () => {
+    let all = [];
+    try { all = await chrome.commands.getAll(); } catch { /* not available */ }
+    keys.forEach((k, id) => {
+      const c = all.find((x) => x.name === id), s = c && c.shortcut;
+      k.textContent = s || 'Not set';
+      k.classList.toggle('unset', !s);
+    });
+  };
+  const btnRow = el('div', 'row'), b = el('button', 'pill sm', 'Change shortcuts…');
+  const note = el('p', 'note');
+  note.hidden = true;
+  b.onclick = async () => {
+    try { await chrome.tabs.create({ url: SC_URL }); }
+    catch {                                                       // some browsers do not let an extension open that page: show the address instead
+      note.textContent = 'Open this address in the browser: ' + SC_URL;
+      note.hidden = false;
+      try { await navigator.clipboard.writeText(SC_URL); note.textContent += ' (copied)'; } catch { /* no clipboard */ }
+    }
+  };
+  btnRow.append(b);
+  box.append(btnRow, note);
+  extraRefresh.push(paint);
+  window.addEventListener('focus', paint);                        // back from the browser's shortcuts page
+  paint();
+  return box;
+}
 function build(key, asSlider = false) {
   if (key === 'pvServiceUrl') return buildPvServiceUrl();
   if (key === 'pvNote') return el('p', 'note', 'Off by default. When on, the address of a Pageview tile that has no picture of its own is sent to this service to get a screenshot.');
@@ -417,7 +458,8 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   const searchCard = card(CARD_ICON.search, 'Search', 'The search engine and its suggestions.', null, fields('engine', 'searchSuggest'));
   const iconsCard = card(CARD_ICON.image, 'Icons & Previews', 'Site icons and page previews on the tiles.', null,
     fields('hiResIcons', 'iconAutoRefresh', dep('iconRefreshEvery'), 'pvService', 'pvServiceUrl', 'refreshIcons'), build('pvNote'));
-  const general = pane(cols([modeCard, searchCard], [iconsCard]));
+  const keysCard = card('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>', 'Shortcuts', 'Keyboard shortcuts that work in any tab of the browser.', null, buildShortcuts());
+  const general = pane(cols([modeCard, searchCard], [iconsCard, keysCard]));
 
   // ----- Layout: the page from top to bottom on the left; the tile, the windows and the settings icon on the right -----
   const searchFields = fields('searchTop');
