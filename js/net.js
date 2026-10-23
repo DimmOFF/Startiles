@@ -4,8 +4,11 @@
 let worker;
 const pendingCalls = new Map();
 let callSeq = 0;
+// The whole host of the Chrome Web Store (pages, /favicon.ico, /apple-touch-icon.png) is closed to extensions: a request to it is always refused (CORS) and the browser logs an error in the extension's error list that no catch can hide.
+const NO_NET = /^https?:\/\/(chrome\.google\.com|chromewebstore\.google\.com)([\/:?#]|$)/i;
 export function netCall(op, url, ms) {
   return new Promise((res) => {
+    if (typeof url === 'string' && NO_NET.test(url)) { res(null); return; }
     try {
       if (!worker) {
         worker = new Worker(new URL('./networker.js', import.meta.url));
