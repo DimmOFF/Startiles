@@ -12,6 +12,7 @@ import * as Icons from './icons.js';
 import * as ImgCache from './imgcache.js';
 import * as DialMeta from './dialmeta.js';
 import { PRESETS } from './themes.js';
+import * as Foreign from './import-foreign.js';
 
 const FORMAT = 'startiles-backup';
 const LEGACY_FORMATS = ['modern-speed-dial-backup'];   // backups made by earlier versions can still be imported
@@ -52,11 +53,23 @@ export async function exportSelected(o) {
 }
 
 // Reads a backup file (this version or the first one, where everything sat in `settings`).
-// -> { data, avail: what the file contains, info: counts }
+// A file of ANOTHER program is accepted too: bookmarks exported as HTML, or the JSON export of another speed dial extension; it holds only
+// the shortcuts (see import-foreign.js), `source` then says what it was recognised as.
+// -> { data, avail: what the file contains, info: counts, source? }
 export async function readFile(file) {
-  let raw;
-  try { raw = JSON.parse(await file.text()); } catch { throw new Error('not a valid JSON file'); }
-  if (!isObj(raw) || ![FORMAT, ...LEGACY_FORMATS].includes(raw.format)) throw new Error('this is not a Startiles backup');
+  const text = await file.text();
+  let raw = null;
+  try { raw = JSON.parse(text); } catch { /* maybe bookmarks exported as HTML */ }
+  if (!(isObj(raw) && [FORMAT, ...LEGACY_FORMATS].includes(raw.format))) {
+    const f = raw === null ? Foreign.fromHtml(text) : Foreign.fromJson(raw);
+    if (!f) throw new Error(raw === null ? 'this is not a Startiles backup, a bookmarks HTML file or a JSON export of a speed dial' : 'no shortcuts were found in this file');
+    return {
+      data: { settings: null, bgSrc: '', themes: null, tree: f.tree, thumbs: null, shots: null, iconCache: null, imgCache: null },
+      avail: { settings: false, themes: false, dials: true, userThumbs: false, cache: false },
+      info: { links: f.links, groups: f.tree.length, themes: 0 },
+      source: f.source,
+    };
+  }
   const old = isObj(raw.settings) ? raw.settings : null;
   const themes = isObj(raw.themes) ? raw.themes
     : old && (Array.isArray(old.customThemes) || typeof old.theme === 'string') ? { theme: old.theme, customThemes: old.customThemes || [] } : null;

@@ -1,6 +1,7 @@
 // Export / Import window: check boxes choose what is exported / imported (same look as Reset to Default).
 // Import additionally offers Add / Replace for Themes and Speed Dials (the previews follow the Speed Dials choice).
 import * as Backup from './backup.js';
+import * as M from './model.js';
 import { $, el, closeOnBackdrop } from './util.js';
 
 const ITEMS = [
@@ -71,7 +72,9 @@ export function init({ status }) {
       const i = loaded.info, parts = [];
       if (loaded.avail.dials) parts.push(`${i.links} shortcuts in ${i.groups} groups`);
       if (loaded.avail.themes) parts.push(`${i.themes} custom themes`);
-      lead.textContent = `${f.name}: ${parts.join(', ') || 'settings and previews'}. Choose what to import:`;
+      lead.textContent = loaded.source
+        ? `${f.name} (${loaded.source}): ${parts.join(', ')}. ` + (M.mode === 'bookmarks' ? 'They are added to the Startiles Speed Dial folder: switch to the Speed Dials mode to see them. ' : '') + 'Choose what to import:'
+        : `${f.name}: ${parts.join(', ') || 'settings and previews'}. Choose what to import:`;
       open('import', loaded.avail);
     } catch (e) { status.textContent = 'Import failed: ' + e.message; }
   }
@@ -94,9 +97,9 @@ export function init({ status }) {
     if (!hasFiles(e)) return;
     e.preventDefault();                                    // otherwise the browser opens the file instead
     endDrag();
-    const f = [...e.dataTransfer.files].find((x) => /\.json$/i.test(x.name) || x.type === 'application/json');
+    const f = e.dataTransfer.files[0];                     // the content decides what it is (a Startiles backup, bookmarks HTML, a speed dial export)
     if (f) pickFile(f);
-    else status.textContent = 'Import failed: drop a Startiles backup (.json) file';
+    else status.textContent = 'Import failed: drop a backup or bookmarks file';
   });
   adv.addEventListener('close', endDrag);
   $('#bk-cancel').onclick = () => dlg.close();
