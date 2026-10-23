@@ -382,7 +382,27 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   const grid = (...cols) => { const g = el('div', 'advgrid'); cols.forEach((c) => { const d = el('div', 'advcol'); d.append(...c); g.append(d); }); return g; };
   const pane = (...kids) => { const p = el('div', 'tabpane'); p.hidden = true; p.append(...kids); return p; };
 
-  const dialSource = el('section');
+  // General and Layout are columns of cards (as Animations): icon, title and a line of explanation, an optional switch in the header,
+  // and the settings below in two columns. A part whose own switch is off is only faded (it can still be set).
+  const swOf = (key) => build(key).querySelector('input');         // the switch alone: it keeps its link with the setting
+  const card = (ico, title, desc, head, ...body) => {
+    const c = el('div', 'acard'), h = el('div', 'acard-h', `<svg class="aico" viewBox="0 0 24 24" aria-hidden="true">${ico}</svg><span class="acard-t"><b></b><small></small></span>`);
+    h.querySelector('b').textContent = title; h.querySelector('small').textContent = desc;
+    if (head) { head.setAttribute('aria-label', head.getAttribute('aria-label') || title); h.append(head); }
+    c.append(h, ...body);
+    return c;
+  };
+  const fields = (...rows) => { const d = el('div', 'afields'); d.append(...rows.map((r) => (typeof r === 'string' ? build(r) : r))); return d; };
+  const dep = (key) => { const r = build(key); r.classList.add('dep'); return r; };   // a setting that belongs to the one above it: indented under it
+  const subHead = (t) => { const h = el('h5', 'asub-h'); h.textContent = t; return h; };
+  const cols = (left, right) => { const g = el('div', 'acols'); [left, right].forEach((k) => { const c = el('div', 'acol'); c.append(...k); g.append(c); }); return g; };
+  const CARD_ICON = {
+    mode: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 9"/>',
+    ...SECTION_ICON,
+  };
+
+  // ----- General: Mode and Search on the left, the icons on the right -----
   const pickRow = el('div', 'row');
   const pickBtn = el('button', 'pill sm', 'Choose root folder…');
   pickBtn.onclick = () => hooks.onPickRoot?.();
@@ -392,24 +412,37 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   const bmGroupRow = build('showBmGroup');                      // only meaningful in the Bookmarks mode
   extraRefresh.push(() => { bmGroupRow.hidden = S.get().source !== 'bookmarks'; });
   bmGroupRow.hidden = S.get().source !== 'bookmarks';
-  dialSource.append(el('h4', null, 'Mode'), build('source'), pickRow, bmGroupRow, el('p', 'note storage-note'));
+  const modeCard = card(CARD_ICON.mode, 'Mode', 'Where your tiles come from.', null, fields(build('source', true), pickRow, bmGroupRow), el('p', 'note storage-note'));
+  const searchCard = card(CARD_ICON.search, 'Search', 'The search engine and its suggestions.', null, fields('engine', 'searchSuggest'));
+  const iconsCard = card(CARD_ICON.image, 'Icons & Previews', 'Site icons and page previews on the tiles.', null,
+    fields('hiResIcons', 'iconAutoRefresh', dep('iconRefreshEvery'), 'pvService', 'pvServiceUrl', 'refreshIcons'), build('pvNote'));
+  const general = pane(cols([modeCard, searchCard], [iconsCard]));
 
-  const general = pane(grid(
-    [dialSource, section('Search', ['engine', 'searchSuggest'])],
-    [section('Icons & Previews', ['hiResIcons', 'iconAutoRefresh', 'iconRefreshEvery', 'pvService', 'pvServiceUrl', 'pvNote', 'refreshIcons'])],
+  // ----- Layout: the page from top to bottom on the left; the tile, the windows and the settings icon on the right -----
+  const searchFields = fields('searchTop');
+  const addFields = fields('addAnchor', 'addOffset');
+  const radiusRow = dep('gearRadius');
+  const gearFields = fields('gearAutoHide', radiusRow, 'gearAnchor', 'gearSize', 'gearOffset');
+  const longRow = dep('showLongTitle');
+  extraRefresh.push(() => {
+    searchFields.classList.toggle('sub-off', !S.get().showSearch);
+    addFields.classList.toggle('sub-off', !S.get().showAdd);
+    radiusRow.classList.toggle('sub-off', !S.get().gearAutoHide);
+    longRow.classList.toggle('sub-off', !S.get().showTitles);
+  });
+  const tilesCard = card(CARD_ICON.tile, 'Tiles', 'Size, shape and captions of a tile.', null,
+    subHead('Size & shape'), fields('tileWidth', 'ratio', 'tileRadius', 'iconSize'),
+    subHead('Shown on each tile'), fields('showTitles', longRow, 'showDelete'));
+  const layout = el('div');
+  layout.append(cols(
+    [card(CARD_ICON.groups, 'Groups Bar', 'Tabs for switching between groups.', null, fields('groupsTop', 'groupsMaxPx', 'groupsMaxPct', 'groupsSticky')),
+     card(CARD_ICON.search, 'Search Field', 'The search box above the tiles.', swOf('showSearch'), searchFields),
+     card(CARD_ICON.grid, 'Speed Dial Grid', 'Where the tiles start, columns and spacing.', null, fields('gridTop', 'maxColumns', 'gapX', 'gapY')),
+     card(CARD_ICON.add, '+ Shortcut Button', 'The button that adds a new tile.', swOf('showAdd'), addFields)],
+    [tilesCard,
+     card(CARD_ICON.folder, 'Folder Window', 'The size of an opened folder.', null, fields('folderSize')),
+     card(CARD_ICON.gear, 'Settings Icon', 'The gear that opens Quick Settings.', null, gearFields)],
   ));
-
-  // Layout: left column = the page from top to bottom (each element with its own switch, position and size),
-  // right column = how a tile looks, then the windows and the settings icon.
-  const layout = grid(
-    [section('Groups Bar', ['groupsTop', 'groupsMaxPx', 'groupsMaxPct', 'groupsSticky'], SECTION_ICON.groups),
-     section('Search Field', ['showSearch', 'searchTop'], SECTION_ICON.search),
-     section('Speed Dial Grid', ['gridTop', 'maxColumns', 'gapX', 'gapY'], SECTION_ICON.grid),
-     section('+ Shortcut Button', ['showAdd', 'addAnchor', 'addOffset'], SECTION_ICON.add)],
-    [section('Tiles', ['tileWidth', 'ratio', 'tileRadius', 'iconSize', 'showTitles', 'showLongTitle', 'showDelete'], SECTION_ICON.tile),
-     section('Folder Window', ['folderSize'], SECTION_ICON.folder),
-     section('Settings Icon', ['gearAutoHide', 'gearRadius', 'gearAnchor', 'gearSize', 'gearOffset'], SECTION_ICON.gear)],
-  );
   // Theme: the left column = a gallery of themes (pick one, or start a new one) and the page background;
   // the right column = a live preview (click a part of it to change its colour), then the editor of the selected custom theme.
   const tt = ThemeUI.themeTab((f) => extraRefresh.push(f), refreshAll);
@@ -440,14 +473,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
     folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     speed: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 3h6"/>',
   };
-  const swOf = (key) => build(key).querySelector('input');         // the switch alone: it keeps its link with the setting
-  const animCard = (ico, title, desc, sw, ...body) => {
-    const c = el('div', 'acard anim-dep'), h = el('div', 'acard-h', `<svg class="aico" viewBox="0 0 24 24" aria-hidden="true">${ico}</svg><span class="acard-t"><b></b><small></small></span>`);
-    h.querySelector('b').textContent = title; h.querySelector('small').textContent = desc;
-    if (sw) { sw.setAttribute('aria-label', title); h.append(sw); }
-    c.append(h, ...body);
-    return c;
-  };
+  const animCard = (...a) => { const c = card(...a); c.classList.add('anim-dep'); return c; };
   const master = el('div', 'acard master');
   const animRow = build('animMode', true);                  // Auto | ON | OFF as a sliding switch
   animRow.classList.add('strong');
