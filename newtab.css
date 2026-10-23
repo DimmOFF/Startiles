@@ -126,6 +126,11 @@ dialog::backdrop{background:rgba(0,0,0,.5)}
 input[type=text],.dform input:not([type]),.dform input[type=file],.dform input[name],select{
   background:var(--field);border:1px solid var(--border);border-radius:8px;padding:8px 10px;outline:0;width:100%}
 .dform input:focus,select:focus{border-color:var(--accent)}
+/* select: the arrow is drawn here, so the browser's own arrow button (it lights up on hover in Opera) is not used */
+select{-webkit-appearance:none;appearance:none;padding-right:30px;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+select:hover{border-color:color-mix(in srgb,var(--fg) 34%,var(--surface))}
+select:focus{border-color:var(--accent)}
+select option{background:var(--surface);color:var(--fg)}
 .seg{display:flex;background:var(--field);border:1px solid var(--border);border-radius:9px;padding:3px;gap:3px}
 .seg button{flex:1;border:0;background:none;padding:6px;border-radius:7px;cursor:pointer;color:var(--muted)}
 .seg button.on{background:var(--strong);color:var(--fg)}
@@ -160,7 +165,10 @@ input[type=text],.dform input:not([type]),.dform input[type=file],.dform input[n
 .row output{color:var(--muted);margin-left:6px}
 .row select{width:150px}
 .row input[type=color]{width:46px;height:28px;padding:0;border:0;background:none}
-.row input[type=range]{width:100%;accent-color:var(--accent)}
+.row input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;margin:0;background:transparent;cursor:pointer;accent-color:var(--accent)}
+.row input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(to right,var(--accent) calc(8px + (100% - 16px) * var(--p,0)),rgba(128,128,128,.35) 0)}
+.row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:-5px;border-radius:50%;border:0;background:var(--accent)}
+.row input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .row input[type=text]{width:100%}
 #sync-status{color:var(--muted);font-size:12px}
 .switch{appearance:none;flex:none;width:34px;height:20px;border-radius:10px;background:color-mix(in srgb,var(--fg) 28%,var(--surface));position:relative;cursor:pointer;transition:.2s;border:0;padding:0}

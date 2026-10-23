@@ -92,3 +92,16 @@ async function openNewTab() {
 chrome.action.onClicked.addListener(openNewTab);
 // Keyboard shortcuts (the keys are set by the user in the browser, see Settings > General > Shortcuts)
 chrome.commands.onCommand.addListener((cmd) => { if (cmd === 'open-newtab') openNewTab(); });
+
+// Opera blocks chrome_url_overrides: a new tab always opens its own start page (chrome://startpage/).
+// So here every tab that lands on that page is redirected to this extension's new-tab page.
+const isOperaStart = (u) => !!u && /^(chrome|opera):\/\/startpage/i.test(u);
+const toNewTab = (tabId) => { chrome.tabs.update(tabId, { url: OPERA_NEWTAB }).catch(() => { /* tab already gone */ }); };
+if (isOpera()) {
+  chrome.tabs.onCreated.addListener((tab) => {
+    if (isOperaStart(tab.pendingUrl) || isOperaStart(tab.url)) toNewTab(tab.id);
+  });
+  chrome.tabs.onUpdated.addListener((tabId, info) => {
+    if (isOperaStart(info.url)) toNewTab(tabId);
+  });
+}
