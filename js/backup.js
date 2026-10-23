@@ -64,9 +64,9 @@ export async function readFile(file) {
     const f = raw === null ? Foreign.fromHtml(text) : Foreign.fromJson(raw);
     if (!f) throw new Error(raw === null ? 'this is not a Startiles backup, a bookmarks HTML file or a JSON export of a speed dial' : 'no shortcuts were found in this file');
     return {
-      data: { settings: null, bgSrc: '', themes: null, tree: f.tree, thumbs: null, shots: null, iconCache: null, imgCache: null },
-      avail: { settings: false, themes: false, dials: true, userThumbs: false, cache: false },
-      info: { links: f.links, groups: f.tree.length, themes: 0 },
+      data: { settings: null, bgSrc: '', themes: null, tree: f.tree, thumbs: null, pics: size(f.thumbs) ? f.thumbs : null, shots: null, iconCache: null, imgCache: null },
+      avail: { settings: false, themes: false, dials: true, userThumbs: size(f.thumbs) > 0, cache: false },
+      info: { links: f.links, groups: f.tree.length, themes: 0, pictures: size(f.thumbs) },
       source: f.source,
     };
   }
@@ -120,6 +120,26 @@ async function mergeInto(parentId, existing, nodes) {
   }
 }
 
+// The tile pictures of another program ({ address: { data | src, fit } }) as Startiles thumbnails: every picture is scaled down like a picture chosen by
+// the user; one that is only a link is downloaded now, so that it does not depend on the old service later. A picture that cannot be made is skipped.
+async function picsToThumbs(pics) {
+  const out = {}, now = Date.now(), list = Object.entries(pics);
+  const load = async (p) => {
+    if (p.data) return (await fetch(p.data)).blob();
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+    try { const r = await fetch(p.src, { signal: ctl.signal }); return r.ok ? await r.blob() : null; } finally { clearTimeout(timer); }
+  };
+  for (let i = 0; i < list.length; i += 6) {
+    await Promise.all(list.slice(i, i + 6).map(async ([url, p]) => {
+      try {
+        const blob = await load(p);
+        if (blob && blob.type.startsWith('image/')) out[url] = { mode: 'file', dataUrl: await T.previewDataUrl(blob), fit: p.fit, ts: now };
+      } catch { /* Startiles makes its own preview of this tile */ }
+    }));
+  }
+  return out;
+}
+
 // o = { settings, themes: {on, mode}, dials: {on, mode}, userThumbs, cache }, mode = 'add' | 'replace'.
 // The caller reloads the page afterwards.
 export async function importSelected(data, o) {
@@ -169,7 +189,8 @@ export async function importSelected(data, o) {
     const after = await M.getSd();
     if (!(after.children || []).some((c) => !c.url)) await M.addFolder(M.sdId, 'General');
   }
-  if (o.userThumbs && data.thumbs) await T.replaceAll(replace ? data.thumbs : { ...data.thumbs, ...T.all() });
+  const thumbs = o.userThumbs && data.pics ? await picsToThumbs(data.pics) : data.thumbs;     // pictures of another program, or the user's own of a backup
+  if (o.userThumbs && thumbs) await T.replaceAll(replace ? thumbs : { ...thumbs, ...T.all() });
   if (o.cache) {
     const st = await chrome.storage.local.get(['shots']);
     if (data.shots) await chrome.storage.local.set({ shots: replace ? data.shots : { ...data.shots, ...(st.shots || {}) } });

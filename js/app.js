@@ -394,8 +394,8 @@ async function deleteNode(n) {
 /* ---------- Undo of a deletion ---------- */
 // After a tile (or several, or a folder with its content) is deleted a small bar offers Undo for a few seconds (also Ctrl+Z); the bar waits
 // while the mouse is over it. Undo creates the bookmarks again at the same places.
-let undoBox = null, undoRun = null;
-const hideUndo = () => { undoBox?.classList.remove('show'); undoRun = null; };
+let undoBox = null, undoRun = null, undoTimer = 0;
+const hideUndo = () => { clearTimeout(undoTimer); undoBox?.classList.remove('show'); undoRun = null; };
 function undoText(nodes) {
   const short = (n) => { const t = (M.metaOf(n).name || n.url || 'Untitled').trim(); return t.length > 36 ? t.slice(0, 35) + '\u2026' : t; };
   if (nodes.length > 1) return `Deleted ${nodes.length} items`;
@@ -404,6 +404,19 @@ function undoText(nodes) {
 }
 function offerUndo(snaps, text) {
   if (!snaps.length) return;
+  clearTimeout(undoTimer);
+  undoRun = async () => {
+    hideUndo();
+    flipBegin();                                         // the tiles slide aside for the returning ones
+    try { await M.restore(snaps, (root.children.find((c) => !c.url) || root).id); } catch { /* nothing more to do */ }
+    flipReady();
+    scheduleRefresh();
+  };
+  if (!S.get().undoShow) {                               // no bar (Settings > Appearance > Undo Bar): Ctrl+Z still works for the same time
+    undoBox?.classList.remove('show');
+    undoTimer = setTimeout(hideUndo, Math.max(1, Number(S.get().undoSec) || 4) * 1000);
+    return;
+  }
   if (!undoBox) {
     undoBox = el('div', 'undo-toast');
     undoBox.setAttribute('role', 'status');
@@ -417,13 +430,6 @@ function offerUndo(snaps, text) {
   const bar = undoBox.querySelector('.ut-bar');
   bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = '';        // the countdown starts again
   undoBox.classList.add('show');
-  undoRun = async () => {
-    hideUndo();
-    flipBegin();                                         // the tiles slide aside for the returning ones
-    try { await M.restore(snaps, (root.children.find((c) => !c.url) || root).id); } catch { /* nothing more to do */ }
-    flipReady();
-    scheduleRefresh();
-  };
 }
 
 /* ---------- browser "Back" while a folder is open ---------- */

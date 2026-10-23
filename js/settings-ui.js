@@ -61,6 +61,10 @@ const DEF = {
   gridTop: rng('Speed Dial Top Offset', 0, 300),
   addAnchor: { type: 'select', label: '+ Shortcut Anchor', options: [['bottom', 'Bottom of page'], ['top', 'Below tiles']] },
   addOffset: rng('+ Shortcut Offset', 0, 300),
+  undoShow: sw('Show Undo bar'),
+  undoAnchor: { type: 'select', label: 'Position', options: [['right', 'Bottom right'], ['center', 'Bottom center']], after: () => refreshAll() },
+  undoSec: rng('Display time', 2, 20, 's'),
+  undoOffset: { ...rng('', 0, 300, 'px'), label: () => (S.get().undoAnchor === 'center' ? 'Bottom offset' : 'Right and bottom offset') },
   folderSize: rng('Folder Window Size', 40, 100, '%'),
   gearAnchor: { type: 'select', label: 'Anchor', options: [['top', 'Top'], ['bottom', 'Bottom']], after: () => refreshAll() },
   gearSize: { ...rng('Size', 32, 64, 'px'), after: () => refreshAll() },
@@ -464,12 +468,14 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   // ----- Layout: the page from top to bottom on the left; the tile, the windows and the settings icon on the right -----
   const searchFields = fields('searchTop');
   const addFields = fields('addAnchor', 'addOffset');
+  const undoFields = fields('undoAnchor', 'undoSec', 'undoOffset');
   const radiusRow = dep('gearRadius');
   const gearFields = fields('gearAutoHide', radiusRow, 'gearAnchor', 'gearSize', 'gearOffset');
   const longRow = dep('showLongTitle');
   extraRefresh.push(() => {
     searchFields.classList.toggle('sub-off', !S.get().showSearch);
     addFields.classList.toggle('sub-off', !S.get().showAdd);
+    undoFields.classList.toggle('sub-off', !S.get().undoShow);
     radiusRow.classList.toggle('sub-off', !S.get().gearAutoHide);
     longRow.classList.toggle('sub-off', !S.get().showTitles);
   });
@@ -481,7 +487,8 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
     [card(CARD_ICON.groups, 'Groups Bar', 'Tabs for switching between groups.', null, fields('groupsTop', 'groupsMaxPx', 'groupsMaxPct', 'groupsSticky')),
      card(CARD_ICON.search, 'Search Field', 'The search box above the tiles.', swOf('showSearch'), searchFields),
      card(CARD_ICON.grid, 'Speed Dial Grid', 'Where the tiles start, columns and spacing.', null, fields('gridTop', 'maxColumns', 'gapX', 'gapY')),
-     card(CARD_ICON.add, '+ Shortcut Button', 'The button that adds a new tile.', swOf('showAdd'), addFields)],
+     card(CARD_ICON.add, '+ Shortcut Button', 'The button that adds a new tile.', swOf('showAdd'), addFields),
+     card('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>', 'Undo Bar', 'The bar that offers to bring back a deleted tile (Ctrl+Z works too).', swOf('undoShow'), undoFields)],
     [tilesCard,
      card(CARD_ICON.folder, 'Folder Window', 'The size of an opened folder.', null, fields('folderSize')),
      card(CARD_ICON.gear, 'Settings Icon', 'The gear that opens Quick Settings.', null, gearFields)],

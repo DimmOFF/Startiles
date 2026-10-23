@@ -6,7 +6,8 @@
 //                     - nested folders with links (Speed Dial 2, Group Speed Dial, Chrome "Bookmarks" file, Firefox backup, ...)
 //                   The keys are recognised by their meaning (url / uri / href..., title / name..., children / dials / items...),
 //                   because the exact files of the different extensions are not documented.
-// Both return { tree, links, source } or null when the file holds no shortcuts. Only the address and the name are taken: pictures are made again by Startiles.
+// Both return { tree, links, source, thumbs } or null when the file holds no shortcuts. thumbs = { address: { data | src, fit } }: the picture of a tile as the other
+// program had it (an embedded image, or a link to one); the Import window asks whether to take them or to let Startiles make its own previews.
 const isObj = (o) => o && typeof o === 'object' && !Array.isArray(o);
 const okUrl = (u) => typeof u === 'string' && /^(https?|ftp|file):/i.test(u.trim());
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } };
@@ -49,9 +50,17 @@ function toGroups(nodes) {
   const tree = prune(out).map(clean);
   return { tree, links: countLinks(tree) };
 }
-const finish = (nodes, source) => {
+const collectPics = (nodes, into = {}) => {
+  for (const n of nodes) { if (n.url) { if (n.img && !into[n.url]) into[n.url] = n.img; } else collectPics(n.children, into); }
+  return into;
+};
+const urlsOf = (nodes, into = new Set()) => { for (const n of nodes) { if (n.url) into.add(n.url); else urlsOf(n.children, into); } return into; };
+const finish = (nodes, source, extraPics = {}) => {
   const { tree, links } = toGroups(nodes);
-  return links ? { tree, links, source } : null;
+  if (!links) return null;
+  const all = { ...collectPics(nodes), ...extraPics }, have = urlsOf(tree), thumbs = {};
+  for (const u of Object.keys(all)) if (have.has(u)) thumbs[u] = all[u];
+  return { tree, links, source, thumbs };
 };
 
 // ---- bookmarks HTML ----
@@ -88,6 +97,38 @@ const KID_KEYS = ['children', 'items', 'dials', 'bookmarks', 'links', 'sites', '
 const GROUP_REF = ['group_id', 'groupid', 'idgroup', 'id_group', 'gid', 'group', 'folder_id', 'folderid', 'folder', 'parent_id', 'parentid', 'parent', 'category_id', 'categoryid', 'category'];
 const PARENT_REF = ['parentfolderid', 'parent_folder_id', 'parent_id', 'parentid', 'idparent', 'parent'];   // a group inside another group
 const ORDER = ['sort', 'sort_order', 'position', 'pos', 'order', 'index', 'weight'];
+// The picture of a tile: an embedded image is preferred to a link (favicons are left out: they are too small to be a tile picture).
+const IMG_KEYS = ['thumb', 'thumbnail', 'thumbnail_url', 'thumb_url', 'logo', 'image', 'img', 'preview', 'screenshot'];
+const DATA_IMG = /^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/i;
+const imgFrom = (v, k) => {
+  if (typeof v !== 'string') return null;
+  const fit = k === 'logo' || /\/logo\//i.test(v) ? 'contain' : 'cover';       // a logo is shown whole, a page picture fills the tile
+  if (DATA_IMG.test(v)) return v.length > 300 && v.length < 8e6 ? { data: v, fit } : null;
+  return /^https?:\/\//i.test(v) ? { src: v, fit } : null;
+};
+function imgOf(o) {
+  let remote = null;
+  for (const k of IMG_KEYS) { const p = imgFrom(o[k], k); if (p?.data) return p; if (p && !remote) remote = p; }
+  return remote;
+}
+// Pictures kept apart from the shortcuts: a list of { "<address>": { thumbnails: [...], thumbIndex } } (YASD)
+function urlKeyedPics(raw, depth = 0) {
+  if (!isObj(raw) || depth > 3) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (Array.isArray(v)) {
+      for (const it of v) {
+        if (!isObj(it)) continue;
+        for (const [u, rec] of Object.entries(it)) {
+          if (!okUrl(u) || !isObj(rec) || !Array.isArray(rec.thumbnails)) continue;
+          const p = imgFrom(rec.thumbnails[Number(rec.thumbIndex) || 0] ?? rec.thumbnails[0], 'thumb');
+          if (p) out[u] = p;
+        }
+      }
+    } else if (isObj(v)) Object.assign(out, urlKeyedPics(v, depth + 1));
+  }
+  return out;
+}
 const str = (o, keys) => { for (const k of keys) if (typeof o[k] === 'string' && o[k].trim()) return o[k].trim(); return ''; };
 // FVD Speed Dial keeps a plain address in display_url when `url` is a tracking / sponsor redirect
 const urlOf = (o) => { const d = typeof o.display_url === 'string' ? o.display_url.trim() : ''; if (okUrl(d)) return d; const u = str(o, URL_KEYS); return okUrl(u) ? u : ''; };
@@ -105,7 +146,7 @@ function findFlat(raw, depth = 0) {
   for (const v of Object.values(raw)) { const f = findFlat(v, depth + 1); if (f) return f; }
   return null;
 }
-function fromFlat({ dials, groups }) {
+function fromFlat({ dials, groups }, missing = {}) {
   const byId = new Map(), pairs = [];
   for (const g of byOrder(groups)) {
     const id = String(first(g, ['id', 'gid', 'group_id', '_id']));
@@ -118,11 +159,16 @@ function fromFlat({ dials, groups }) {
   const loops = (id) => { let cur = id; for (let i = 0; i < 60 && cur !== undefined; i++) { cur = parentOf.get(cur); if (cur === id) return true; } return false; };
   const top = [];
   for (const [id, , node] of pairs) (parentOf.has(id) && !loops(id) ? byId.get(parentOf.get(id)).children : top).push(node);
+  // a group the dials point to, but the file does not list (YASD: the default folder): it gets the name known for it
+  for (const d of dials) {
+    const id = String(first(d, GROUP_REF));
+    if (missing[id] && !byId.has(id)) { const node = { title: missing[id], children: [], _o: -1 }; byId.set(id, node); top.unshift(node); }
+  }
   const loose = [];
   for (const d of byOrder(dials)) {
     const url = urlOf(d);
     if (!url) continue;
-    const link = { title: str(d, TITLE_KEYS) || host(url), url, _o: ord(d) };
+    const link = { title: str(d, TITLE_KEYS) || host(url), url, _o: ord(d), img: imgOf(d) };
     const g = byId.get(String(first(d, GROUP_REF)));
     (g ? g.children : loose).push(link);
   }
@@ -139,7 +185,7 @@ function walk(v, depth = 0) {
   if (Array.isArray(v)) return v.flatMap((x) => walk(x, depth + 1));
   if (!isObj(v)) return [];
   const o = lc(v), u = urlOf(o);
-  if (u) return [{ title: str(o, TITLE_KEYS) || host(u), url: u }];
+  if (u) return [{ title: str(o, TITLE_KEYS) || host(u), url: u, img: imgOf(o) }];
   const has = KID_KEYS.filter((k) => Array.isArray(o[k]));
   if (has.length) {
     const title = str(o, TITLE_KEYS);
@@ -159,7 +205,7 @@ function nameOf(raw) {
 }
 export function fromJson(raw) {
   if (!isObj(raw) && !Array.isArray(raw)) return null;
-  const flat = findFlat(raw);
-  if (flat) { const r = finish(fromFlat(flat), nameOf(raw) || 'speed dial export'); if (r) return r; }
-  return finish(walk(raw), nameOf(raw) || 'JSON export');
+  const pics = urlKeyedPics(raw), flat = findFlat(raw);
+  if (flat) { const r = finish(fromFlat(flat, isObj(raw) && isObj(raw.yasd) ? { 1: 'Home' } : {}), nameOf(raw) || 'speed dial export', pics); if (r) return r; }
+  return finish(walk(raw), nameOf(raw) || 'JSON export', pics);
 }

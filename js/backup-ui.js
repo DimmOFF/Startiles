@@ -22,7 +22,11 @@ export function init({ status }) {
 
   function build(avail) {
     box.replaceChildren();
-    for (const it of ITEMS) {
+    for (const it0 of ITEMS) {
+      // a file of another program: its pictures are offered instead of the user's previews, and the choice is the user's
+      const it = kind === 'import' && loaded?.source && it0.k === 'userThumbs'
+        ? { ...it0, t: 'Pictures from the file', d: `${loaded.info.pictures} tile picture${loaded.info.pictures === 1 ? '' : 's'} of the other program. Leave it off to let Startiles make its own previews.` }
+        : it0;
       const lab = el('label', 'rchk' + (it.sub ? ' sub' : ''));
       const inp = el('input'); inp.type = 'checkbox'; inp.dataset.k = it.k;
       const b = el('b'), sm = el('small');
@@ -70,7 +74,7 @@ export function init({ status }) {
       loaded = await Backup.readFile(f);
       file = f;
       const i = loaded.info, parts = [];
-      if (loaded.avail.dials) parts.push(`${i.links} shortcuts in ${i.groups} groups`);
+      if (loaded.avail.dials) parts.push(`${i.links} shortcuts in ${i.groups} groups` + (loaded.source && i.pictures ? `, ${i.pictures} pictures` : ''));
       if (loaded.avail.themes) parts.push(`${i.themes} custom themes`);
       lead.textContent = loaded.source
         ? `${f.name} (${loaded.source}): ${parts.join(', ')}. ` + (M.mode === 'bookmarks' ? 'They are added to the Startiles Speed Dial folder: switch to the Speed Dials mode to see them. ' : '') + 'Choose what to import:'

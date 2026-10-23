@@ -9,6 +9,7 @@ export const DEFAULTS = {
   groupsTop: 42, groupsSticky: true, searchTop: 70, folderSize: 70, animMs: 280,
   gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   iconAutoRefresh: true, iconRefreshEvery: 'month', pvService: 'off', pvServiceUrl: '',          // re-check site icons / page previews once a day | week | month | year
+  undoShow: true, undoAnchor: 'right', undoSec: 4, undoOffset: 44,      // the Undo bar after a deletion: shown | where (right | center) | seconds | distance from the bottom (and the right) edge
   activeGroup: null,
   engineByMode: { speeddial: 'google', bookmarks: 'bookmarks' },   // the search engine of each mode: switching the mode brings its own back
   modeChosen: false,                                         // the first-run question "Speed Dials or Bookmarks?" has been answered (asked again after Reset > Settings)
@@ -101,6 +102,8 @@ export function applyCss() {
   st.setProperty('--gear-size', s.gearSize + 'px');
   st.setProperty('--gear-off', s.gearOffset + 'px');
   st.setProperty('--gear-right', s.gearOffset + 'px');
+  st.setProperty('--undo-off', s.undoOffset + 'px');
+  st.setProperty('--undo-sec', s.undoSec + 's');
   const n = Number(s.maxColumns) || 0;
   st.setProperty('--grid-max', n ? `calc(${n} * var(--tile-w) + ${n - 1} * var(--gap-x) + 80px)` : 'none');
   const b = document.body.classList;
@@ -111,6 +114,7 @@ export function applyCss() {
   b.toggle('hide-search', !s.showSearch);
   b.toggle('groups-sticky', !!s.groupsSticky);
   b.toggle('add-top', s.addAnchor === 'top');
+  b.toggle('undo-center', s.undoAnchor === 'center');
   const gb = s.gearAnchor === 'bottom';
   if (b.contains('gear-bottom') !== gb) {                      // the closed Quick Settings panel must not animate between its two hidden places (it flashed)
     b.add('gear-switch');
