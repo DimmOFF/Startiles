@@ -98,6 +98,28 @@ export const addFolder = (parentId, title, index) =>
   chrome.bookmarks.create(index == null ? { parentId, title } : { parentId, title, index });
 export const update = (id, changes) => chrome.bookmarks.update(id, changes);
 export const remove = (n) => (n.url ? chrome.bookmarks.remove(n.id) : chrome.bookmarks.removeTree(n.id));
+
+// ---- Undo of a deletion: a snapshot of a node (taken BEFORE it is removed; a folder with everything in it) and its re-creation in the same place.
+// The title is kept exactly as it was (in Speed Dials mode it carries the icon), so the thumbnail comes back too: it is stored by address.
+export const snapshot = (n) => ({ title: n.title, url: n.url || null, parentId: n.parentId, index: n.index, kids: (n.children || []).map(snapshot) });
+async function rebuild(snap, parentId, index) {
+  const made = await chrome.bookmarks.create({ parentId, title: snap.title, ...(snap.url ? { url: snap.url } : {}), ...(index == null ? {} : { index }) });
+  for (const k of snap.kids) await rebuild(k, made.id);
+  return made;
+}
+// snaps: snapshots of the nodes deleted together. Every node goes back to its place (ascending, so that the places of the others stay right);
+// if its folder is gone meanwhile it goes to fallbackParentId.
+export async function restore(snaps, fallbackParentId) {
+  for (const s of [...snaps].sort((a, b) => (a.index ?? 0) - (b.index ?? 0))) {
+    let parent = s.parentId, index;
+    try {
+      await chrome.bookmarks.get(parent);
+      const n = (await chrome.bookmarks.getChildren(parent)).length;
+      index = Math.min(s.index ?? n, n);
+    } catch { parent = fallbackParentId; }
+    await rebuild(s, parent, index);
+  }
+}
 // index = "insert before this position in the list as it was before the move" (Chrome semantics)
 export const move = (id, parentId, index) =>
   chrome.bookmarks.move(id, index == null ? { parentId } : { parentId, index });

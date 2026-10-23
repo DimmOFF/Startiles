@@ -384,9 +384,46 @@ async function deleteNode(n) {
   const tile = document.querySelector(`.tile[data-id="${n.id}"]`);
   if (tile && S.anim('animDelete')) await playDelete(S.get().deleteAnim, tile);   // the effect chosen in Settings > Animation
   if (tile) flipBegin();                                 // remember where the tiles are, the others slide after the re-render
+  const snaps = [M.snapshot(n)];
   await M.remove(n);
   flipReady();
   scheduleRefresh();
+  offerUndo(snaps, undoText([n]));
+}
+
+/* ---------- Undo of a deletion ---------- */
+// After a tile (or several, or a folder with its content) is deleted a small bar offers Undo for a few seconds (also Ctrl+Z); the bar waits
+// while the mouse is over it. Undo creates the bookmarks again at the same places.
+let undoBox = null, undoRun = null;
+const hideUndo = () => { undoBox?.classList.remove('show'); undoRun = null; };
+function undoText(nodes) {
+  const short = (n) => { const t = (M.metaOf(n).name || n.url || 'Untitled').trim(); return t.length > 36 ? t.slice(0, 35) + '\u2026' : t; };
+  if (nodes.length > 1) return `Deleted ${nodes.length} items`;
+  const n = nodes[0], k = n.children?.length || 0;
+  return n.url ? `Deleted \u201c${short(n)}\u201d` : `Deleted folder \u201c${short(n)}\u201d` + (k ? ` (${k} item${k === 1 ? '' : 's'})` : '');
+}
+function offerUndo(snaps, text) {
+  if (!snaps.length) return;
+  if (!undoBox) {
+    undoBox = el('div', 'undo-toast');
+    undoBox.setAttribute('role', 'status');
+    undoBox.innerHTML = '<span class="ut-msg"></span><button type="button" class="ut-btn">Undo</button><button type="button" class="ut-x" aria-label="Dismiss">\u00d7</button><i class="ut-bar"></i>';
+    document.body.append(undoBox);
+    undoBox.querySelector('.ut-x').onclick = hideUndo;
+    undoBox.querySelector('.ut-bar').addEventListener('animationend', hideUndo);   // the countdown ran out
+    undoBox.querySelector('.ut-btn').onclick = () => undoRun?.();
+  }
+  undoBox.querySelector('.ut-msg').textContent = text;
+  const bar = undoBox.querySelector('.ut-bar');
+  bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = '';        // the countdown starts again
+  undoBox.classList.add('show');
+  undoRun = async () => {
+    hideUndo();
+    flipBegin();                                         // the tiles slide aside for the returning ones
+    try { await M.restore(snaps, (root.children.find((c) => !c.url) || root).id); } catch { /* nothing more to do */ }
+    flipReady();
+    scheduleRefresh();
+  };
 }
 
 /* ---------- browser "Back" while a folder is open ---------- */
@@ -1472,10 +1509,12 @@ async function selDelete() {
     await Promise.all(tiles.map((t) => playDelete(id, t)));
   }
   if (tiles.length) flipBegin();
+  const snaps = nodes.map(M.snapshot);
   for (const n of nodes) await M.remove(n);
   flipReady();
   scheduleRefresh();
   selExit();
+  offerUndo(snaps, undoText(nodes));
 }
 // Batch modify: the Add / Edit window for many shortcuts at once. Only what is the same for all of them can be set (Title style, the automatic
 // thumbnail mode, Cover fit); the Address, the Title itself and the thumbnail picture are different for every tile, so they are not offered.
@@ -1789,6 +1828,10 @@ selBar.addEventListener('click', (e) => {
 $('#add-btn').onclick = () => { const g = activeGroup(); if (g) openItemDialog({ parentId: g.id }); };
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && openId && !dlg.open) closeFolder(true);
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyZ' && undoRun && !dlg.open && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.isContentEditable) {
+    e.preventDefault();
+    undoRun();                                           // Ctrl+Z = Undo of the last deletion while the bar is shown
+  }
   if (e.key === 'Backspace' && openId && !dlg.open && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.isContentEditable) {
     e.preventDefault();
     if (navStack.length) goBack();             // leave the inner folder
