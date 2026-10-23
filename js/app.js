@@ -1789,9 +1789,10 @@ selBar.addEventListener('click', (e) => {
 $('#add-btn').onclick = () => { const g = activeGroup(); if (g) openItemDialog({ parentId: g.id }); };
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && openId && !dlg.open) closeFolder(true);
-  if (e.key === 'Backspace' && openId && navStack.length && !dlg.open && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+  if (e.key === 'Backspace' && openId && !dlg.open && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !e.target.isContentEditable) {
     e.preventDefault();
-    goBack();                                  // leave the inner folder
+    if (navStack.length) goBack();             // leave the inner folder
+    else closeFolder(true);                    // at the top level of the folder: close it (as the mouse Back button does)
   }
 });
 

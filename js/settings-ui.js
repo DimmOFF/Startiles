@@ -145,10 +145,11 @@ function buildEngine() {
   row.append(dd);
   return row;
 }
-// Deletion animation picker: the effects as chips (a click chooses one and plays it) next to a sample tile that replays on click / on the button.
+// Deletion animation picker: the effects as chips (a click chooses one and plays it). The sample tile (it replays on click) is made too and is
+// returned as box.stageCol: the page puts it BESIDE the card, not inside it.
 function buildDeleteAnim() {
-  const box = el('div', 'adel');
   const chips = el('div', 'fx');
+  const box = chips;
   const btns = DELETE_ANIMS.map(([v, t]) => {
     const b = el('button', 'fxc'); b.type = 'button'; b.textContent = t; b.dataset.v = v;
     chips.append(b);
@@ -160,7 +161,7 @@ function buildDeleteAnim() {
   const tile = el('div', 'pv-tile', '<b>G</b><i>example.com</i>');
   stage.append(tile);
   col.append(stage);
-  box.append(chips, col);
+  box.stageCol = col;
   let busy = false;
   const cur = () => (DELETE_ANIMS.some(([v]) => v === S.get().deleteAnim) ? S.get().deleteAnim : DEFAULT_ANIM);
   const play = async () => {
@@ -481,19 +482,22 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
 
   const delBox = build('deleteAnim');
   const batchRow = build('simpleBatchDelete'); batchRow.classList.remove('anim-dep'); batchRow.classList.add('asub');
+  const delStage = delBox.stageCol;
   const delCard = animCard(AICO.del, 'Deleting a tile', 'Click an effect to choose it and see it play.', swOf('animDelete'), delBox, batchRow);
-  delCard.classList.add('wide');
+  const delRow = el('div', 'adel-row');            // the card on the left, the sample tile beside it on the right
+  delRow.append(delCard, delStage);
   const speedRow = build('animMs'); speedRow.classList.remove('anim-dep');
   const grp = animCard(AICO.groups, 'Switching groups', 'Swipe between groups.', swOf('animGroups'));
   const fld = animCard(AICO.folder, 'Folders', 'Smooth opening and closing of folders.', swOf('animFolders'));
   const spd = animCard(AICO.speed, 'Transition speed', 'How long group and folder transitions take.', null, speedRow);
   const shf = animCard(AICO.shift, 'Tile shift', 'Tiles slide into the gap after a delete or a move.', swOf('animReflow'));
   const agrid = el('div', 'agrid');
-  agrid.append(delCard, shf, grp, fld, spd);
+  agrid.append(delRow, shf, grp, fld, spd);
   // a part whose own switch is off is dimmed (while animations are available at all: otherwise the whole card is already dimmed)
   extraRefresh.push(() => {
     const on = S.animOn(), g = S.get();
     [delBox, batchRow].forEach((n) => n.classList.toggle('dim', on && !g.animDelete));
+    delStage.classList.toggle('dim', !on || !g.animDelete);
     speedRow.classList.toggle('dim', on && !g.animGroups && !g.animFolders);
   });
   const behavior = pane(master, agrid);

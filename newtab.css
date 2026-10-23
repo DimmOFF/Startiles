@@ -574,15 +574,16 @@ body.batching .tile,body.batching #selbar,body.batching #add-btn{pointer-events:
 .acard-t b{font-weight:600}
 .acard-t small{color:var(--muted);font-size:12px}
 .acard .row.col{padding:10px 0 0}
-.adel{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
-.fx{flex:1;min-width:200px;display:flex;flex-wrap:wrap;align-content:center;gap:5px}
+.adel-row{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) 164px;gap:12px;align-items:stretch}
+.adel-row .acard{align-self:start}
+.fx{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .fxc{padding:3px 10px;font-size:12px;border:1px solid var(--border);border-radius:16px;background:var(--field);cursor:pointer;color:var(--fg);transition:background .15s,border-color .15s,color .15s}
 .fxc:hover{border-color:var(--accent)}
 .fxc.on{background:var(--accent);border-color:transparent;color:#fff}
-.astage-col{flex:none;width:148px}
-.astage-col .anim-stage{margin:0;height:104px}
+.astage-col{display:flex;min-width:0}
+.astage-col .anim-stage{margin:0;width:100%;height:auto;min-height:104px}
 .acard .asub{margin-top:8px;padding-top:4px;min-height:28px;border-top:1px solid var(--line)}
-@media (max-width:760px){.agrid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.agrid{grid-template-columns:minmax(0,1fr)}.adel-row{grid-template-columns:minmax(0,1fr)}}
 
 /* ---- General and Layout pages: two independent columns of cards (no gaps), the settings of a card in one column ---- */
 .acols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
