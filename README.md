@@ -21,6 +21,7 @@
 </p>
 
 <p align="center">
+  <a href="#-whats-new">What's new</a> ·
   <a href="#-install">Install</a> ·
   <a href="#-two-modes">Two modes</a> ·
   <a href="#-features">Features</a> ·
@@ -43,9 +44,20 @@
   <tr>
     <td valign="top"><b>🖼️ Smart thumbnails</b><br>Site icon, logo, page preview, your own image or file, with hi-res icons and automatic refresh.</td>
     <td valign="top"><b>✨ Smooth animations</b><br>Folders grow from the tile, tiles slide into place, seven deletion effects. All can be switched off.</td>
-    <td valign="top"><b>💾 Yours to keep</b><br>Dials are ordinary bookmarks, so your browser's own sync can carry them along. Selective Export / Import and Reset.</td>
+    <td valign="top"><b>💾 Yours to keep</b><br>Dials are ordinary bookmarks, so your browser's own sync can carry them along. Selective Export / Import and Reset, Undo after deleting, and import from HTML bookmarks and other speed dial extensions.</td>
   </tr>
 </table>
+
+## 🆕 What's new
+
+Changes after release 1.3.80:
+
+- **Undo after deleting**: deleting a tile, a folder or a selection shows a small bar with **Undo** (or press `Ctrl+Z` / `Cmd+Z`). The bookmarks come back at their old places, a folder with everything in it. Whether the bar is shown, where, for how long and how far from the edge is set in *Advanced Settings → Appearance → Layout → Undo Bar*.
+- **Import from other programs**: besides Startiles backups, **Import** reads bookmarks exported as **HTML** (Chrome, Edge, Firefox, Opera, Brave, Safari) and the JSON exports of other speed dial extensions (Speed Dial 2, FVD Speed Dial, YASD, `.spd` files, also Chrome's *Bookmarks* file and Firefox backups). Groups, folders and shortcuts are imported, and you choose whether to bring the tile pictures from the file or let Startiles make its own previews. See [Import from other programs](#import-from-other-programs).
+- **Reduce motion**: in *Animations → Auto* the animations are switched off when the operating system asks to reduce motion; *ON* overrides it.
+- **Backspace closes a folder**: at the top level of an open folder `Backspace` now closes it (inside an inner folder it still goes one level back), like the mouse Back button.
+- **Keyboard shortcut for opening Startiles**: assign a key to *Open Startiles in a new tab* in *Advanced Settings → General → Shortcuts*.
+- **Sliders** show the filled part in the accent colour.
 
 ## 🚀 Install
 
@@ -91,7 +103,9 @@ On the very first start (and again after *Reset to Default → Settings*) a wind
 - **Tiles**: link tiles and folders. A folder thumbnail is a 2×2 grid of its first four tiles. Hover a tile for the edit (✎) and delete buttons.
 - **Drag & drop**: reorder tiles; drop a tile on another one to create a folder, on a folder to move it inside, on a group tab to move it to that group.
 - **Folders** open as an animated window that grows from the tile and collapses back, and can contain folders. Enter with a click or `Enter`, leave with the back arrow, `Backspace`, the mouse Back button or the browser Back. Close with a click outside, `Esc` or ×. Dragging a tile onto the dimmed area moves it out to the current group.
+- **Undo**: after you delete a tile, a folder or several selected tiles, a bar offers **Undo** for a few seconds (4 by default; the countdown pauses while the mouse is over the bar). `Ctrl+Z` / `Cmd+Z` does the same. The bookmarks are created again at the same places, a folder with all its content. The bar can be hidden, moved to the bottom centre or bottom right, timed and offset in *Appearance → Layout → Undo Bar*.
 - **Toolbar button**: a left click on the extension icon opens the Speed Dial in a new tab of the current window.
+- **Keyboard shortcut**: *Open Startiles in a new tab* can be given a key that works in any tab of the browser (*Advanced Settings → General → Shortcuts*; the key is set on the browser's own shortcuts page, none is assigned by default).
 
 ### Search
 - Pick your favourite search engine from a list of popular ones, with optional query suggestions. Typing an address opens it directly.
@@ -113,7 +127,7 @@ Uploaded images are scaled down so that their shorter side is at most 420 px (sm
 - **Themes**: Auto (follows the browser's light / dark mode), Light, Dark, Midnight (deep navy, cyan accent), Sand (warm paper, terracotta accent) and your own custom themes. The colours are grouped as Page, Tiles, Text & Accent, Panels & Controls, and the folder window colour follows the page colour by default.
 - **Tile deletion** plays an animation of your choice, with a live preview: *Fade and shrink, Pop, Dissolve, TV off, Shatter, Disintegrate* (default) *and Poof*.
 - **Tile shift**: after a deletion or a move the other tiles slide smoothly into their new places.
-- **Settings → Animations**: *Auto* (default) shows animations only when the browser's hardware acceleration is on, *ON* always, *OFF* never. In *Auto* a line tells whether acceleration is ON or OFF. Each animation also has its own switch.
+- **Settings → Animations**: *Auto* (default) shows animations only when the browser's hardware acceleration is on, *ON* always, *OFF* never. In *Auto* a line tells whether acceleration is ON or OFF. In *Auto* the animations are also off when your system asks to reduce motion (the accessibility setting of the operating system); *ON* overrides it. Each animation also has its own switch.
 
 ## 📸 Screenshots
 
@@ -162,9 +176,10 @@ Uploaded images are scaled down so that their shorter side is at most 420 px (sm
 | Dials | `←` `→` `↑` `↓` | Move the highlight over the tiles (of the page, or of the open folder) |
 | Dials | `Home` / `End` | First / last tile |
 | Dials | `Enter` / `Space` | Open the highlighted folder or follow the highlighted link (`Ctrl`/`Cmd`/`Shift` + `Enter`/`Space` behave like clicking with that key) |
-| Folder | `Backspace` | Leave the inner folder (one level back) |
+| Folder | `Backspace` | Leave the inner folder (one level back); at the top level of the folder it closes the folder |
 | Folder | `Esc` | Close the folder |
 | Settings | `Enter` / `Space` | Open Quick Settings (the focus moves into it); `Esc` closes it and returns to the gear |
+| Anywhere | `Ctrl+Z` / `Cmd+Z` | Undo the last deletion while the Undo bar is shown |
 
 The highlighted group, field and buttons get a focus ring, the highlighted tile an accent frame. Using the mouse hides the tile highlight; arrow keys do nothing while you type in a field or a dialog is open.
 
@@ -184,15 +199,17 @@ The highlighted group, field and buttons get a focus ring, the highlighted tile 
 | Mode | Speed Dials / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder. Each mode remembers its own search engine and brings it back when you switch (in Bookmarks mode it starts as *Bookmarks*) |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
 | Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
+| Shortcuts | The keys of the keyboard shortcuts that work in any tab (*Open Startiles in a new tab*) and the **Change shortcuts…** button, which opens the browser's shortcuts page |
 | Groups Bar | Top offset; max width in px and in % of the window |
 | Search Field | Show / hide; top offset |
 | Speed Dial Grid | Top offset, max columns, horizontal and vertical gaps |
 | + Shortcut Button | Show / hide; anchor (bottom of page / below tiles); offset |
+| Undo Bar | Show / hide (with the bar hidden `Ctrl+Z` still works for the same time); position (bottom right, default / bottom centre); display time (2-20 s, default 4); offset from the bottom and right edges (default 44 px) |
 | Tiles | Tile size, W:H ratio (1-1.8), tile corner size, icon size in %, tile titles, long-title caption, delete button |
 | Folder Window | Size in % of the page |
 | Settings Icon | **Auto hide** (hide the icon until the mouse comes within the **Appearance distance**, default 150 px), anchor (top / bottom), size (default 50, min 32), one offset (default 12; the same distance from the right edge and from the top or bottom edge); Quick Settings opens from the bottom-right corner when the icon is anchored to the bottom |
 | About | App icon and version, links to the GitHub repository, releases, issue tracker, privacy policy and donation page, **Copy debug info** (version, browser, mode) for bug reports |
-| Animations | Auto (follows hardware acceleration) / ON / OFF; and switch off individually: tile deletion, tile shift (after delete / move), group switching, folder transitions |
+| Animations | Auto (follows hardware acceleration and the system's reduce-motion setting) / ON / OFF; and switch off individually: tile deletion, tile shift (after delete / move), group switching, folder transitions |
 
 </details>
 
@@ -209,6 +226,20 @@ The footer has **Export**, **Import**, **Reset to Default** and **Donate**.
   - *Replace* deletes the current themes / groups and tiles first.
 - The page reloads afterwards. Backups from older versions can still be imported.
 - Export / Import always covers the *Startiles Speed Dial* folder, even when the Bookmarks source is shown.
+
+#### Import from other programs
+**Import** also reads files that were not made by Startiles. The kind of file is recognised by its content, so just choose it or drop it onto the window.
+
+| File | Where it comes from |
+|---|---|
+| Bookmarks as **HTML** | *Export bookmarks* in Chrome, Edge, Firefox, Opera, Brave, Safari |
+| **JSON export** of a speed dial extension | Speed Dial 2, FVD Speed Dial, YASD, `.spd` files |
+| Browser bookmark files | Chrome's *Bookmarks* file, Firefox bookmark backups (JSON) |
+
+- Only **Speed Dials** can be imported from such a file, into the *Startiles Speed Dial* folder (in the Bookmarks mode switch to Speed Dials to see them). **Add** merges, **Replace** replaces, as for a backup.
+- Folders of a browser such as *Bookmarks bar* or *Other bookmarks* are opened: their sub-folders become groups, links lying directly in such a folder make a group named after it, and links at the top level go to the group *Imported*. Deeper folders stay folders. In YASD the default folder is called *Home*. A link that is repeated inside one folder is kept once, empty folders are skipped, and only `http`, `https`, `ftp` and `file` addresses are taken.
+- **Pictures**: when the file contains tile pictures, an extra check box **Pictures from the file** is shown. Tick it to bring them over (they are scaled down like your own images; a picture that is only a link is downloaded once and kept in the browser), or leave it off to let Startiles make its own previews.
+- The formats of other extensions are recognised by their structure (address, title, group, folder), not from official documentation. If a file is not recognised or comes out wrong, please attach it to an issue.
 
 ### Reset to Default
 Advanced Settings → **Reset to Default** opens a window with check boxes:
@@ -232,6 +263,7 @@ Ticking *Speed Dials* ticks both preview options; they can also be reset on thei
 - **Speed Dials** source: bookmarks folder `root\Startiles Speed Dial`. Chromium usually does not let extensions write to the bookmarks root; then the folder is kept in `Other bookmarks`. The real path is shown in Advanced Settings → Mode.
 - **Bookmarks** source: a bookmarks folder you choose (the Bookmarks bar by default). Its sub-folders are the groups, what is inside them are tiles and folders. Renaming, deleting and moving change your real bookmarks.
 - Structure: `<root folder>` → `<group>` → link or `<folder>` → (links, nested folders…).
+- **Import** of a file from another program is done in your browser; only tile pictures that the file gives as links (for example Speed Dial 2 logos) are downloaded, once, and only if you tick **Pictures from the file**.
 - Settings, thumbnail choices (keyed by the tile URL), custom images, background image, page screenshots and the icon cache (incl. the time each bookmark's icon was last checked) are kept in `chrome.storage.local` of the extension.
 
 <details>
@@ -252,7 +284,7 @@ Requests made by the page: the **Search online** button of the Logo thumbnail as
 <details>
 <summary><b>Project files</b></summary>
 
-`newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage · `js/settings*.js` – settings and their UI · `js/networker.js` (+ `js/net.js`) – a Web Worker that makes all requests to sites for icons and previews (so Chrome does not log CSP errors for the sites' preload headers) · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search · `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker · `js/backup.js` – export / import · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
+`newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage · `js/settings*.js` – settings and their UI · `js/networker.js` (+ `js/net.js`) – a Web Worker that makes all requests to sites for icons and previews (so Chrome does not log CSP errors for the sites' preload headers) · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search · `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker · `js/backup.js` – export / import · `js/import-foreign.js` – reading bookmarks HTML and the exports of other speed dial extensions · `js/range-fill.js` – the accent fill of sliders · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
 
 </details>
 
