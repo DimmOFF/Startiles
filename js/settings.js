@@ -170,7 +170,12 @@ function scheduleHwProbe() {
 export const hwAccel = () => hw;
 // What the probe saw (shown as a tooltip on the hint in the settings): for finding out why a browser is judged the way it is.
 export const hwDetails = () => (hwInfo ? `WebGL: ${hwInfo.webgl}${hwInfo.renderer ? ' (' + hwInfo.renderer + ')' : ''}. WebGPU: ${hwInfo.webgpu}.` : 'The check has not finished yet.');
-// Are animations available at all? ON: yes, OFF: no, Auto: when hardware acceleration is on.
-export const animOn = () => cache.animMode === 'on' || (cache.animMode !== 'off' && hw);
+// The system asks to reduce motion (an accessibility setting of the operating system / browser).
+const reduceMq = matchMedia('(prefers-reduced-motion: reduce)');
+export const reducedMotion = () => reduceMq.matches;
+// Are animations available at all? ON: yes (it overrides everything), OFF: no, Auto: when hardware acceleration is on and the system does not ask to reduce motion.
+export const animOn = () => cache.animMode === 'on' || (cache.animMode !== 'off' && hw && !reduceMq.matches);
+// the system setting was changed while the page is open: apply it at once and let the settings page update its hint
+reduceMq.addEventListener('change', () => { applyCss(); document.dispatchEvent(new Event('msd-hw')); });
 // Is the animation `key` (animDelete, animReflow, animGroups, animFolders) on? It needs its own switch and animOn().
 export const anim = (key) => animOn() && !!cache[key];

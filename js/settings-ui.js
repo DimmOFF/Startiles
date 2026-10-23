@@ -462,6 +462,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   extraRefresh.push(() => {
     const auto = S.get().animMode !== 'on' && S.get().animMode !== 'off', on = S.hwAccel();
     animHint.hidden = !auto;
+    if (S.reducedMotion()) { animHint.replaceChildren('Your system asks to reduce motion, so animations are disabled. Choose ON to use them anyway.'); return; }
     const word = el('b', on ? 'on' : 'off', on ? 'ON' : 'OFF');
     word.title = S.hwDetails();                                  // what the check saw: shown only over ON / OFF
     animHint.replaceChildren('Hardware acceleration is ', word, on ? ', animations are working.' : ', animations are disabled.');

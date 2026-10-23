@@ -239,7 +239,7 @@ function fillGrid(g, node, emptyText) {
 // tile that survived from its old place to the new one.
 let flip = null, flipTimer;
 function flipBegin() {
-  if (!S.anim('animReflow') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!S.anim('animReflow')) return;
   const rects = new Map();
   document.querySelectorAll('.tile').forEach((t) => {
     const r = t.getBoundingClientRect();

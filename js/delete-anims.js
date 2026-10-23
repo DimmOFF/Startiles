@@ -20,7 +20,6 @@ export const DELETE_ANIMS = [
 const rnd = (a, b) => a + Math.random() * (b - a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const run = (el, kf, o) => el.animate(kf, { fill: 'forwards', ...o }).finished.catch(() => {});
-export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // An overlay exactly over the tile; everything that flies around is drawn in it.
 function layerFor(tile, host) {
@@ -97,6 +96,5 @@ export function startDelete(id, tile, host) {
 }
 // Real deletion: plays the effect and resolves when the tile can be removed.
 export async function playDelete(id, tile) {
-  if (reducedMotion()) return;
-  await startDelete(id, tile).ready;
+  await startDelete(id, tile).ready;       // (the callers check the Animations settings, which already respect "reduce motion" in Auto)
 }

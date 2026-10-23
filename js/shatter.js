@@ -5,7 +5,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // host (optional): an element with position:relative to draw the shards in (settings preview); by default they go on <body>.
 export function shatter(tile, host) {
   const r = tile.getBoundingClientRect();
-  if (!r.width || !r.height || (!host && matchMedia('(prefers-reduced-motion: reduce)').matches)) return Promise.resolve();
+  if (!r.width || !r.height) return Promise.resolve();
   const W = r.width, H = r.height;
   const cols = 5, rows = 4, jit = 0.3;
 
