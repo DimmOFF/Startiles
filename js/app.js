@@ -394,8 +394,12 @@ async function deleteNode(n) {
 /* ---------- Undo of a deletion ---------- */
 // After a tile (or several, or a folder with its content) is deleted a small bar offers Undo for a few seconds (also Ctrl+Z); the bar waits
 // while the mouse is over it. Undo creates the bookmarks again at the same places.
-let undoBox = null, undoRun = null, undoTimer = 0;
+let undoBox = null, undoRun = null, undoTimer = 0, undoLeft = 0, undoSince = 0, undoPaused = false;
 const hideUndo = () => { clearTimeout(undoTimer); undoBox?.classList.remove('show'); undoRun = null; };
+// The time of the bar is counted by a timer, NOT by the end of the CSS countdown: with the animations switched off (or reduced) that CSS animation
+// does not run, so its end never comes and the bar would stay forever. The timer waits while the mouse (or the keyboard focus) is on the bar.
+const undoStart = (ms) => { clearTimeout(undoTimer); undoPaused = false; undoLeft = ms; undoSince = Date.now(); undoTimer = setTimeout(hideUndo, ms); };
+const undoPause = () => { if (undoPaused) return; undoPaused = true; clearTimeout(undoTimer); undoLeft = Math.max(400, undoLeft - (Date.now() - undoSince)); };
 function undoText(nodes) {
   const short = (n) => { const t = (M.metaOf(n).name || n.url || 'Untitled').trim(); return t.length > 36 ? t.slice(0, 35) + '\u2026' : t; };
   if (nodes.length > 1) return `Deleted ${nodes.length} items`;
@@ -414,7 +418,7 @@ function offerUndo(snaps, text) {
   };
   if (!S.get().undoShow) {                               // no bar (Settings > Appearance > Undo Bar): Ctrl+Z still works for the same time
     undoBox?.classList.remove('show');
-    undoTimer = setTimeout(hideUndo, Math.max(1, Number(S.get().undoSec) || 4) * 1000);
+    undoStart(Math.max(1, Number(S.get().undoSec) || 4) * 1000);
     return;
   }
   if (!undoBox) {
@@ -423,13 +427,20 @@ function offerUndo(snaps, text) {
     undoBox.innerHTML = '<span class="ut-msg"></span><button type="button" class="ut-btn">Undo</button><button type="button" class="ut-x" aria-label="Dismiss">\u00d7</button><i class="ut-bar"></i>';
     document.body.append(undoBox);
     undoBox.querySelector('.ut-x').onclick = hideUndo;
-    undoBox.querySelector('.ut-bar').addEventListener('animationend', hideUndo);   // the countdown ran out
+    const busy = () => undoBox.matches(':hover, :focus-within');
+    undoBox.addEventListener('mouseenter', undoPause);
+    undoBox.addEventListener('focusin', undoPause);
+    const leave = () => { if (!busy() && undoRun) undoStart(undoLeft); };
+    undoBox.addEventListener('mouseleave', leave);
+    undoBox.addEventListener('focusout', () => setTimeout(leave, 0));
     undoBox.querySelector('.ut-btn').onclick = () => undoRun?.();
   }
   undoBox.querySelector('.ut-msg').textContent = text;
   const bar = undoBox.querySelector('.ut-bar');
   bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = '';        // the countdown starts again
   undoBox.classList.add('show');
+  undoStart(Math.max(1, Number(S.get().undoSec) || 4) * 1000);
+  if (undoBox.matches(':hover, :focus-within')) undoPause();     // the mouse is already on the bar: wait until it leaves
 }
 
 /* ---------- browser "Back" while a folder is open ---------- */
