@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-ttl="uTitle" data-ttl-suf=" · Startiles">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -51,18 +51,19 @@
 </head>
 <body>
 <main>
-  <h1>Sorry to see you go</h1>
+  <h1 data-i="uTitle">Sorry to see you go</h1>
   <picture>
     <source media="(prefers-reduced-motion: reduce)" srcset="cat-still.png">
-    <img src="cat.gif" width="180" height="180" alt="A sleepy cat curled up next to a small envelope">
+    <img src="cat.gif" width="180" height="180" alt="A sleepy cat curled up next to a small envelope" data-i-alt="uAlt">
   </picture>
-  <p>Startiles was uninstalled. Optional feedback helps us improve &mdash; it takes under a minute.</p>
+  <p data-i="uText">Startiles was uninstalled. Optional feedback helps us improve &mdash; it takes under a minute.</p>
   <div class="actions">
-    <a id="feedback" class="btn primary" href="https://github.com/dimmoff/Startiles/issues/new" target="_blank" rel="noopener noreferrer">Share feedback</a>
-    <a id="reinstall" class="btn secondary" href="https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm" target="_blank" rel="noopener noreferrer">Reinstall from Chrome Web Store</a>
+    <a id="feedback" data-i="uFeedback" class="btn primary" href="https://github.com/dimmoff/Startiles/issues/new" target="_blank" rel="noopener noreferrer">Share feedback</a>
+    <a id="reinstall" data-i="uReinstall" class="btn secondary" href="https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm" target="_blank" rel="noopener noreferrer">Reinstall from Chrome Web Store</a>
   </div>
-  <p class="small">Your shortcuts were ordinary bookmarks, so they are still in your bookmarks, in the <b>Startiles Speed Dial</b> folder.</p>
+  <p class="small" data-i="uSmall">Your shortcuts were ordinary bookmarks, so they are still in your bookmarks, in the <b>Startiles Speed Dial</b> folder.</p>
 </main>
+<script src="../i18n.js"></script>
 <script>
   // Where "Share feedback" leads: the Google Form. Set it to '' to use a GitHub issue instead (needs a GitHub account).
   var FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdMGsmTwVrGRpnuCLYlK1uP6pqTXXezeDkYL7OyzWNYBVsLAQ/viewform';

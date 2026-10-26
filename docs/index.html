@@ -1,19 +1,17 @@
 <!doctype html>
-<html lang="en" data-l="en"><head><meta charset="utf-8">
+<html lang="en" data-l="en" data-md="mdIndex"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Startiles - Speed Dial X Bookmarks Tiles</title><meta name="description" content="Startiles: a Speed Dial new tab for Chromium browsers. Your dials are stored as ordinary bookmarks.">
 <meta name="color-scheme" content="light dark"><style>
 :root{--bg:#f4f5f9;--card:#fff;--fg:#1d1d24;--muted:#6a6a78;--line:#dcdce4;--accent:#5560e8;--on:#fff;--field:#f1f2f7}
 @media (prefers-color-scheme:dark){:root{--bg:#17171c;--card:#222229;--fg:#ececf1;--muted:#9a9aa8;--line:#34343e;--accent:#7b83f5;--on:#fff;--field:#1b1b21}}
+.lang select{border:1px solid var(--line);border-radius:9px;background:var(--field);color:var(--fg);padding:5px 8px;font:inherit;font-size:13px;cursor:pointer;max-width:100%}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:720px;margin:0 auto;padding:28px 18px 56px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
 .brand{font-weight:700;font-size:18px;color:var(--fg);text-decoration:none;display:flex;align-items:center;gap:10px}
 .logo{width:28px;height:28px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--on);font-size:15px}
-.lang{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.lang button{border:0;background:none;color:var(--muted);padding:5px 11px;font:inherit;font-size:13px;cursor:pointer}
-.lang button[aria-pressed=true]{background:var(--accent);color:var(--on)}
 h1{font-size:28px;line-height:1.2;margin:0 0 10px}h2{font-size:18px;margin:0 0 12px}
 p{margin:0 0 12px}.muted{color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin:0 0 16px}
@@ -31,20 +29,12 @@ code.addr{display:block;word-break:break-all;background:var(--field);border:1px 
 ul{padding-left:20px;margin:0 0 12px}li{margin:3px 0}
 a{color:var(--accent)}
 footer{margin-top:28px;font-size:14px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
-html[data-l=ru] [lang=en],html[data-l=en] [lang=ru]{display:none!important}
 @media (max-width:560px){.net.on{grid-template-columns:1fr;justify-items:center;text-align:left}.net .info{width:100%}h1{font-size:24px}}
 </style></head><body><main>
 <header><a class="brand" href="https://dimmoff.github.io/Startiles/"><span class="logo">&#9638;</span>Startiles</a>
-<div class="lang" role="group" aria-label="Language"><button data-l="en" aria-pressed="true">EN</button><button data-l="ru" aria-pressed="false">RU</button></div></header>
+<div class="lang"><select id="lang" aria-label="Language"></select></div></header>
 <h1>Startiles</h1>
-<p class="muted"><span lang="en">A Speed Dial new tab for Chromium browsers: groups, thumbnail tiles, folders, themes and search. Your dials are stored as ordinary bookmarks.</span><span lang="ru">Speed Dial для новой вкладки в браузерах на Chromium: группы, плитки с миниатюрами, папки, темы и поиск. Ваши плитки хранятся как обычные закладки.</span></p>
-<section class="card"><div class="btns"><a class="btn primary" href="https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm" rel="noopener"><span lang="en">Add to Chrome</span><span lang="ru">Установить из Chrome Web Store</span></a><a class="btn" href="https://github.com/DimmOFF/Startiles">GitHub</a><a class="btn" href="https://dimmoff.github.io/Startiles/donate/"><span lang="en">Support the project</span><span lang="ru">Поддержать проект</span></a><a class="btn" href="https://dimmoff.github.io/Startiles/privacy/"><span lang="en">Privacy policy</span><span lang="ru">Политика конфиденциальности</span></a></div></section>
-<footer><a href="https://github.com/DimmOFF/Startiles">GitHub</a><a href="https://dimmoff.github.io/Startiles/privacy/"><span lang="en">Privacy policy</span><span lang="ru">Политика конфиденциальности</span></a></footer>
-</main><script>
-const root=document.documentElement;
-const saved=(()=>{try{return localStorage.getItem('lang')}catch(e){return null}})();
-const initial=saved||((navigator.language||'en').toLowerCase().startsWith('ru')?'ru':'en');
-function setLang(l){root.dataset.l=l;root.lang=l;document.querySelectorAll('.lang button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===l));try{localStorage.setItem('lang',l)}catch(e){}}
-document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
-setLang(initial);
-</script></body></html>
+<p class="muted"><span data-i="intro">A Speed Dial new tab for Chromium browsers: groups, thumbnail tiles, folders, themes and search. Your dials are stored as ordinary bookmarks.</span></p>
+<section class="card"><div class="btns"><a class="btn primary" href="https://chromewebstore.google.com/detail/startiles-speed-dial-x-bo/pjnkboombbeajiakdfghhpgonlcliknm" rel="noopener"><span data-i="chrome">Add to Chrome</span></a><a class="btn" href="https://github.com/DimmOFF/Startiles">GitHub</a><a class="btn" href="https://dimmoff.github.io/Startiles/donate/"><span data-i="supportBtn">Support the project</span></a><a class="btn" href="https://dimmoff.github.io/Startiles/privacy/"><span data-i="priv">Privacy policy</span></a></div></section>
+<footer><a href="https://github.com/DimmOFF/Startiles">GitHub</a><a href="https://dimmoff.github.io/Startiles/privacy/"><span data-i="priv">Privacy policy</span></a></footer>
+</main><script src="i18n.js"></script></body></html>
