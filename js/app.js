@@ -1253,6 +1253,20 @@ $('#search').addEventListener('submit', (e) => {
 });
 
 /* ---------- settings UI ---------- */
+// Quick and Advanced Settings are a lot of markup (and the translation of it), and nothing on the page needs them until the gear is used:
+// they are built when the browser is idle after the first render, or at once when the pointer or the keyboard reaches the gear.
+let settingsBuilt = false;
+function ensureSettingsUI() {
+  if (settingsBuilt) return;
+  settingsBuilt = true;
+  bindSettingsUI();
+  updateStorageUI();                                          // the root folder line of the Mode card
+}
+function scheduleSettingsUI() {
+  const gear = $('#settings-btn');
+  ['pointerenter', 'pointerdown', 'touchstart', 'focus'].forEach((ev) => gear.addEventListener(ev, ensureSettingsUI, { once: true, passive: true }));
+  if (window.requestIdleCallback) requestIdleCallback(ensureSettingsUI, { timeout: 2000 }); else setTimeout(ensureSettingsUI, 300);
+}
 function bindSettingsUI() {
   SettingsUI.init({
     engines: ENGINES,
@@ -1961,13 +1975,13 @@ document.addEventListener('scroll', hideTip, true);
   await S.load(); await T.load();
   await I.init(S.get().language); I.watch();                  // the language of the interface (Advanced Settings > General > Language)
   S.applyCss();
-  bindSettingsUI();
   updateSearch();
   bindGrid(gridEl, false);
   if (!S.get().modeChosen) { await chooseMode(); updateSearch(); SettingsUI.syncControls(); }
   await M.ensureRoot(S.get());
   await refresh();
   updateStorageUI();
+  scheduleSettingsUI();                         // the settings are built only now, after the page is on the screen
   DialMeta.migrate(root).catch(() => {});       // one time: icons chosen before this version are written into the titles
   T.onChange(scheduleRefresh);                 // e.g. a Pageview screenshot has just been captured
   const bm = chrome.bookmarks;

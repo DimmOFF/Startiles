@@ -98,15 +98,29 @@ function tree(node) {
   else node.querySelectorAll(AREA).forEach(walk);                  // a new piece of the page that contains areas (e.g. the folder window)
 }
 // translates what is in the page now and everything that appears (or changes) later; with English there is nothing to do
+// Only the parts listed in AREA are observed (not the whole page): the tiles and the groups, which change all the time, never reach this code.
+// Parts that appear later (the undo toast, the header of the folder window) are picked up where they are added: to the page or to the folder layer.
 export function watch() {
   if (code === 'en') return;
   document.title = t('New Tab');
-  tree(document.body);
-  new MutationObserver((list) => {
+  const OPT = { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS };
+  const layer = document.getElementById('folder-layer');
+  const mo = new MutationObserver((list) => {
     for (const m of list) {
-      if (m.type === 'childList') m.addedNodes.forEach(tree);
-      else if (m.type === 'characterData') tree(m.target);
+      if (m.type === 'childList') {
+        if (m.target === document.body || m.target === layer) m.addedNodes.forEach(adopt);
+        m.addedNodes.forEach(tree);
+      } else if (m.type === 'characterData') tree(m.target);
       else if (m.type === 'attributes' && inArea(m.target)) attrs(m.target);
     }
-  }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  });
+  // a new piece of the page that is (or contains) a translated part: from now on its changes are watched too
+  const adopt = (node) => {
+    if (node.nodeType !== 1 || SKIP.test(node.tagName)) return;
+    if (node.matches(AREA)) mo.observe(node, OPT);
+    else node.querySelectorAll(AREA).forEach((a) => mo.observe(a, OPT));
+  };
+  document.querySelectorAll(AREA).forEach((a) => { walk(a); mo.observe(a, OPT); });
+  mo.observe(document.body, { childList: true });
+  if (layer) mo.observe(layer, { childList: true });
 }
