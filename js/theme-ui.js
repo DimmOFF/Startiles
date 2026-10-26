@@ -3,6 +3,7 @@
 // pencil to rename it and a trash can to delete it, both shown on hover); on the right the colours of the selected custom theme,
 // or a "Customize" offer for a built-in one.
 import * as S from './settings.js';
+import * as I from './i18n.js';
 import { el, svg, ICON } from './util.js';
 import { COLOR_KEYS, PRESETS, resolve, newId } from './themes.js';
 
@@ -77,7 +78,7 @@ export function themeTab(reg, refreshAll) {
   };
   const copyName = () => (selectedId() === 'auto' ? nextName() : nameOfTheme(selectedId()) + ' copy');
   const remove = (t) => {
-    if (!confirm(`Delete theme "${t.name}"?`)) return;
+    if (!confirm(I.t('Delete theme "{name}"?', { name: t.name }))) return;
     S.set({ customThemes: customs().filter((x) => x.id !== t.id), theme: S.get().theme === t.id ? 'auto' : S.get().theme });
     refreshAll();
   };
@@ -160,7 +161,7 @@ export function themeTab(reg, refreshAll) {
     const r = el('div', 'trow'), sw = el('input', 'tsw'), txt = el('span', 'trow-txt', '<b></b><small></small>'), hx = el('input', 'thex');
     sw.type = 'color'; sw.setAttribute('aria-label', label);
     txt.firstChild.textContent = label; hints[k] = txt.lastChild; hints[k].textContent = HINTS[k];
-    hx.type = 'text'; hx.maxLength = 7; hx.spellcheck = false; hx.setAttribute('aria-label', label + ' (hex)');
+    hx.type = 'text'; hx.maxLength = 7; hx.spellcheck = false; hx.setAttribute('aria-label', I.t(label) + ' (hex)');
     sw.oninput = () => setColor(k, sw.value);
     hx.onchange = () => { const v = toHex(hx.value); if (v) setColor(k, v); else refresh(); };
     r.append(sw, txt);
@@ -186,8 +187,8 @@ export function themeTab(reg, refreshAll) {
     const t = current(), res = resolve(S.get()), id = selectedId();
     cta.hidden = !!t; ed.hidden = !t;
     if (!t) {
-      ctaTitle.textContent = `${nameOfTheme(id)} is a built-in theme`;
-      ctaText.textContent = (id === 'auto' ? 'Auto switches between Light and Dark together with your browser. ' : '') + 'Built-in themes cannot be edited: make your own copy to change any color.';
+      ctaTitle.textContent = I.t('{name} is a built-in theme', { name: I.t(nameOfTheme(id)) });
+      ctaText.textContent = (id === 'auto' ? I.t('Auto switches between Light and Dark together with your browser.') + ' ' : '') + I.t('Built-in themes cannot be edited: make your own copy to change any color.');
     }
     COLOR_KEYS.forEach(([k]) => {
       const v = res.colors[k].toLowerCase();
@@ -195,7 +196,7 @@ export function themeTab(reg, refreshAll) {
       if (document.activeElement !== hexes[k]) hexes[k].value = v;
     });
     follow.hidden = !t || !t.colors.folderBg;
-    hints.folderBg.textContent = HINTS.folderBg + (t && !t.colors.folderBg ? ' (now the same as the page)' : '');
+    hints.folderBg.textContent = I.t(t && !t.colors.folderBg ? 'Background of an opened folder (now the same as the page)' : HINTS.folderBg);
     renderGallery();
   };
   reg(refresh);

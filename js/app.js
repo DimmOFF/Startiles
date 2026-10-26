@@ -9,6 +9,7 @@ import * as Icons from './icons.js';
 import * as Suggest from './suggest.js';
 import * as SearchSuggest from './search-suggest.js';
 import { playDelete } from './delete-anims.js';
+import * as I from './i18n.js';
 
 const ENGINES = {
   google:     ['Google',      'https://www.google.com/search?q=%s',       'https://www.google.com'],
@@ -122,7 +123,7 @@ function renderGroups() {
   });
   const add = el('button', 'group add-group', '+');
   add.tabIndex = -1;
-  add.title = 'New group';
+  add.title = I.t('New group');
   add.onclick = async () => {
     const name = await promptText('New group');
     if (!name) return;
@@ -170,8 +171,8 @@ async function hideBmGroup() {
   renderGrid();
 }
 async function deleteGroup(g) {
-  if (root.children.filter((c) => !c.url).length <= 1) return alert('At least one group is required.');
-  if (!confirm(`Delete group "${g.title}" and everything in it?`)) return;
+  if (root.children.filter((c) => !c.url).length <= 1) return alert(I.t('At least one group is required.'));
+  if (!confirm(I.t('Delete group "{name}" and everything in it?', { name: g.title }))) return;
   await M.remove(g);
   scheduleRefresh();
 }
@@ -203,14 +204,14 @@ function tileEl(n, reuse) {
     if (!reuse?.ico) i.src = T.faviconUrl(n.url, 32);
     label.append(i, el('span'));
   }
-  label.querySelector('span').textContent = M.nameOf(n) || (n.url ? hostOf(n.url) : 'Folder');   // only the name, never the JSON
+  label.querySelector('span').textContent = M.nameOf(n) || (n.url ? hostOf(n.url) : I.t('Folder'));   // only the name, never the JSON
   if (!isF) t.dataset.sig = T.sigOf(n.url);
   card.append(isF ? folderThumb(n) : reuse?.thumb || T.renderThumb(n.url), label);
   if (!isF && !reuse?.thumb) T.detectCard(n.url);   // an old tile with the default logo: is it an item (product, video...)? then it becomes a Card
   t.append(el('span', 'sel-box'));
   if (selMode && sel.has(n.id)) t.classList.add('selected');
   const tools = el('div', 'tools',
-    `<button class="edit" title="Edit">${svg(ICON.pencil, 14)}</button><button class="del" title="Delete">${svg(ICON.trash, 14)}</button>`);
+    `<button class="edit" title="${I.t('Edit')}">${svg(ICON.pencil, 14)}</button><button class="del" title="${I.t('Delete')}">${svg(ICON.trash, 14)}</button>`);
   t.append(card, tools);
   return t;
 }
@@ -268,14 +269,14 @@ const renderGrid = () => {
   nav.classList.remove('searching');
   const g = activeGroup();
   fillGrid(gridEl, g || { children: [] },
-    g ? 'No shortcuts yet. Click “+ Shortcut” to add one.' : 'No folders found here. Click + above to create a group.');
+    g ? I.t('No shortcuts yet. Click “+ Shortcut” to add one.') : I.t('No folders found here. Click + above to create a group.'));
 };
 const renderFolderGrid = () => {
   const n = byId.get(curId);
   if (!n) return;
   $('h2', layer).textContent = n.title;
   $('#f-back', layer).hidden = !navStack.length;
-  fillGrid($('.fgrid', layer), n, 'This folder is empty. Drag shortcuts here or add one.');
+  fillGrid($('.fgrid', layer), n, I.t('This folder is empty. Drag shortcuts here or add one.'));
 };
 
 function bindGrid(g, inFolder) {
@@ -380,7 +381,7 @@ async function applyDrop() {
 document.addEventListener('dragend', cleanDrag);
 
 async function deleteNode(n) {
-  if (!n.url && n.children?.length && !confirm(`Delete folder "${n.title}" with ${n.children.length} item(s)?`)) return;
+  if (!n.url && n.children?.length && !confirm(I.tn(n.children.length, 'Delete folder "{name}" with {n} item?', 'Delete folder "{name}" with {n} items?', { name: n.title }))) return;
   const tile = document.querySelector(`.tile[data-id="${n.id}"]`);
   if (tile && S.anim('animDelete')) await playDelete(S.get().deleteAnim, tile);   // the effect chosen in Settings > Animation
   if (tile) flipBegin();                                 // remember where the tiles are, the others slide after the re-render
@@ -401,10 +402,11 @@ const hideUndo = () => { clearTimeout(undoTimer); undoBox?.classList.remove('sho
 const undoStart = (ms) => { clearTimeout(undoTimer); undoPaused = false; undoLeft = ms; undoSince = Date.now(); undoTimer = setTimeout(hideUndo, ms); };
 const undoPause = () => { if (undoPaused) return; undoPaused = true; clearTimeout(undoTimer); undoLeft = Math.max(400, undoLeft - (Date.now() - undoSince)); };
 function undoText(nodes) {
-  const short = (n) => { const t = (M.metaOf(n).name || n.url || 'Untitled').trim(); return t.length > 36 ? t.slice(0, 35) + '\u2026' : t; };
-  if (nodes.length > 1) return `Deleted ${nodes.length} items`;
-  const n = nodes[0], k = n.children?.length || 0;
-  return n.url ? `Deleted \u201c${short(n)}\u201d` : `Deleted folder \u201c${short(n)}\u201d` + (k ? ` (${k} item${k === 1 ? '' : 's'})` : '');
+  const short = (n) => { const t = (M.metaOf(n).name || n.url || I.t('Untitled')).trim(); return t.length > 36 ? t.slice(0, 35) + '\u2026' : t; };
+  if (nodes.length > 1) return I.tn(nodes.length, 'Deleted {n} item', 'Deleted {n} items');
+  const n = nodes[0], k = n.children?.length || 0, name = short(n);
+  if (n.url) return I.t('Deleted \u201c{name}\u201d', { name });
+  return k ? I.tn(k, 'Deleted folder \u201c{name}\u201d ({n} item)', 'Deleted folder \u201c{name}\u201d ({n} items)', { name }) : I.t('Deleted folder \u201c{name}\u201d', { name });
 }
 function offerUndo(snaps, text) {
   if (!snaps.length) return;
@@ -1102,7 +1104,7 @@ const bmMode = () => S.get().engine === 'bookmarks';
 const bmFilterOn = () => bmMode() && q.value.trim() !== '';
 function updateSearch() {
   const [name, , origin] = ENGINES[S.get().engine] || ENGINES.google;
-  q.placeholder = 'Search ' + name;
+  q.placeholder = I.t('Search {name}', { name: I.t(name) });
   const img = $('#engine-ico');
   let bm = $('#engine-bm');
   if (!origin) {                                              // Bookmarks: a drawn icon instead of a site icon
@@ -1139,11 +1141,11 @@ function renderResults() {
   nav.classList.add('searching');
   if (!list.length) {
     const p = el('p', 'empty');
-    p.textContent = `No bookmarks match “${q.value.trim()}”.`;
+    p.textContent = I.t('No bookmarks match “{q}”.', { q: q.value.trim() });
     gridEl.replaceChildren(p);
   } else {
     gridEl.replaceChildren(...list.slice(0, BM_MAX).map((n) => { const t = tileEl(n); t.draggable = false; return t; }));
-    if (list.length > BM_MAX) { const p = el('p', 'empty'); p.textContent = `Showing the first ${BM_MAX} of ${list.length} matches. Type more to narrow it down.`; gridEl.append(p); }
+    if (list.length > BM_MAX) { const p = el('p', 'empty'); p.textContent = I.t('Showing the first {max} of {total} matches. Type more to narrow it down.', { max: BM_MAX, total: list.length }); gridEl.append(p); }
   }
   kbApply();
 }
@@ -1167,7 +1169,7 @@ const goSearch = (v) => {
 };
 
 /* search autocomplete: engine query suggestions + matching bookmarks / history sites */
-const sgBox = el('div', 'sg');
+const sgBox = el('div', 'sg'); sgBox.dataset.nt = '';          // the search suggestions are texts of the search engine / the user: never translated
 sgBox.hidden = true;
 $('#search').append(sgBox);
 let sgItems = [], sgSel = -1, sgTyped = '', sgTok = 0, sgAbort = null, sgTimer;
@@ -1264,7 +1266,7 @@ function bindSettingsUI() {
 
 /* ---------- storage label ---------- */
 function updateStorageUI() {
-  SettingsUI.setStorageText((M.info.path ? 'Root folder: ' + M.info.path : '') + (M.info.note ? '\n' + M.info.note : ''));
+  SettingsUI.setStorageText((M.info.path ? I.t('Root folder:') + ' ' + M.info.path : '') + (M.info.note ? '\n' + I.t(M.info.note) : ''));
 }
 
 /* ---------- keyboard navigation ---------- */
@@ -1467,7 +1469,7 @@ const selIds = () => selTiles().filter((t) => sel.has(t.dataset.id)).map((t) => 
 function selPaint() {
   document.querySelectorAll('.tile').forEach((t) => t.classList.toggle('selected', selMode && sel.has(t.dataset.id)));
   const n = selIds().length;
-  $('#sel-count').textContent = n === 1 ? '1 selected' : n + ' selected';
+  $('#sel-count').textContent = I.tn(n, '{n} selected', '{n} selected');
   selBar.querySelectorAll('[data-sel="none"],[data-sel="move"],[data-sel="open"],[data-sel="delete"]').forEach((b) => (b.disabled = !n));
   selBar.querySelector('[data-sel="edit"]').disabled = !selIds().some((id) => byId.get(id)?.url);   // folders have no title style / thumbnail
   if (selBar.contains(document.activeElement) && document.activeElement.disabled) selBar.querySelector('[data-sel="all"]').focus();   // e.g. after Clear: don't lose the keyboard focus
@@ -1518,7 +1520,7 @@ async function selDelete() {
   if (!ids.length) return;
   const nodes = ids.map((id) => byId.get(id)).filter(Boolean);
   const folders = nodes.filter((n) => !n.url && n.children?.length).length;
-  if (!confirm(`Delete ${nodes.length} selected item${nodes.length === 1 ? '' : 's'}?` + (folders ? '\n\nFolders are deleted together with everything in them.' : ''))) return;
+  if (!confirm(I.tn(nodes.length, 'Delete {n} selected item?', 'Delete {n} selected items?') + (folders ? '\n\n' + I.t('Folders are deleted together with everything in them.') : ''))) return;
   const tiles = ids.map((id) => document.querySelector(`.tile[data-id="${id}"]`)).filter(Boolean);
   if (tiles.length && S.anim('animDelete')) {
     // several tiles at once: the light Dissolve effect (the heavy ones, cut into pieces, freeze the page when played on many tiles), if the setting is on
@@ -1546,7 +1548,7 @@ function selModify() {
   const seg = (name, items) => `<div class="seg" data-seg="${name}">${items.map(([v, t, tip]) => `<button type="button" data-v="${v}"${tip ? ` title="${tip}"` : ''}>${t}</button>`).join('')}</div>`;
   dlg.innerHTML = `<form class="dform bform">
     <header class="bhead"><h3>Batch modify</h3></header>
-    <p class="note" style="margin:-6px 0 0">${nodes.length} shortcut${nodes.length === 1 ? '' : 's'} selected${skipped ? ` (${skipped} folder${skipped === 1 ? '' : 's'} skipped)` : ''}. Changes are applied at once; settings left on “Don't change” stay as they are.</p>
+    <p class="note" style="margin:-6px 0 0">${I.tn(nodes.length, '{n} shortcut selected', '{n} shortcuts selected')}${skipped ? ` (${I.tn(skipped, '{n} folder skipped', '{n} folders skipped')})` : ''}. ${I.t('Changes are applied at once; settings left on “Don\'t change” stay as they are.')}</p>
     <section class="tcat">
       <h4>Title</h4>
       ${seg('title', [['', "Don't change"], ['url', 'Site URL'], ['site', 'Site name'], ['item', 'Page title']])}
@@ -1590,10 +1592,10 @@ function selModify() {
       const need = snap.filter((x) => /^https?:/i.test(x.url) && !names.has(x.url));
       let done = 0;
       if (need.length) {
-        status.hidden = false; status.textContent = `Reading titles… 0/${need.length}`;
+        status.hidden = false; status.textContent = I.t('Reading titles… {done}/{total}', { done: 0, total: need.length });
         await Promise.all(need.map(async (x) => {
           names.set(x.url, (await Promise.race([Icons.pageNames(x.url), new Promise((res) => setTimeout(() => res(null), 8000))])) || {});
-          status.textContent = `Reading titles… ${++done}/${need.length}`;
+          status.textContent = I.t('Reading titles… {done}/{total}', { done: ++done, total: need.length });
         }));
         status.hidden = true;
       }
@@ -1957,6 +1959,7 @@ document.addEventListener('scroll', hideTip, true);
 
 (async function init() {
   await S.load(); await T.load();
+  await I.init(S.get().language); I.watch();                  // the language of the interface (Advanced Settings > General > Language)
   S.applyCss();
   bindSettingsUI();
   updateSearch();

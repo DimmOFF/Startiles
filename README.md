@@ -52,6 +52,7 @@
 
 Changes after release 1.3.80:
 
+- **Languages**: the interface is available in **English, German, Spanish, French, Russian, Ukrainian, Portuguese (Brazil), Polish, Italian, Turkish, Japanese, Simplified Chinese and Korean**. By default Startiles follows the language of the browser (English when it is not one of these); to pick another one go to *Advanced Settings → General → Language*. The name and the short description of the extension are translated too.
 - **Undo after deleting**: deleting a tile, a folder or a selection shows a small bar with **Undo** (or press `Ctrl+Z` / `Cmd+Z`). The bookmarks come back at their old places, a folder with everything in it. Whether the bar is shown, where, for how long and how far from the edge is set in *Advanced Settings → Appearance → Layout → Undo Bar*.
 - **Import from other programs**: besides Startiles backups, **Import** reads bookmarks exported as **HTML** (Chrome, Edge, Firefox, Opera, Brave, Safari) and the JSON exports of other speed dial extensions (Speed Dial 2, FVD Speed Dial, YASD, `.spd` files, also Chrome's *Bookmarks* file and Firefox backups). Groups, folders and shortcuts are imported, and you choose whether to bring the tile pictures from the file or let Startiles make its own previews. See [Import from other programs](#import-from-other-programs).
 - **Reduce motion**: in *Animations → Auto* the animations are switched off when the operating system asks to reduce motion; *ON* overrides it.
@@ -199,6 +200,7 @@ The highlighted group, field and buttons get a focus ring, the highlighted tile 
 | Mode | Speed Dials / Bookmarks; **Choose root folder…** (Bookmarks mode); path of the root folder. Each mode remembers its own search engine and brings it back when you switch (in Bookmarks mode it starts as *Bookmarks*) |
 | Start Page | Theme; search engine (incl. Bookmarks); search suggestions; page background Color / URL / Image |
 | Icons & Previews | Try to fetch hi-res icons & previews; **Auto-refresh** icons & previews once a day / week / month (default) / year, refresh site icons now |
+| Language | Interface language: *Auto* (the language of the browser; English when it is not supported), English, Deutsch, Español, Français, Русский, Українська, Português (Brasil), Polski, Italiano, Türkçe, 日本語, 简体中文, 한국어. The page reloads after a change |
 | Shortcuts | The keys of the keyboard shortcuts that work in any tab (*Open Startiles in a new tab*) and the **Change shortcuts…** button, which opens the browser's shortcuts page |
 | Groups Bar | Top offset; max width in px and in % of the window |
 | Search Field | Show / hide; top offset |
@@ -284,7 +286,7 @@ Requests made by the page: the **Search online** button of the Logo thumbnail as
 <details>
 <summary><b>Project files</b></summary>
 
-`newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage · `js/settings*.js` – settings and their UI · `js/networker.js` (+ `js/net.js`) – a Web Worker that makes all requests to sites for icons and previews (so Chrome does not log CSP errors for the sites' preload headers) · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search · `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker · `js/backup.js` – export / import · `js/import-foreign.js` – reading bookmarks HTML and the exports of other speed dial extensions · `js/range-fill.js` – the accent fill of sliders · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
+`newtab.html/css` – page · `background.js` – screenshots · `js/app.js` – page logic · `js/model.js` – bookmarks storage · `js/settings*.js` – settings and their UI · `js/networker.js` (+ `js/net.js`) – a Web Worker that makes all requests to sites for icons and previews (so Chrome does not log CSP errors for the sites' preload headers) · `js/thumbs.js`, `js/icons.js` – thumbnails and icon search · `js/suggest.js`, `js/search-suggest.js` – address / search suggestions · `js/folder-picker.js` – root folder picker · `js/backup.js` – export / import · `js/import-foreign.js` – reading bookmarks HTML and the exports of other speed dial extensions · `js/range-fill.js` – the accent fill of sliders · `js/i18n.js` + `js/lang/<code>.js` – the interface languages (the English text is the key; a text missing in a language is shown in English; add a language with a new file and an entry in `i18n.js`) · `_locales/` – the translated name / description of the extension · `js/themes.js`, `js/theme-ui.js` – colour themes · `js/backup-ui.js` – Export / Import window · `js/delete-anims.js` – deletion animations (Fade, Pop, Dissolve, TV off, Shatter, Disintegrate, Poof) · `js/shatter.js` – the shatter effect.
 
 </details>
 

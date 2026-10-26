@@ -1,6 +1,7 @@
 // Modal window with the bookmarks tree: the user picks the folder that will be used as the extension's root.
 // Resolves with the chosen folder id, or null when cancelled.
 import { $, el, svg, ICON, closeOnBackdrop } from './util.js';
+import * as I from './i18n.js';
 
 export async function pickFolder({ currentId = null, title = 'Choose the root bookmarks folder' } = {}) {
   const dlg = $('#picker');
@@ -25,7 +26,7 @@ export async function pickFolder({ currentId = null, title = 'Choose the root bo
     selected = id;
     nodes.forEach((n, k) => n.row.classList.toggle('on', k === id));
     ok.disabled = !id;
-    pathEl.textContent = id ? 'Selected: ' + nodes.get(id).path : '';
+    pathEl.textContent = id ? I.t('Selected:') + ' ' + nodes.get(id).path : '';
   };
   const setOpen = (n, open) => {
     n.kids.hidden = !open;

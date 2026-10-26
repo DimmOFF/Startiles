@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "Speed dial new tab that turns your bookmarks into visual tiles, with instant bookmark search, groups, folders and themes."
+  },
+  "cmdOpenNewtab": {
+    "message": "Open Startiles Speed Dial in a new tab"
+  }
+}

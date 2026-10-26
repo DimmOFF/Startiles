@@ -10,6 +10,7 @@ export const DEFAULTS = {
   gearAnchor: 'top', gearSize: 50, gearOffset: 12, gearAutoHide: false, gearRadius: 150,      // settings icon: the same offset from the right edge and from the top / bottom edge
   iconAutoRefresh: true, iconRefreshEvery: 'month', pvService: 'off', pvServiceUrl: '',          // re-check site icons / page previews once a day | week | month | year
   undoShow: true, undoAnchor: 'right', undoSec: 4, undoOffset: 44,      // the Undo bar after a deletion: shown | where (right | center) | seconds | distance from the bottom (and the right) edge
+  language: 'auto',                                                    // the language of the interface: auto (the browser's) | en | de | es | fr | ru | uk
   activeGroup: null,
   engineByMode: { speeddial: 'google', bookmarks: 'bookmarks' },   // the search engine of each mode: switching the mode brings its own back
   modeChosen: false,                                         // the first-run question "Speed Dials or Bookmarks?" has been answered (asked again after Reset > Settings)

@@ -13,6 +13,7 @@ import * as ImgCache from './imgcache.js';
 import * as DialMeta from './dialmeta.js';
 import { PRESETS } from './themes.js';
 import * as Foreign from './import-foreign.js';
+import * as I from './i18n.js';
 
 const FORMAT = 'startiles-backup';
 const LEGACY_FORMATS = ['modern-speed-dial-backup'];   // backups made by earlier versions can still be imported
@@ -62,7 +63,8 @@ export async function readFile(file) {
   try { raw = JSON.parse(text); } catch { /* maybe bookmarks exported as HTML */ }
   if (!(isObj(raw) && [FORMAT, ...LEGACY_FORMATS].includes(raw.format))) {
     const f = raw === null ? Foreign.fromHtml(text) : Foreign.fromJson(raw);
-    if (!f) throw new Error(raw === null ? 'this is not a Startiles backup, a bookmarks HTML file or a JSON export of a speed dial' : 'no shortcuts were found in this file');
+    if (!f) throw new Error(I.t(raw === null ? 'this is not a Startiles backup, a bookmarks HTML file or a JSON export of a speed dial' : 'no shortcuts were found in this file'));
+    f.tree.forEach((g) => { if (g.title === 'Imported' || g.title === 'Home') g.title = I.t(g.title); });      // the group made for loose links
     return {
       data: { settings: null, bgSrc: '', themes: null, tree: f.tree, thumbs: null, pics: size(f.thumbs) ? f.thumbs : null, shots: null, iconCache: null, imgCache: null },
       avail: { settings: false, themes: false, dials: true, userThumbs: size(f.thumbs) > 0, cache: false },
@@ -88,7 +90,7 @@ export async function readFile(file) {
     settings: !!settings, themes: !!data.themes, dials: !!data.tree,
     userThumbs: size(data.thumbs) > 0, cache: size(data.shots) + size(data.iconCache) + size(data.imgCache) > 0,
   };
-  if (!Object.values(avail).some(Boolean)) throw new Error('the file contains nothing to import');
+  if (!Object.values(avail).some(Boolean)) throw new Error(I.t('the file contains nothing to import'));
   return {
     data, avail,
     info: { links: data.tree ? countLinks(data.tree) : 0, groups: data.tree ? data.tree.filter((n) => isObj(n) && !n.url).length : 0, themes: data.themes?.customThemes.length || 0 },

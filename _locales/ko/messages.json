@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "북마크를 시각적인 타일로 바꿔 주는 Speed Dial 새 탭. 즉시 검색, 그룹, 폴더, 테마를 지원합니다."
+  },
+  "cmdOpenNewtab": {
+    "message": "Startiles Speed Dial을 새 탭에서 열기"
+  }
+}

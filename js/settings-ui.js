@@ -7,6 +7,7 @@ import * as Reset from './reset.js';
 import { $, el, svg, ICON, closeOnBackdrop } from './util.js';
 import { DELETE_ANIMS, DEFAULT_ANIM, startDelete } from './delete-anims.js';
 import * as ThemeUI from './theme-ui.js';
+import * as I from './i18n.js';
 
 const controls = new Map();   // key -> [inputs]
 const val = (k) => S.get()[k];
@@ -14,7 +15,7 @@ const read = (i) => (i.type === 'checkbox' ? i.checked : i.type === 'range' ? Nu
 function write(i, v) {
   if (i.type === 'checkbox') i.checked = !!v; else i.value = v;
   const o = i.closest('label')?.querySelector('output');
-  if (o) o.textContent = i.value + (i.dataset.unit || '');
+  if (o) o.textContent = i.value + I.t(i.dataset.unit || '');
 }
 const extraRefresh = [];
 const refreshAll = () => {
@@ -70,7 +71,8 @@ const DEF = {
   gearSize: { ...rng('Size', 32, 64, 'px'), after: () => refreshAll() },
   gearAutoHide: sw('Auto hide'),
   gearRadius: rng('Appearance distance', 50, 600, 'px'),
-  gearOffset: { ...rng('', 0, 300, 'px'), label: () => 'Offset (' + (S.get().gearAnchor === 'bottom' ? 'bottom' : 'top') + ' and right edge)' },
+  gearOffset: { ...rng('', 0, 300, 'px'), label: () => (S.get().gearAnchor === 'bottom' ? 'Offset (bottom and right edge)' : 'Offset (top and right edge)') },
+  language: { type: 'select', label: 'Language', options: I.LANGUAGES, after: async () => { await S.set({ language: S.get().language }); location.reload(); } },       // saved first, then the page is read again in the new language
   animMs: rng('Transition duration (groups, folders)', 150, 900, 'ms', 10),
 };
 
@@ -229,9 +231,9 @@ function buildShortcuts() {
   b.onclick = async () => {
     try { await chrome.tabs.create({ url: SC_URL }); }
     catch {                                                       // some browsers do not let an extension open that page: show the address instead
-      note.textContent = 'Open this address in the browser: ' + SC_URL;
+      note.textContent = I.t('Open this address in the browser:') + ' ' + SC_URL;
       note.hidden = false;
-      try { await navigator.clipboard.writeText(SC_URL); note.textContent += ' (copied)'; } catch { /* no clipboard */ }
+      try { await navigator.clipboard.writeText(SC_URL); note.textContent += ' ' + I.t('(copied)'); } catch { /* no clipboard */ }
     }
   };
   btnRow.append(b);
@@ -460,10 +462,11 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
   bmGroupRow.hidden = S.get().source !== 'bookmarks';
   const modeCard = card(CARD_ICON.mode, 'Mode', 'Where your tiles come from.', null, fields(build('source', true), pickRow, bmGroupRow), el('p', 'note storage-note'));
   const searchCard = card(CARD_ICON.search, 'Search', 'The search engine and its suggestions.', null, fields('engine', 'searchSuggest'));
+  const langCard = card('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>', 'Language', 'The language of the interface.', null, fields('language'));
   const iconsCard = card(CARD_ICON.image, 'Icons & Previews', 'Site icons and page previews on the tiles.', null,
     fields('hiResIcons', 'iconAutoRefresh', dep('iconRefreshEvery'), 'pvService', 'pvServiceUrl', 'refreshIcons'), build('pvNote'));
   const keysCard = card('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>', 'Shortcuts', 'Keyboard shortcuts that work in any tab of the browser.', null, buildShortcuts());
-  const general = pane(cols([modeCard, searchCard], [iconsCard, keysCard]));
+  const general = pane(cols([modeCard, searchCard, langCard], [iconsCard, keysCard]));
 
   // ----- Layout: the page from top to bottom on the left; the tile, the windows and the settings icon on the right -----
   const searchFields = fields('searchTop');
@@ -587,7 +590,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
     rnote.textContent = 'Your own bookmarks will not be affected.';
     try {
       const i = await Reset.dialsInfo();
-      rnote.textContent = `Only the "Startiles Speed Dial" folder (${i.sdPath}) is emptied. Your own bookmarks in ${i.bookmarksPath} will not be affected.`;
+      rnote.textContent = I.t('Only the "Startiles Speed Dial" folder ({sd}) is emptied. Your own bookmarks in {bm} will not be affected.', { sd: i.sdPath, bm: i.bookmarksPath });
     } catch { /* the generic text stays */ }
   };
   rform.addEventListener('change', (e) => {
@@ -607,7 +610,7 @@ export function init({ engines, onEngine, onRefreshIcons, onSource, onPickRoot, 
       rdlg.close();
       status.textContent = 'Reset done, reloading…';
       setTimeout(() => location.reload(), 300);
-    } catch (err) { rdlg.close(); status.textContent = 'Reset failed: ' + err.message; }
+    } catch (err) { rdlg.close(); status.textContent = I.t('Reset failed:') + ' ' + I.t(err.message); }
   };
 
   // Advanced window: non-modal (no dimming), freely movable by its title bar

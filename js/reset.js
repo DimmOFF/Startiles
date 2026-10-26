@@ -8,6 +8,7 @@ import * as T from './thumbs.js';
 import * as Icons from './icons.js';
 import * as ImgCache from './imgcache.js';
 import * as DialMeta from './dialmeta.js';
+import * as I from './i18n.js';
 
 export async function dialsInfo() {
   return { sdPath: await M.sdPath(), bookmarksPath: await M.bookmarksPath(S.get()) };
@@ -16,7 +17,7 @@ export async function dialsInfo() {
 export async function resetSelected({ settings, themes, dials, userThumbs, cache }) {
   if (dials) {
     const { node } = await M.ensureSd();
-    if (![M.ROOT_TITLE, ...M.LEGACY_TITLES].includes(node.title)) throw new Error('unexpected folder, nothing was changed');   // safety: only our own folder
+    if (![M.ROOT_TITLE, ...M.LEGACY_TITLES].includes(node.title)) throw new Error(I.t('unexpected folder, nothing was changed'));   // safety: only our own folder
     const sd = (await chrome.bookmarks.getSubTree(node.id))[0];
     for (const c of sd.children || []) await M.remove(c);
     await M.addFolder(node.id, 'General');

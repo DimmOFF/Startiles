@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "将书签变成可视化磁贴的 Speed Dial 新标签页，支持即时搜索、分组、文件夹和主题。"
+  },
+  "cmdOpenNewtab": {
+    "message": "在新标签页中打开 Startiles Speed Dial"
+  }
+}

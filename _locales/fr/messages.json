@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "Nouvel onglet speed dial qui transforme vos favoris en tuiles visuelles, avec recherche instantanée, groupes, dossiers et thèmes."
+  },
+  "cmdOpenNewtab": {
+    "message": "Ouvrir Startiles Speed Dial dans un nouvel onglet"
+  }
+}

@@ -3,6 +3,7 @@
 import * as Backup from './backup.js';
 import * as M from './model.js';
 import { $, el, closeOnBackdrop } from './util.js';
+import * as I from './i18n.js';
 
 const ITEMS = [
   { k: 'settings', t: 'Settings', d: 'All options except themes, including the page background image.' },
@@ -25,7 +26,7 @@ export function init({ status }) {
     for (const it0 of ITEMS) {
       // a file of another program: its pictures are offered instead of the user's previews, and the choice is the user's
       const it = kind === 'import' && loaded?.source && it0.k === 'userThumbs'
-        ? { ...it0, t: 'Pictures from the file', d: `${loaded.info.pictures} tile picture${loaded.info.pictures === 1 ? '' : 's'} of the other program. Leave it off to let Startiles make its own previews.` }
+        ? { ...it0, t: 'Pictures from the file', d: I.tn(loaded.info.pictures, '{n} tile picture of the other program. Leave it off to let Startiles make its own previews.', '{n} tile pictures of the other program. Leave it off to let Startiles make its own previews.') }
         : it0;
       const lab = el('label', 'rchk' + (it.sub ? ' sub' : ''));
       const inp = el('input'); inp.type = 'checkbox'; inp.dataset.k = it.k;
@@ -39,7 +40,7 @@ export function init({ status }) {
       }
       const here = !avail || avail[it.k];
       inp.checked = here; inp.disabled = !here;
-      if (!here) { lab.classList.add('na'); sm.textContent += ' Not in this file.'; }
+      if (!here) { lab.classList.add('na'); sm.textContent += ' ' + I.t('Not in this file.'); }
       box.append(lab);
     }
   }
@@ -47,7 +48,7 @@ export function init({ status }) {
     ok.disabled = !KEYS.some((k) => chk(k).checked);
     const rep = kind === 'import' && ['themes', 'dials'].filter((k) => chk(k).checked && sel(k).value === 'replace');
     note.hidden = !rep || !rep.length;
-    if (rep && rep.length) note.textContent = 'Replace deletes the current ' + rep.map((k) => (k === 'themes' ? 'custom themes' : 'groups and tiles')).join(' and ') + ' before importing.';
+    if (rep && rep.length) note.textContent = I.t('Replace deletes the current {what} before importing.', { what: rep.map((k) => (k === 'themes' ? I.t('custom themes') : I.t('groups and tiles'))).join(' ' + I.t('and') + ' ') });
   }
   form.addEventListener('change', (e) => {
     if (e.target === chk('dials')) ['userThumbs', 'cache'].forEach((k) => { if (!chk(k).disabled) chk(k).checked = chk('dials').checked; });   // previews go with the Speed Dials
@@ -74,13 +75,13 @@ export function init({ status }) {
       loaded = await Backup.readFile(f);
       file = f;
       const i = loaded.info, parts = [];
-      if (loaded.avail.dials) parts.push(`${i.links} shortcuts in ${i.groups} groups` + (loaded.source && i.pictures ? `, ${i.pictures} pictures` : ''));
-      if (loaded.avail.themes) parts.push(`${i.themes} custom themes`);
+      if (loaded.avail.dials) parts.push(I.t('{links} shortcuts in {groups} groups', { links: i.links, groups: i.groups }) + (loaded.source && i.pictures ? ', ' + I.tn(i.pictures, '{n} picture', '{n} pictures') : ''));
+      if (loaded.avail.themes) parts.push(I.tn(i.themes, '{n} custom theme', '{n} custom themes'));
       lead.textContent = loaded.source
-        ? `${f.name} (${loaded.source}): ${parts.join(', ')}. ` + (M.mode === 'bookmarks' ? 'They are added to the Startiles Speed Dial folder: switch to the Speed Dials mode to see them. ' : '') + 'Choose what to import:'
-        : `${f.name}: ${parts.join(', ') || 'settings and previews'}. Choose what to import:`;
+        ? `${f.name} (${I.t(loaded.source)}): ${parts.join(', ')}. ` + (M.mode === 'bookmarks' ? I.t('They are added to the Startiles Speed Dial folder: switch to the Speed Dials mode to see them.') + ' ' : '') + I.t('Choose what to import:')
+        : `${f.name}: ${parts.join(', ') || I.t('settings and previews')}. ${I.t('Choose what to import:')}`;
       open('import', loaded.avail);
-    } catch (e) { status.textContent = 'Import failed: ' + e.message; }
+    } catch (e) { status.textContent = I.t('Import failed:') + ' ' + I.t(e.message); }
   }
   fileIn.onchange = () => {
     const f = fileIn.files[0];
@@ -116,7 +117,7 @@ export function init({ status }) {
       if (kind === 'export') {
         const r = await Backup.exportSelected({ settings: on('settings'), themes: on('themes'), dials: on('dials'), userThumbs: on('userThumbs'), cache: on('cache') });
         dlg.close();
-        status.textContent = r.links != null ? `Exported ${r.links} shortcuts` : 'Exported';
+        status.textContent = r.links != null ? I.tn(r.links, 'Exported {n} shortcut', 'Exported {n} shortcuts') : I.t('Exported');
       } else {
         status.textContent = 'Importing…';
         const mode = (k) => sel(k).value;
@@ -126,6 +127,6 @@ export function init({ status }) {
         status.textContent = 'Imported, reloading…';
         setTimeout(() => location.reload(), 500);
       }
-    } catch (err) { dlg.close(); status.textContent = (kind === 'export' ? 'Export failed: ' : 'Import failed: ') + err.message; }
+    } catch (err) { dlg.close(); status.textContent = I.t(kind === 'export' ? 'Export failed:' : 'Import failed:') + ' ' + I.t(err.message); }
   };
 }

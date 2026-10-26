@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "Нова вкладка Speed Dial: перетворює закладки на візуальні плитки, з миттєвим пошуком, групами, теками й темами."
+  },
+  "cmdOpenNewtab": {
+    "message": "Відкрити Startiles Speed Dial у новій вкладці"
+  }
+}

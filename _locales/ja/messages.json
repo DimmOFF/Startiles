@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "ブックマークをビジュアルなタイルに変える Speed Dial 新規タブ。即時検索、グループ、フォルダ、テーマに対応。"
+  },
+  "cmdOpenNewtab": {
+    "message": "Startiles Speed Dial を新しいタブで開く"
+  }
+}

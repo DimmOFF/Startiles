@@ -1,0 +1,8 @@
+{
+  "extDescription": {
+    "message": "Nuova scheda con speed dial che trasforma i segnalibri in riquadri visivi, con ricerca immediata, gruppi, cartelle e temi."
+  },
+  "cmdOpenNewtab": {
+    "message": "Apri Startiles Speed Dial in una nuova scheda"
+  }
+}
