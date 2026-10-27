@@ -35,6 +35,8 @@
   function plain(h) { var d = document.createElement('div'); d.innerHTML = h; return d.textContent; }
 
   function detect() {
+    // ?lang=xx in the address (the extension adds it to its links): the language of the extension wins and is remembered
+    try { var q = (new URLSearchParams(location.search).get('lang') || '').toLowerCase(); if (q && has(q)) return q; } catch (e) {}
     try { var s = localStorage.getItem('lang'); if (s && has(s)) return s; } catch (e) {}
     var list = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'en'];
     for (var i = 0; i < list.length; i++) {

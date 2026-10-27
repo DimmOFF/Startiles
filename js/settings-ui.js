@@ -365,6 +365,7 @@ function buildAbout() {
     aboutCard('', 'shield', 'Privacy', 'Your data stays local', SITE + '/privacy/'),
     aboutCard('donate', 'heart', 'Support Startiles', 'Free and open source. Card or cryptocurrency: every bit helps', SITE + '/donate/'),
   );
+  links.querySelectorAll('a').forEach((a) => { if (a.href.startsWith(SITE)) I.siteLink(a); });   // the site opens in the language of the interface
 
   const foot = el('div', 'about-foot');
   const who = el('span'); who.textContent = 'Made by DimmOFF · MIT License';

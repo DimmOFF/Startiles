@@ -6,8 +6,19 @@ const keyOf = (u) => {
 const MAX_W = 640, TTL = 6 * 3600e3, VISIT_TTL = 30 * 60e3, VISIT_MS = 90e3;
 
 // After the extension is removed, the browser opens this page (a static page on GitHub Pages, see /uninstall/ there): a goodbye and an optional feedback link.
-// Only the version number is added to the address; nothing else is sent anywhere.
-try { chrome.runtime.setUninstallURL('https://dimmoff.github.io/Startiles/uninstall/?v=' + encodeURIComponent(chrome.runtime.getManifest().version)); } catch { /* not supported here */ }
+// Only the version number and the language code of the interface (the setting, or the browser's when it is Auto) are added to the address, so the page opens in
+// that language; nothing else is sent anywhere.
+const SITE_LANGS = ['en', 'de', 'es', 'fr', 'ru', 'uk', 'pt', 'pl', 'it', 'tr', 'ja', 'zh', 'ko'];
+async function setUninstallUrl() {
+  let pref = 'auto';
+  try { pref = ((await chrome.storage.local.get('settings')).settings || {}).language || 'auto'; } catch { /* no storage */ }
+  let l = SITE_LANGS.includes(pref) ? pref : '';
+  if (!l) { try { l = String(chrome.i18n.getUILanguage() || navigator.language || '').toLowerCase().split(/[-_]/)[0]; } catch { /* ignore */ } }
+  if (!SITE_LANGS.includes(l)) l = 'en';
+  try { chrome.runtime.setUninstallURL('https://dimmoff.github.io/Startiles/uninstall/?v=' + encodeURIComponent(chrome.runtime.getManifest().version) + '&lang=' + l); } catch { /* not supported here */ }
+}
+setUninstallUrl();
+chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.settings) setUninstallUrl(); });
 
 // A tile of the new-tab page tells us which tile it opens in its tab (js/app.js): the page that loads in that tab is the
 // tile's page even when the address redirects (/ -> /en, http -> https, a login page...), so it is matched by the tab, not by the URL.

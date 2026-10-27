@@ -37,6 +37,22 @@ export function detect(pref) {
   return CODES.includes(base) ? base : 'en';
 }
 export const lang = () => code;
+// A link to our site (dimmoff.github.io/Startiles) gets ?lang=<language of the interface>, so the page opens in the same language.
+// It is done for every such link on the page, also the ones created later (the About tab): the address is refreshed when the link is hovered,
+// focused, clicked or its menu is opened, so a language changed while the page is open is used too.
+const SITE_RE = /^https:\/\/dimmoff\.github\.io\/Startiles(\/|\?|$)/i;
+function addLang(a) {
+  if (!a.dataset.site) a.dataset.site = a.getAttribute('href');        // the address as written, without ?lang
+  const base = a.dataset.site;
+  a.href = base + (base.includes('?') ? '&' : '?') + 'lang=' + code;
+}
+export const siteLink = (a) => addLang(a);                              // for a link built in code
+for (const ev of ['mouseover', 'pointerdown', 'focusin', 'click', 'auxclick', 'contextmenu']) {
+  document.addEventListener(ev, (e) => {
+    const a = e.target && e.target.closest && e.target.closest('a[href]');
+    if (a && SITE_RE.test(a.getAttribute('href'))) addLang(a);
+  }, true);
+}
 
 export async function init(pref) {
   code = detect(pref);
@@ -46,6 +62,7 @@ export async function init(pref) {
     for (const [k, v] of Object.entries(mod.default)) if (v !== '') dict.set(k, v);
   }
   document.documentElement.lang = code;
+  document.querySelectorAll('a[href]').forEach((x) => { if (SITE_RE.test(x.getAttribute('href'))) addLang(x); });   // the links to the site that are already on the page
 }
 
 export const t = (s, vars) => {
